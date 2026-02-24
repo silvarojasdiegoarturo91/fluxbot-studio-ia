@@ -1,0 +1,33 @@
+{
+  "name": "fluxbot-studio-ia",
+  "private": true,
+  "scripts": {
+    "dev": "shopify app dev",
+    "build": "shopify app build",
+    "deploy": "shopify app deploy",
+    "config:link": "shopify app config link",
+    "config:use": "shopify app config use",
+    "env": "shopify app env",
+    "start": "remix-serve ./build/index.js",
+    "typecheck": "tsc"
+  },
+  "dependencies": {
+    "@remix-run/node": "^2.7.2",
+    "@remix-run/react": "^2.7.2",
+    "@remix-run/serve": "^2.7.2",
+    "@shopify/app-bridge-react": "^3.7.10",
+    "@shopify/polaris": "^12.1.0",
+    "@shopify/shopify-app-remix": "^2.5.1",
+    "isbot": "^4.1.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@remix-run/dev": "^2.7.2",
+    "@shopify/app": "3.90.1",
+    "@shopify/cli": "3.90.1",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "typescript": "^5.2.2"
+  }
+}
