@@ -6,9 +6,8 @@ import {
   LATEST_API_VERSION,
 } from "@shopify/shopify-app-remix/server";
 import { PrismaSessionStorage } from "@shopify/shopify-app-session-storage-prisma";
-import { PrismaClient } from "@prisma/client";
+import prisma from "./db.server";
 
-const prisma = new PrismaClient();
 const storage = new PrismaSessionStorage(prisma);
 
 const shopify = shopifyApp({
