@@ -1,0 +1,4 @@
+[mcp_servers.shopify-dev]
+command = "npx"
+args = ["-y", "@shopify/dev-mcp"]
+startup_timeout_sec = 45

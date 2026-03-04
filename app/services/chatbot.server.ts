@@ -1,4 +1,4 @@
-export async function callChatbotApi(message: string, settings: any) {
+export async function callChatbotApi(message: string, settings: Record<string, unknown>) {
   const EXTERNAL_API_URL = process.env.CHATBOT_API_URL || "https://tu-api-de-chatbot.com/api";
   
   try {
