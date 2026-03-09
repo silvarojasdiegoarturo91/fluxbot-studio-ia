@@ -1,0 +1,29 @@
+# Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
+
+client_id = "3e33f15eca7b32e62ea7137311172df5"
+name = "fluxbot-studio-ia"
+application_url = "https://unwishful-televisionally-leeann.ngrok-free.dev"
+embedded = true
+handle = "fluxbot-studio-ia"
+
+[build]
+automatically_update_urls_on_dev = true
+dev_store_url = "quickstart-c8cc9986.myshopify.com"
+include_config_on_deploy = true
+
+[webhooks]
+api_version = "2026-04"
+
+[access_scopes]
+# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
+scopes = "read_orders,write_products"
+
+[auth]
+redirect_urls = [
+  "https://unwishful-televisionally-leeann.ngrok-free.dev/auth/callback",
+  "https://unwishful-televisionally-leeann.ngrok-free.dev/auth/shopify/callback",
+  "https://unwishful-televisionally-leeann.ngrok-free.dev/api/auth/callback"
+]
+
+[pos]
+embedded = false

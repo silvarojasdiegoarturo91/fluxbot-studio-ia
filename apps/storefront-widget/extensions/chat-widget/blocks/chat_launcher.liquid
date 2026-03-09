@@ -1,0 +1,141 @@
+{% comment %}
+  AI Chat Launcher Block
+  This block renders the chat widget launcher button and modal
+{% endcomment %}
+
+{{ 'chat-launcher.css' | asset_url | stylesheet_tag }}
+
+<div 
+  id="fluxbot-chat-launcher" 
+  class="fluxbot-launcher fluxbot-launcher--{{ block.settings.launcher_position }}"
+  data-show-launcher="{{ block.settings.show_launcher }}"
+  data-primary-color="{{ block.settings.primary_color }}"
+  data-welcome-message="{{ block.settings.welcome_message | escape }}"
+  data-shop="{{ shop.permanent_domain }}"
+  data-locale="{{ request.locale.iso_code }}"
+  {% if customer %}
+  data-customer-id="{{ customer.id }}"
+  data-customer-email="{{ customer.email | escape }}"
+  {% endif %}
+>
+  <button 
+    type="button" 
+    class="fluxbot-launcher__button" 
+    aria-label="Open chat"
+    aria-expanded="false"
+    aria-controls="fluxbot-chat-window"
+  >
+    <svg class="fluxbot-launcher__icon fluxbot-launcher__icon--chat" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M21 11.5C21.0034 12.8199 20.6951 14.1219 20.1 15.3C19.3944 16.7118 18.3098 17.8992 16.9674 18.7293C15.6251 19.5594 14.0782 19.9994 12.5 20C11.1801 20.0035 9.87812 19.6951 8.7 19.1L3 21L4.9 15.3C4.30493 14.1219 3.99656 12.8199 4 11.5C4.00061 9.92179 4.44061 8.37488 5.27072 7.03258C6.10083 5.69028 7.28825 4.6056 8.7 3.90003C9.87812 3.30496 11.1801 2.99659 12.5 3.00003H13C15.0843 3.11502 17.053 3.99479 18.5291 5.47089C20.0052 6.94699 20.885 8.91568 21 11V11.5Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <svg class="fluxbot-launcher__icon fluxbot-launcher__icon--close" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </button>
+  
+  <div 
+    id="fluxbot-chat-window" 
+    class="fluxbot-chat-window" 
+    role="dialog" 
+    aria-modal="true"
+    aria-label="Chat window"
+    hidden
+  >
+    <div class="fluxbot-chat-window__header">
+      <div class="fluxbot-chat-window__header-content">
+        <h2 class="fluxbot-chat-window__title">AI Assistant</h2>
+        <p class="fluxbot-chat-window__subtitle">We're here to help!</p>
+      </div>
+      <button 
+        type="button" 
+        class="fluxbot-chat-window__close" 
+        aria-label="Close chat"
+      >
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+    </div>
+    
+    <div class="fluxbot-chat-window__messages" id="fluxbot-messages">
+      <div class="fluxbot-message fluxbot-message--assistant">
+        <div class="fluxbot-message__content">
+          {{ block.settings.welcome_message }}
+        </div>
+      </div>
+    </div>
+    
+    <div class="fluxbot-chat-window__input">
+      <form id="fluxbot-chat-form" class="fluxbot-chat-form">
+        <input 
+          type="text" 
+          id="fluxbot-chat-input"
+          class="fluxbot-chat-form__input" 
+          placeholder="Type your message..."
+          aria-label="Message input"
+          autocomplete="off"
+        >
+        <button 
+          type="submit" 
+          class="fluxbot-chat-form__submit"
+          aria-label="Send message"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M22 2L11 13M22 2L15 22L11 13M22 2L2 9L11 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+      </form>
+    </div>
+    
+    <div class="fluxbot-chat-window__footer">
+      <a href="https://shopify.com" target="_blank" rel="noopener" class="fluxbot-chat-window__branding">
+        Powered by FluxBot
+      </a>
+    </div>
+  </div>
+</div>
+
+<script src="{{ 'chat-launcher.js' | asset_url }}" defer></script>
+
+{% schema %}
+{
+  "name": "AI Chat Launcher",
+  "target": "body",
+  "settings": [
+    {
+      "type": "checkbox",
+      "id": "show_launcher",
+      "label": "Show Chat Launcher",
+      "default": true
+    },
+    {
+      "type": "select",
+      "id": "launcher_position",
+      "label": "Launcher Position",
+      "default": "bottom-right",
+      "options": [
+        {
+          "value": "bottom-right",
+          "label": "Bottom Right"
+        },
+        {
+          "value": "bottom-left",
+          "label": "Bottom Left"
+        }
+      ]
+    },
+    {
+      "type": "color",
+      "id": "primary_color",
+      "label": "Primary Color",
+      "default": "#0070f3"
+    },
+    {
+      "type": "text",
+      "id": "welcome_message",
+      "label": "Welcome Message",
+      "default": "Hi! How can I help you today?"
+    }
+  ]
+}
+{% endschema %}

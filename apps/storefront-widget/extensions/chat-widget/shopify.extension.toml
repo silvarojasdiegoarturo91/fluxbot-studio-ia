@@ -1,0 +1,43 @@
+# Learn more about configuring your theme app extension:
+# https://shopify.dev/docs/apps/online-store/theme-app-extensions/configuration
+
+api_version = "2026-01"
+
+[[extensions]]
+uid = "45c51f62-01cb-9718-b977-78f5108db8351ae77f7a"
+type = "theme"
+handle = "ai-chat-widget"
+name = "AI Chat Widget"
+
+[extensions.settings]
+  [[extensions.settings.blocks]]
+  type = "chat_launcher"
+  name = "Chat Launcher"
+
+  [[extensions.settings.blocks.settings]]
+  type = "checkbox"
+  id = "show_launcher"
+  label = "Show Chat Launcher"
+  default = true
+
+  [[extensions.settings.blocks.settings]]
+  type = "select"
+  id = "launcher_position"
+  label = "Launcher Position"
+  default = "bottom-right"
+  options = [
+    { value = "bottom-right", label = "Bottom Right" },
+    { value = "bottom-left", label = "Bottom Left" }
+  ]
+
+  [[extensions.settings.blocks.settings]]
+  type = "color"
+  id = "primary_color"
+  label = "Primary Color"
+  default = "#0070f3"
+
+  [[extensions.settings.blocks.settings]]
+  type = "text"
+  id = "welcome_message"
+  label = "Welcome Message"
+  default = "Hi! How can I help you today?"

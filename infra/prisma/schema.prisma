@@ -1,0 +1,514 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// ENUMS
+// ============================================================================
+
+enum ShopStatus {
+  ACTIVE
+  SUSPENDED
+  CANCELLED
+  TRIAL
+}
+
+enum UserRole {
+  OWNER
+  ADMIN
+  VIEWER
+}
+
+enum ConversationChannel {
+  WEB_CHAT
+  WHATSAPP
+  INSTAGRAM
+  EMAIL
+  SMS
+}
+
+enum ConversationStatus {
+  ACTIVE
+  ESCALATED
+  RESOLVED
+  ABANDONED
+}
+
+enum MessageRole {
+  USER
+  ASSISTANT
+  SYSTEM
+  TOOL
+}
+
+enum KnowledgeSourceType {
+  CATALOG
+  POLICIES
+  PAGES
+  BLOG
+  FAQ
+  CUSTOM
+}
+
+enum SyncStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum ConsentType {
+  CHAT_STORAGE
+  ANALYTICS
+  PERSONALIZATION
+  MARKETING
+}
+
+// ============================================================================
+// TENANT & IDENTITY
+// ============================================================================
+
+model Shop {
+  id                 String             @id @default(uuid())
+  domain             String             @unique
+  accessToken        String
+  scope              String?
+  isOnline           Boolean            @default(false)
+  status             ShopStatus         @default(ACTIVE)
+  plan               String?
+  metadata           Json?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  
+  // Relations
+  installations      ShopInstallation[]
+  users              User[]
+  chatbotConfigs     ChatbotConfig[]
+  conversations      Conversation[]
+  knowledgeSources   KnowledgeSource[]
+  consentRecords     ConsentRecord[]
+  auditLogs          AuditLog[]
+  syncJobs           SyncJob[]
+  
+  @@map("shops")
+}
+
+model ShopInstallation {
+  id                 String    @id @default(uuid())
+  shopId             String
+  installedAt        DateTime  @default(now())
+  uninstalledAt      DateTime?
+  billingPlan        String?
+  billingStatus      String?
+  featureFlags       Json?
+  
+  shop               Shop      @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  
+  @@map("shop_installations")
+}
+
+model User {
+  id                 String    @id @default(uuid())
+  shopId             String
+  email              String
+  firstName          String?
+  lastName           String?
+  role               UserRole  @default(VIEWER)
+  isActive           Boolean   @default(true)
+  lastLoginAt        DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  
+  shop               Shop      @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  
+  @@unique([shopId, email])
+  @@map("users")
+}
+
+model Session {
+  id                 String    @id
+  shop               String
+  state              String
+  isOnline           Boolean   @default(false)
+  scope              String?
+  expires            DateTime?
+  accessToken        String
+  userId             BigInt?
+  firstName          String?
+  lastName           String?
+  email              String?
+  accountOwner       Boolean   @default(false)
+  locale             String?
+  collaborator       Boolean?  @default(false)
+  emailVerified      Boolean?  @default(false)
+  
+  @@map("session")
+}
+
+// ============================================================================
+// CONFIGURATION
+// ============================================================================
+
+model ChatbotConfig {
+  id                 String    @id @default(uuid())
+  shopId             String
+  name               String    @default("AI Assistant")
+  tone               String?   @default("professional")
+  language           String    @default("en")
+  temperature        Float     @default(0.7)
+  maxTokens          Int       @default(500)
+  systemPrompt       String?
+  userPrompt         String?
+  enableProactive    Boolean   @default(false)
+  enableHandoff      Boolean   @default(true)
+  confidenceThreshold Float    @default(0.6)
+  isActive           Boolean   @default(true)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  
+  shop               Shop      @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  aiProviderConfigs  AIProviderConfig[]
+  
+  @@map("chatbot_configs")
+}
+
+model AIProviderConfig {
+  id                 String    @id @default(uuid())
+  chatbotConfigId    String
+  provider           String    // 'openai', 'anthropic', 'gemini'
+  apiKey             String
+  model              String
+  isPrimary          Boolean   @default(false)
+  isActive           Boolean   @default(true)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  
+  chatbotConfig      ChatbotConfig @relation(fields: [chatbotConfigId], references: [id], onDelete: Cascade)
+  
+  @@map("ai_provider_configs")
+}
+
+// ============================================================================
+// CONVERSATIONS
+// ============================================================================
+
+model Conversation {
+  id                 String              @id @default(uuid())
+  shopId             String
+  channel            ConversationChannel @default(WEB_CHAT)
+  status             ConversationStatus  @default(ACTIVE)
+  visitorId          String?
+  customerId         String?
+  sessionId          String?
+  locale             String              @default("en")
+  metadata           Json?
+  startedAt          DateTime            @default(now())
+  endedAt            DateTime?
+  lastMessageAt      DateTime?
+  
+  shop               Shop                @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  messages           ConversationMessage[]
+  events             ConversationEvent[]
+  customerIdentity   CustomerIdentity?
+  handoffRequests    HandoffRequest[]
+  
+  @@index([shopId, startedAt])
+  @@index([customerId])
+  @@map("conversations")
+}
+
+model ConversationMessage {
+  id                 String       @id @default(uuid())
+  conversationId     String
+  role               MessageRole
+  content            String
+  confidence         Float?
+  tokensUsed         Int?
+  cost               Float?
+  metadata           Json?
+  createdAt          DateTime     @default(now())
+  
+  conversation       Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  toolInvocations    ToolInvocation[]
+  
+  @@index([conversationId, createdAt])
+  @@map("conversation_messages")
+}
+
+model ConversationEvent {
+  id                 String       @id @default(uuid())
+  conversationId     String
+  eventType          String       // 'page_view', 'exit_intent', 'scroll', 'click'
+  eventData          Json?
+  timestamp          DateTime     @default(now())
+  
+  conversation       Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  
+  @@index([conversationId, timestamp])
+  @@map("conversation_events")
+}
+
+model CustomerIdentity {
+  id                 String       @id @default(uuid())
+  conversationId     String       @unique
+  customerId         String?
+  email              String?
+  phone              String?
+  verified           Boolean      @default(false)
+  verificationMethod String?
+  createdAt          DateTime     @default(now())
+  
+  conversation       Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  
+  @@map("customer_identities")
+}
+
+// ============================================================================
+// KNOWLEDGE & RAG
+// ============================================================================
+
+model KnowledgeSource {
+  id                 String              @id @default(uuid())
+  shopId             String
+  sourceType         KnowledgeSourceType
+  name               String
+  isActive           Boolean             @default(true)
+  lastSyncedAt       DateTime?
+  metadata           Json?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  
+  shop               Shop                @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  documents          KnowledgeDocument[]
+  
+  @@map("knowledge_sources")
+}
+
+model KnowledgeDocument {
+  id                 String            @id @default(uuid())
+  sourceId           String
+  externalId         String?           // Shopify product ID, page ID, etc.
+  title              String
+  language           String            @default("en")
+  version            Int               @default(1)
+  metadata           Json?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  deletedAt          DateTime?
+  
+  source             KnowledgeSource   @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  chunks             KnowledgeChunk[]
+  
+  @@index([sourceId, externalId])
+  @@map("knowledge_documents")
+}
+
+model KnowledgeChunk {
+  id                 String            @id @default(uuid())
+  documentId         String
+  sequence           Int
+  content            String
+  tokenCount         Int?
+  metadata           Json?
+  createdAt          DateTime          @default(now())
+  
+  document           KnowledgeDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  embeddings         EmbeddingRecord[]
+  
+  @@index([documentId, sequence])
+  @@map("knowledge_chunks")
+}
+
+model EmbeddingRecord {
+  id                 String            @id @default(uuid())
+  chunkId            String
+  provider           String            // 'openai', 'gemini', etc.
+  model              String
+  embedding          Json              // Store as JSON for now, pgvector later
+  dimension          Int
+  createdAt          DateTime          @default(now())
+  
+  chunk              KnowledgeChunk    @relation(fields: [chunkId], references: [id], onDelete: Cascade)
+  
+  @@index([chunkId])
+  @@map("embedding_records")
+}
+
+// ============================================================================
+// COMMERCE PROJECTIONS
+// ============================================================================
+
+model ProductProjection {
+  id                 String    @id @default(uuid())
+  shopId             String
+  productId          String
+  handle             String
+  title              String
+  description        String?
+  vendor             String?
+  productType        String?
+  variants           Json?
+  images             Json?
+  metadata           Json?
+  syncedAt           DateTime  @default(now())
+  deletedAt          DateTime?
+  
+  @@unique([shopId, productId])
+  @@index([shopId, handle])
+  @@map("product_projections")
+}
+
+model PolicyProjection {
+  id                 String    @id @default(uuid())
+  shopId             String
+  policyType         String    // 'privacy', 'refund', 'shipping', 'terms'
+  title              String
+  body               String
+  url                String?
+  syncedAt           DateTime  @default(now())
+  
+  @@unique([shopId, policyType])
+  @@map("policy_projections")
+}
+
+model OrderProjection {
+  id                 String    @id @default(uuid())
+  shopId             String
+  orderId            String
+  orderNumber        String
+  customerId         String?
+  email              String?
+  financialStatus    String?
+  fulfillmentStatus  String?
+  totalPrice         String?
+  lineItems          Json?
+  syncedAt           DateTime  @default(now())
+  
+  @@unique([shopId, orderId])
+  @@index([shopId, customerId])
+  @@map("order_projections")
+}
+
+// ============================================================================
+// ORCHESTRATION
+// ============================================================================
+
+model ToolInvocation {
+  id                 String              @id @default(uuid())
+  messageId          String
+  toolName           String
+  input              Json
+  output             Json?
+  success            Boolean
+  errorMessage       String?
+  durationMs         Int?
+  createdAt          DateTime            @default(now())
+  
+  message            ConversationMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  
+  @@index([messageId])
+  @@map("tool_invocations")
+}
+
+model HandoffRequest {
+  id                 String       @id @default(uuid())
+  conversationId     String
+  reason             String
+  agentNotes         String?
+  status             String       @default("pending") // 'pending', 'assigned', 'completed'
+  assignedTo         String?
+  createdAt          DateTime     @default(now())
+  resolvedAt         DateTime?
+  
+  conversation       Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  
+  @@index([conversationId])
+  @@map("handoff_requests")
+}
+
+// ============================================================================
+// COMPLIANCE
+// ============================================================================
+
+model ConsentRecord {
+  id                 String       @id @default(uuid())
+  shopId             String
+  visitorId          String?
+  customerId         String?
+  consentType        ConsentType
+  granted            Boolean
+  ipAddress          String?
+  userAgent          String?
+  createdAt          DateTime     @default(now())
+  revokedAt          DateTime?
+  
+  shop               Shop         @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  
+  @@index([shopId, visitorId])
+  @@map("consent_records")
+}
+
+model AuditLog {
+  id                 String    @id @default(uuid())
+  shopId             String
+  userId             String?
+  action             String
+  entityType         String?
+  entityId           String?
+  changes            Json?
+  ipAddress          String?
+  userAgent          String?
+  createdAt          DateTime  @default(now())
+  
+  shop               Shop      @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  
+  @@index([shopId, createdAt])
+  @@map("audit_logs")
+}
+
+// ============================================================================
+// SYNC & EVENTS
+// ============================================================================
+
+model WebhookEvent {
+  id                 String      @id @default(uuid())
+  shopId             String
+  topic              String
+  payload            Json
+  processed          Boolean     @default(false)
+  retryCount         Int         @default(0)
+  lastError          String?
+  processedAt        DateTime?
+  createdAt          DateTime    @default(now())
+  
+  @@index([shopId, processed])
+  @@map("webhook_events")
+}
+
+model SyncJob {
+  id                 String      @id @default(uuid())
+  shopId             String
+  jobType            String      // 'initial:catalog', 'delta:products', etc.
+  status             SyncStatus  @default(PENDING)
+  progress           Float       @default(0.0)
+  totalItems         Int?
+  processedItems     Int         @default(0)
+  errorMessage       String?
+  startedAt          DateTime?
+  completedAt        DateTime?
+  createdAt          DateTime    @default(now())
+  
+  shop               Shop        @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  
+  @@index([shopId, status])
+  @@map("sync_jobs")
+}
