@@ -6,7 +6,7 @@
 import prisma from '../db.server';
 import { getConfig } from '../config.server';
 import { EmbeddingsService } from './embeddings.server';
-import type { ConversationMessage, MessageRole } from '@prisma/client';
+import type { ConversationMessage, MessageRole, Prisma } from '@prisma/client';
 
 // ============================================================================
 // TYPES & INTERFACES
@@ -239,7 +239,7 @@ export class ToolRegistry {
       url: r.chunk.metadata?.handle ? `/products/${r.chunk.metadata.handle}` : undefined,
     }));
 
-    const context = results.map((r: any) => r.chunk.text).join('\n\n');
+    const context = results.map((r: any) => r.chunk.content).join('\n\n');
 
     return { sourceReferences, context };
   }
@@ -255,7 +255,7 @@ export class ToolRegistry {
     const results = await EmbeddingsService.searchSimilar(shopId, query, limit);
 
     const filteredResults = results.filter(
-      (r: any) => r.chunk.document.sourceType === 'POLICIES'
+      (r: any) => r.chunk.document.source?.sourceType === 'POLICIES'
     );
 
     const sourceReferences = filteredResults.map((r: any) => ({
@@ -266,7 +266,7 @@ export class ToolRegistry {
       url: r.chunk.metadata?.url,
     }));
 
-    const context = filteredResults.map((r: any) => r.chunk.text).join('\n\n');
+    const context = filteredResults.map((r: any) => r.chunk.content).join('\n\n');
 
     return { sourceReferences, context };
   }
@@ -284,7 +284,19 @@ export class ToolRegistry {
         OR: [{ orderId: orderRef }, { orderNumber: orderRef }],
       },
     });
-    return order ? (order.data as any) : null;
+    if (!order) return null;
+
+    return {
+      orderId: order.orderId,
+      orderNumber: order.orderNumber,
+      customerId: order.customerId,
+      email: order.email,
+      financialStatus: order.financialStatus,
+      fulfillmentStatus: order.fulfillmentStatus,
+      totalPrice: order.totalPrice,
+      lineItems: order.lineItems,
+      syncedAt: order.syncedAt,
+    };
   }
 
   /**
@@ -295,13 +307,13 @@ export class ToolRegistry {
       where: {
         shopId_policyType: {
           shopId,
-          policyType: topic.toUpperCase(),
+          policyType: topic.toLowerCase(),
         },
       },
     });
 
     if (!policy) return 'Policy not found.';
-    return JSON.stringify(policy.data);
+    return `${policy.title}\n\n${policy.body}`;
   }
 }
 
@@ -413,21 +425,17 @@ export class AIOrchestrationService {
     await prisma.conversationMessage.create({
       data: {
         conversationId,
-        shopId,
         role: 'user' as MessageRole,
         content: userMessage,
-        language,
         confidence: 0.95, // User message is always confident
       },
     });
 
-    await prisma.conversationMessage.create({
+    const assistantMessage = await prisma.conversationMessage.create({
       data: {
         conversationId,
-        shopId,
         role: 'assistant' as MessageRole,
         content: finalMessage,
-        language,
         confidence,
         metadata: {
           intent: intent.type,
@@ -440,13 +448,12 @@ export class AIOrchestrationService {
     if (sourceReferences.length > 0) {
       await prisma.toolInvocation.create({
         data: {
-          conversationId,
-          shopId,
+          messageId: assistantMessage.id,
           toolName: intent.type === 'SALES' ? 'searchProducts' : 'searchSupport',
           input: { query: userMessage },
-          output: sourceReferences,
+          output: sourceReferences as unknown as Prisma.InputJsonValue,
           success: true,
-          executionTimeMs: 0,
+          durationMs: 0,
         },
       });
     }
@@ -572,7 +579,7 @@ Guidelines:
   static async createConversation(
     shopId: string,
     visitorId: string,
-    channel: string = 'web'
+    channel: string = 'WEB_CHAT'
   ) {
     return prisma.conversation.create({
       data: {
@@ -605,7 +612,7 @@ Guidelines:
       data: {
         conversationId,
         reason,
-        status: 'PENDING' as any,
+        status: 'pending',
       },
     });
   }

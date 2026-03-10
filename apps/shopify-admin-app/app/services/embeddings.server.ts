@@ -277,16 +277,19 @@ export class EmbeddingsService {
     // Fetch chunks to embed
     const chunks = await prisma.knowledgeChunk.findMany({
       where: {
-        shopId,
         id: { in: chunkIds },
-        shouldIndex: true,
+        document: {
+          source: {
+            shopId,
+          },
+        },
       },
     });
 
     if (chunks.length === 0) return 0;
 
     // Embed all chunks
-    const embeddings = await this.embedBatch(chunks.map((c) => c.text));
+    const embeddings = await this.embedBatch(chunks.map((c) => c.content));
 
     // Store embeddings in database
     const provider = this.getProvider();
@@ -296,12 +299,16 @@ export class EmbeddingsService {
           where: { chunkId: chunk.id },
           create: {
             chunkId: chunk.id,
-            vector: embeddings[idx].embedding as any,
+            embedding: embeddings[idx].embedding as any,
+            provider: this.getProvider().constructor.name,
             model: provider.getModel(),
             dimension: provider.getDimensions(),
           },
           update: {
-            vector: embeddings[idx].embedding as any,
+            embedding: embeddings[idx].embedding as any,
+            provider: this.getProvider().constructor.name,
+            model: provider.getModel(),
+            dimension: provider.getDimensions(),
           },
         })
       )
@@ -329,24 +336,28 @@ export class EmbeddingsService {
         chunk: {
           document: {
             source: {
-              shopId
-            }
-          }
-        }
+              shopId,
+            },
+          },
+        },
       },
       include: {
         chunk: {
           include: {
-            document: true
-          }
-        }
+            document: {
+              include: {
+                source: true,
+              },
+            },
+          },
+        },
       },
     });
 
     // 3. Calculate cosine similarity in-memory
     const results = allRecords
       .map((record) => {
-        const vector = record.vector as number[];
+        const vector = record.embedding as number[];
         const similarity = this.cosineSimilarity(queryEmbedding.embedding, vector);
         return { ...record, similarity };
       })
@@ -382,11 +393,37 @@ export class EmbeddingsService {
    */
   static async getStats(shopId: string) {
     const stats = {
-      totalChunks: await prisma.knowledgeChunk.count({ where: { shopId } }),
-      embeddedChunks: await prisma.embeddingRecord.count({ where: { shopId } }),
+      totalChunks: await prisma.knowledgeChunk.count({
+        where: {
+          document: {
+            source: {
+              shopId,
+            },
+          },
+        },
+      }),
+      embeddedChunks: await prisma.embeddingRecord.count({
+        where: {
+          chunk: {
+            document: {
+              source: {
+                shopId,
+              },
+            },
+          },
+        },
+      }),
       models: await prisma.embeddingRecord.groupBy({
         by: ['model'],
-        where: { shopId },
+        where: {
+          chunk: {
+            document: {
+              source: {
+                shopId,
+              },
+            },
+          },
+        },
         _count: { id: true },
       }),
     };

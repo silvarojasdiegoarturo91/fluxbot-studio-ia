@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
-import { prisma } from "~/db.server";
+import prisma from "../../app/db.server";
 
 /**
  * Phase 1 E2E Test Suite: Chat Flow

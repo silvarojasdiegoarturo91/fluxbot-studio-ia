@@ -74,27 +74,25 @@ export async function action({ request }: ActionFunctionArgs) {
       },
     });
 
-    // Process webhook based on topic
-    const handlers = new WebhookHandlers();
-
+    // Process webhook based on topic (all methods are static)
     switch (topic) {
       case "products/create":
       case "products/update":
-        await handlers.handleProductUpdate(shop.id, payload);
+        await WebhookHandlers.handleProductUpdate(shop.id, payload);
         break;
 
       case "products/delete":
-        await handlers.handleProductDelete(shop.id, payload);
+        await WebhookHandlers.handleProductDelete(shop.id, payload);
         break;
 
       case "collections/create":
       case "collections/update":
-        await handlers.handleCollectionUpdate(shop.id, payload);
+        await WebhookHandlers.handleCollectionUpdate(shop.id, payload);
         break;
 
       case "pages/create":
       case "pages/update":
-        await handlers.handlePageUpdate(shop.id, payload);
+        await WebhookHandlers.handlePageUpdate(shop.id, payload);
         break;
 
       default:

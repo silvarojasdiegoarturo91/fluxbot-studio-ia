@@ -5,7 +5,7 @@
     "app/**/*.tsx",
     ".react-router/types/**/*"
   ],
-  "exclude": ["app/services/**", "build/**"],
+  "exclude": ["build/**"],
   "compilerOptions": {
     "lib": ["DOM", "DOM.Iterable", "ES2022"],
     "strict": true,

@@ -178,6 +178,7 @@ model ChatbotConfig {
   shop               Shop      @relation(fields: [shopId], references: [id], onDelete: Cascade)
   aiProviderConfigs  AIProviderConfig[]
   
+  @@unique([shopId])
   @@map("chatbot_configs")
 }
 
@@ -308,6 +309,7 @@ model KnowledgeDocument {
   source             KnowledgeSource   @relation(fields: [sourceId], references: [id], onDelete: Cascade)
   chunks             KnowledgeChunk[]
   
+  @@unique([sourceId, externalId])
   @@index([sourceId, externalId])
   @@map("knowledge_documents")
 }
@@ -324,13 +326,14 @@ model KnowledgeChunk {
   document           KnowledgeDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
   embeddings         EmbeddingRecord[]
   
+  @@unique([documentId, sequence])
   @@index([documentId, sequence])
   @@map("knowledge_chunks")
 }
 
 model EmbeddingRecord {
   id                 String            @id @default(uuid())
-  chunkId            String
+  chunkId            String            @unique
   provider           String            // 'openai', 'gemini', etc.
   model              String
   embedding          Json              // Store as JSON for now, pgvector later
@@ -373,6 +376,7 @@ model PolicyProjection {
   policyType         String    // 'privacy', 'refund', 'shipping', 'terms'
   title              String
   body               String
+  data               Json?     // Full policy data for backward compatibility
   url                String?
   syncedAt           DateTime  @default(now())
   
@@ -391,6 +395,7 @@ model OrderProjection {
   fulfillmentStatus  String?
   totalPrice         String?
   lineItems          Json?
+  data               Json?     // Full order data for backward compatibility
   syncedAt           DateTime  @default(now())
   
   @@unique([shopId, orderId])

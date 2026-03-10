@@ -4,10 +4,19 @@
  * Handles initial sync, incremental updates via webhooks, and chunking/embedding
  */
 
-import prisma from '../db.server';
-import type { KnowledgeSourceType, SyncStatus } from '@prisma/client';
+import prisma from "../db.server";
 
-export type SyncJobType = 'initial:catalog' | 'initial:policies' | 'initial:pages' | 'delta:products' | 'delta:policies' | 'delta:pages';
+// Type definitions matching Prisma schema enums
+export type KnowledgeSourceType = "CATALOG" | "POLICIES" | "PAGES" | "BLOG" | "FAQ" | "CUSTOM";
+export type SyncStatus = "PENDING" | "RUNNING" | "COMPLETED" | "FAILED" | "CANCELLED";
+
+export type SyncJobType =
+  | "initial:catalog"
+  | "initial:policies"
+  | "initial:pages"
+  | "delta:products"
+  | "delta:policies"
+  | "delta:pages";
 
 // ============================================================================
 // DOCUMENT TYPES & TRANSFORMERS
@@ -36,7 +45,7 @@ export interface ProductDocument {
 }
 
 export interface PolicyDocument {
-  policyType: 'privacy' | 'return' | 'shipping' | 'terms' | 'subscription';
+  policyType: "privacy" | "return" | "shipping" | "terms" | "subscription";
   title: string;
   body: string;
   url: string;
@@ -62,23 +71,29 @@ export class ProductTransformer {
   static toChunks(product: ProductDocument, shopId: string): ChunkData[] {
     const chunks: ChunkData[] = [];
 
-    // Main product info chunk
     chunks.push({
       sourceId: shopId,
-      sourceType: 'CATALOG',
+      sourceType: "CATALOG",
       documentId: product.id,
       sequence: 0,
       content: `
 Product: ${product.title}
-By: ${product.vendor || 'Unknown'}
-Category: ${product.productType || 'General'}
+By: ${product.vendor || "Unknown"}
+Category: ${product.productType || "General"}
 
 Description:
-${product.description || 'No description available'}
+${product.description || "No description available"}
 
-${product.variants.length > 0 ? `Available variants:\n${product.variants.map((v) => `- ${v.title} (SKU: ${v.sku}, $${v.price})`).join('\n')}` : ''}
+${
+  product.variants.length > 0
+    ? `Available variants:\n${product.variants
+        .map((v) => `- ${v.title} (SKU: ${v.sku}, $${v.price})`)
+        .join("\n")}`
+    : ""
+}
       `.trim(),
       metadata: {
+        title: product.title,
         productId: product.id,
         handle: product.handle,
         vendor: product.vendor,
@@ -86,26 +101,26 @@ ${product.variants.length > 0 ? `Available variants:\n${product.variants.map((v)
         variantCount: product.variants.length,
         imageCount: product.images.length,
       },
-      language: 'en',
+      language: "en",
       shouldEmbed: true,
     });
 
-    // Image descriptions as separate chunks for visual search
     product.images.forEach((img, idx) => {
       if (img.altText) {
         chunks.push({
           sourceId: shopId,
-          sourceType: 'CATALOG',
+          sourceType: "CATALOG",
           documentId: product.id,
           sequence: 1 + idx,
           content: `Image ${idx + 1}: ${img.altText}`,
           metadata: {
+            title: product.title,
             productId: product.id,
             imageUrl: img.url,
             imageIndex: idx,
           },
-          language: 'en',
-          shouldEmbed: false, // Link to product via metadata
+          language: "en",
+          shouldEmbed: false,
         });
       }
     });
@@ -119,14 +134,13 @@ export class PolicyTransformer {
    * Transform policy into knowledge chunks
    */
   static toChunks(policy: PolicyDocument, shopId: string): ChunkData[] {
-    // Split policy into sections if very long
-    const maxChunkSize = 1000; // characters
+    const maxChunkSize = 1000;
     const chunks: ChunkData[] = [];
 
     if (policy.body.length <= maxChunkSize) {
       chunks.push({
         sourceId: shopId,
-        sourceType: 'POLICIES',
+        sourceType: "POLICIES",
         documentId: `policy:${policy.policyType}`,
         sequence: 0,
         content: `
@@ -135,16 +149,16 @@ ${policy.title}
 ${policy.body}
         `.trim(),
         metadata: {
+          title: policy.title,
           policyType: policy.policyType,
           url: policy.url,
         },
-        language: 'en',
+        language: "en",
         shouldEmbed: true,
       });
     } else {
-      // Split long policies into multiple chunks with overlap
       const sentences = policy.body.match(/[^.!?]+[.!?]+/g) || [policy.body];
-      let currentChunk = '';
+      let currentChunk = "";
       let sequence = 0;
 
       for (const sentence of sentences) {
@@ -152,12 +166,16 @@ ${policy.body}
           if (currentChunk) {
             chunks.push({
               sourceId: shopId,
-              sourceType: 'POLICIES',
+              sourceType: "POLICIES",
               documentId: `policy:${policy.policyType}`,
               sequence: sequence++,
               content: `${policy.title}\n\n${currentChunk}`,
-              metadata: { policyType: policy.policyType, url: policy.url },
-              language: 'en',
+              metadata: {
+                title: policy.title,
+                policyType: policy.policyType,
+                url: policy.url,
+              },
+              language: "en",
               shouldEmbed: true,
             });
           }
@@ -170,12 +188,16 @@ ${policy.body}
       if (currentChunk) {
         chunks.push({
           sourceId: shopId,
-          sourceType: 'POLICIES',
+          sourceType: "POLICIES",
           documentId: `policy:${policy.policyType}`,
-          sequence: sequence,
+          sequence,
           content: `${policy.title}\n\n${currentChunk}`,
-          metadata: { policyType: policy.policyType, url: policy.url },
-          language: 'en',
+          metadata: {
+            title: policy.title,
+            policyType: policy.policyType,
+            url: policy.url,
+          },
+          language: "en",
           shouldEmbed: true,
         });
       }
@@ -192,11 +214,10 @@ export class PageTransformer {
   static toChunks(page: PageDocument, shopId: string): ChunkData[] {
     const chunks: ChunkData[] = [];
 
-    // Summary chunk first
     if (page.bodySummary) {
       chunks.push({
         sourceId: shopId,
-        sourceType: 'PAGES',
+        sourceType: "PAGES",
         documentId: page.id,
         sequence: 0,
         content: `
@@ -204,20 +225,20 @@ Page: ${page.title}
 Summary: ${page.bodySummary}
         `.trim(),
         metadata: {
+          title: page.title,
           pageId: page.id,
           handle: page.handle,
           hasFullBody: !!page.body,
         },
-        language: 'en',
+        language: "en",
         shouldEmbed: true,
       });
     }
 
-    // Full body as second chunk
     if (page.body) {
       chunks.push({
         sourceId: shopId,
-        sourceType: 'PAGES',
+        sourceType: "PAGES",
         documentId: page.id,
         sequence: 1,
         content: `
@@ -226,12 +247,13 @@ ${page.title}
 ${page.body}
         `.trim(),
         metadata: {
+          title: page.title,
           pageId: page.id,
           handle: page.handle,
           seoTitle: page.seo?.title,
           seoDescription: page.seo?.description,
         },
-        language: 'en',
+        language: "en",
         shouldEmbed: true,
       });
     }
@@ -245,65 +267,73 @@ ${page.body}
 // ============================================================================
 
 export class SyncService {
+  private static async getOrCreateSource(shopId: string, sourceType: KnowledgeSourceType) {
+    const existing = await prisma.knowledgeSource.findFirst({
+      where: { shopId, sourceType },
+    });
+
+    if (existing) return existing;
+
+    return prisma.knowledgeSource.create({
+      data: {
+        shopId,
+        sourceType,
+        name: `${sourceType.toLowerCase()} source`,
+        isActive: true,
+      },
+    });
+  }
+
   /**
    * Ingest and store chunks in the database
    */
-  static async ingestChunks(
-    shopId: string,
-    chunks: ChunkData[]
-  ): Promise<number> {
+  static async ingestChunks(shopId: string, chunks: ChunkData[]): Promise<number> {
     let count = 0;
 
     for (const chunk of chunks) {
-      // Create or update knowledge document
+      const source = await this.getOrCreateSource(shopId, chunk.sourceType);
+
       const document = await prisma.knowledgeDocument.upsert({
         where: {
-          shopId_sourceId_externalId: {
-            shopId,
-            sourceId: chunk.sourceId,
+          sourceId_externalId: {
+            sourceId: source.id,
             externalId: chunk.documentId,
           },
         },
         create: {
-          shopId,
-          sourceId: chunk.sourceId,
+          sourceId: source.id,
           externalId: chunk.documentId,
-          sourceType: chunk.sourceType,
-          title: chunk.metadata.title || chunk.content.substring(0, 100),
-          language: chunk.language,
+          title: String(chunk.metadata.title || chunk.content.substring(0, 100)),
+          language: chunk.language || "en",
           metadata: chunk.metadata,
-          size: chunk.content.length,
           version: 1,
         },
         update: {
-          updatedAt: new Date(),
+          title: String(chunk.metadata.title || chunk.content.substring(0, 100)),
+          metadata: chunk.metadata,
+          deletedAt: null,
           version: { increment: 1 },
         },
       });
 
-      // Create knowledge chunk
       await prisma.knowledgeChunk.upsert({
         where: {
-          shopId_documentId_sequence: {
-            shopId,
+          documentId_sequence: {
             documentId: document.id,
             sequence: chunk.sequence,
           },
         },
         create: {
-          shopId,
           documentId: document.id,
           sequence: chunk.sequence,
           content: chunk.content,
           metadata: chunk.metadata,
-          language: chunk.language,
-          tokenCount: Math.ceil(chunk.content.length / 4), // Rough estimate
-          shouldIndex: chunk.shouldEmbed,
+          tokenCount: Math.ceil(chunk.content.length / 4),
         },
         update: {
           content: chunk.content,
           metadata: chunk.metadata,
-          shouldIndex: chunk.shouldEmbed,
+          tokenCount: Math.ceil(chunk.content.length / 4),
         },
       });
 
@@ -316,19 +346,15 @@ export class SyncService {
   /**
    * Create a sync job to track progress
    */
-  static async createSyncJob(
-    shopId: string,
-    type: SyncJobType,
-    sourceCount: number
-  ) {
+  static async createSyncJob(shopId: string, type: SyncJobType, sourceCount: number) {
     return prisma.syncJob.create({
       data: {
         shopId,
-        type,
-        status: 'IN_PROGRESS' as SyncStatus,
-        recordsProcessed: 0,
-        recordsTotal: sourceCount,
-        errorCount: 0,
+        jobType: type,
+        status: "RUNNING",
+        progress: 0,
+        processedItems: 0,
+        totalItems: sourceCount,
         startedAt: new Date(),
       },
     });
@@ -338,12 +364,16 @@ export class SyncService {
    * Update sync job progress
    */
   static async updateSyncJob(jobId: string, update: Partial<any>) {
+    const data: Record<string, any> = { ...update };
+
+    if (typeof update.type === "string") {
+      data.jobType = update.type;
+      delete data.type;
+    }
+
     return prisma.syncJob.update({
       where: { id: jobId },
-      data: {
-        ...update,
-        updatedAt: new Date(),
-      },
+      data,
     });
   }
 
@@ -355,8 +385,8 @@ export class SyncService {
       where: { id: jobId },
       data: {
         status,
+        progress: 1,
         completedAt: new Date(),
-        updatedAt: new Date(),
       },
     });
   }
@@ -366,8 +396,8 @@ export class SyncService {
    */
   static async getLatestSyncJob(shopId: string, type: SyncJobType) {
     return prisma.syncJob.findFirst({
-      where: { shopId, type },
-      orderBy: { createdAt: 'desc' },
+      where: { shopId, jobType: type },
+      orderBy: { createdAt: "desc" },
     });
   }
 
@@ -377,30 +407,45 @@ export class SyncService {
   static async getSyncStatus(shopId: string) {
     const jobs = await prisma.syncJob.findMany({
       where: { shopId },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
       take: 10,
     });
 
-    const documentStats = await prisma.knowledgeDocument.groupBy({
-      by: ['sourceType'],
+    const sourceStats = await prisma.knowledgeSource.findMany({
       where: { shopId },
-      _count: { id: true },
+      select: {
+        sourceType: true,
+        _count: {
+          select: { documents: true },
+        },
+      },
     });
 
-    const chunkStats = await prisma.knowledgeChunk.groupBy({
-      by: ['language'],
-      where: { shopId },
-      _count: { id: true },
+    const languageStats = await prisma.knowledgeDocument.findMany({
+      where: {
+        source: {
+          shopId,
+        },
+      },
+      select: {
+        language: true,
+        _count: {
+          select: { chunks: true },
+        },
+      },
     });
+
+    const chunksByLanguage = languageStats.reduce<Record<string, number>>((acc: Record<string, number>, row: any) => {
+      acc[row.language] = (acc[row.language] || 0) + row._count.chunks;
+      return acc;
+    }, {});
 
     return {
       jobs,
       documentsByType: Object.fromEntries(
-        documentStats.map((s) => [s.sourceType, s._count.id])
+        sourceStats.map((s: any) => [s.sourceType, s._count.documents])
       ),
-      chunksByLanguage: Object.fromEntries(
-        chunkStats.map((s) => [s.language, s._count.id])
-      ),
+      chunksByLanguage,
     };
   }
 
@@ -412,21 +457,17 @@ export class SyncService {
 
     const deleted = await prisma.knowledgeChunk.deleteMany({
       where: {
-        shopId,
         document: {
-          deletedAt: {
-            lt: threshold,
-          },
+          source: { shopId },
+          deletedAt: { lt: threshold },
         },
       },
     });
 
     await prisma.knowledgeDocument.deleteMany({
       where: {
-        shopId,
-        deletedAt: {
-          lt: threshold,
-        },
+        source: { shopId },
+        deletedAt: { lt: threshold },
       },
     });
 
@@ -438,24 +479,66 @@ export class SyncService {
 // WEBHOOK HANDLERS (for incremental sync)
 // ============================================================================
 
+function normalizeText(value: unknown): string {
+  return typeof value === "string" ? value : "";
+}
+
+function normalizeProduct(payload: Record<string, any>): ProductDocument {
+  return {
+    id: String(payload.id || payload.productId || ""),
+    title: normalizeText(payload.title),
+    description: normalizeText(payload.body_html || payload.description),
+    vendor: normalizeText(payload.vendor),
+    productType: normalizeText(payload.product_type || payload.productType),
+    handle: normalizeText(payload.handle),
+    variants: Array.isArray(payload.variants)
+      ? payload.variants.map((v: any) => ({
+          id: String(v.id || ""),
+          title: normalizeText(v.title),
+          sku: normalizeText(v.sku),
+          price: String(v.price || ""),
+        }))
+      : [],
+    images: Array.isArray(payload.images)
+      ? payload.images.map((img: any) => ({
+          id: String(img.id || ""),
+          url: normalizeText(img.src || img.url),
+          altText: normalizeText(img.alt || img.altText),
+        }))
+      : [],
+  };
+}
+
+function normalizePage(payload: Record<string, any>): PageDocument {
+  const body = normalizeText(payload.body_html || payload.body);
+  return {
+    id: String(payload.id || payload.pageId || ""),
+    title: normalizeText(payload.title),
+    handle: normalizeText(payload.handle),
+    bodySummary: normalizeText(payload.body_summary || body.slice(0, 240)),
+    body,
+    seo: {
+      title: normalizeText(payload.seo_title || payload.title),
+      description: normalizeText(payload.seo_description),
+    },
+  };
+}
+
 export class WebhookHandlers {
   /**
    * Handle product create/update webhook
    */
-  static async handleProductUpdate(
-    shopId: string,
-    product: ProductDocument
-  ) {
+  static async handleProductUpdate(shopId: string, payload: Record<string, any>) {
+    const product = normalizeProduct(payload);
     const chunks = ProductTransformer.toChunks(product, shopId);
     const count = await SyncService.ingestChunks(shopId, chunks);
 
-    // Log webhook event
     await prisma.webhookEvent.create({
       data: {
         shopId,
-        topic: 'PRODUCTS_UPDATE',
+        topic: "products/update",
         payload: { productId: product.id },
-        status: 'PROCESSED',
+        processed: true,
         processedAt: new Date(),
       },
     });
@@ -466,24 +549,35 @@ export class WebhookHandlers {
   /**
    * Handle product delete webhook
    */
-  static async handleProductDelete(shopId: string, productId: string) {
-    await prisma.knowledgeDocument.updateMany({
-      where: {
-        shopId,
-        externalId: productId,
-        sourceType: 'CATALOG',
-      },
-      data: {
-        deletedAt: new Date(),
-      },
-    });
+  static async handleProductDelete(shopId: string, payload: Record<string, any> | string) {
+    const productId =
+      typeof payload === "string"
+        ? payload
+        : String(payload.id || payload.productId || "");
+
+    const sourceIds = (
+      await prisma.knowledgeSource.findMany({
+        where: { shopId, sourceType: "CATALOG" },
+        select: { id: true },
+      })
+    ).map((s: any) => s.id);
+
+    if (sourceIds.length > 0 && productId) {
+      await prisma.knowledgeDocument.updateMany({
+        where: {
+          sourceId: { in: sourceIds },
+          externalId: productId,
+        },
+        data: { deletedAt: new Date() },
+      });
+    }
 
     await prisma.webhookEvent.create({
       data: {
         shopId,
-        topic: 'PRODUCTS_DELETE',
+        topic: "products/delete",
         payload: { productId },
-        status: 'PROCESSED',
+        processed: true,
         processedAt: new Date(),
       },
     });
@@ -492,14 +586,18 @@ export class WebhookHandlers {
   /**
    * Handle collection update webhook
    */
-  static async handleCollectionUpdate(shopId: string, collectionId: string) {
-    // Collections are metadata; reindex related products
+  static async handleCollectionUpdate(shopId: string, payload: Record<string, any> | string) {
+    const collectionId =
+      typeof payload === "string"
+        ? payload
+        : String(payload.id || payload.collectionId || "");
+
     await prisma.webhookEvent.create({
       data: {
         shopId,
-        topic: 'COLLECTIONS_UPDATE',
+        topic: "collections/update",
         payload: { collectionId },
-        status: 'PENDING',
+        processed: false,
       },
     });
   }
@@ -507,20 +605,17 @@ export class WebhookHandlers {
   /**
    * Handle page update webhook
    */
-  static async handlePageUpdate(
-    shopId: string,
-    page: PageDocument
-  ) {
-    const transformer = new PageTransformer();
-    const chunks = transformer.toChunks(page, shopId);
+  static async handlePageUpdate(shopId: string, payload: Record<string, any>) {
+    const page = normalizePage(payload);
+    const chunks = PageTransformer.toChunks(page, shopId);
     const count = await SyncService.ingestChunks(shopId, chunks);
 
     await prisma.webhookEvent.create({
       data: {
         shopId,
-        topic: 'PAGES_UPDATE',
+        topic: "pages/update",
         payload: { pageId: page.id },
-        status: 'PROCESSED',
+        processed: true,
         processedAt: new Date(),
       },
     });
