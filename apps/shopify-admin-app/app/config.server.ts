@@ -72,6 +72,13 @@ interface EnvironmentConfig {
     conversationDays: number;
     behaviorEventDays: number;
   };
+
+  // IA Gateway
+  ia: {
+    executionMode: 'local' | 'remote';
+    backendUrl?: string;
+    backendApiKey?: string;
+  };
 }
 
 function validateRequiredEnv(key: string, value: string | undefined): string {
@@ -120,10 +127,12 @@ export function loadEnvironmentConfig(): EnvironmentConfig {
       // dotenv not available, continue
     }
   }
-  
-  const aiProvider = validateAIProvider(
-    getOptionalEnv('AI_PROVIDER', 'openai')
-  );
+
+  const iaExecutionMode = (process.env.IA_EXECUTION_MODE === 'local' ? 'local' : 'remote') as 'local' | 'remote';
+
+  // The provider config is only executed in local mode, but we keep parsing the value
+  // so the shape stays stable across both execution modes.
+  const aiProvider = validateAIProvider(getOptionalEnv('AI_PROVIDER', 'openai'));
   
   const config: EnvironmentConfig = {
     shopify: {
@@ -171,25 +180,39 @@ export function loadEnvironmentConfig(): EnvironmentConfig {
       conversationDays: getNumberEnv('CONVERSATION_RETENTION_DAYS', 365),
       behaviorEventDays: getNumberEnv('BEHAVIOR_EVENT_RETENTION_DAYS', 90),
     },
+    ia: {
+      executionMode: iaExecutionMode,
+      backendUrl:
+        iaExecutionMode === 'remote'
+          ? validateRequiredEnv('IA_BACKEND_URL', process.env.IA_BACKEND_URL)
+          : process.env.IA_BACKEND_URL,
+      backendApiKey:
+        iaExecutionMode === 'remote'
+          ? validateRequiredEnv('IA_BACKEND_API_KEY', process.env.IA_BACKEND_API_KEY)
+          : process.env.IA_BACKEND_API_KEY,
+    },
   };
-  
-  // Validate AI provider credentials
-  if (aiProvider === 'openai') {
-    config.ai.openai = {
-      apiKey: validateRequiredEnv('OPENAI_API_KEY', process.env.OPENAI_API_KEY),
-      model: getOptionalEnv('OPENAI_MODEL', 'gpt-4o-mini'),
-      embeddingModel: getOptionalEnv('OPENAI_EMBEDDING_MODEL', 'text-embedding-3-small'),
-    };
-  } else if (aiProvider === 'anthropic') {
-    config.ai.anthropic = {
-      apiKey: validateRequiredEnv('ANTHROPIC_API_KEY', process.env.ANTHROPIC_API_KEY),
-      model: getOptionalEnv('ANTHROPIC_MODEL', 'claude-3-5-sonnet-20241022'),
-    };
-  } else if (aiProvider === 'gemini') {
-    config.ai.gemini = {
-      apiKey: validateRequiredEnv('GEMINI_API_KEY', process.env.GEMINI_API_KEY),
-      model: getOptionalEnv('GEMINI_MODEL', 'gemini-2.0-flash-exp'),
-    };
+
+  // Validate AI provider credentials only in local mode.
+  // In remote mode, the backend handles provider keys — no need to have them here.
+  if (iaExecutionMode === 'local') {
+    if (aiProvider === 'openai') {
+      config.ai.openai = {
+        apiKey: validateRequiredEnv('OPENAI_API_KEY', process.env.OPENAI_API_KEY),
+        model: getOptionalEnv('OPENAI_MODEL', 'gpt-4o-mini'),
+        embeddingModel: getOptionalEnv('OPENAI_EMBEDDING_MODEL', 'text-embedding-3-small'),
+      };
+    } else if (aiProvider === 'anthropic') {
+      config.ai.anthropic = {
+        apiKey: validateRequiredEnv('ANTHROPIC_API_KEY', process.env.ANTHROPIC_API_KEY),
+        model: getOptionalEnv('ANTHROPIC_MODEL', 'claude-3-5-sonnet-20241022'),
+      };
+    } else if (aiProvider === 'gemini') {
+      config.ai.gemini = {
+        apiKey: validateRequiredEnv('GEMINI_API_KEY', process.env.GEMINI_API_KEY),
+        model: getOptionalEnv('GEMINI_MODEL', 'gemini-2.0-flash-exp'),
+      };
+    }
   }
   
   // Validate session secret length

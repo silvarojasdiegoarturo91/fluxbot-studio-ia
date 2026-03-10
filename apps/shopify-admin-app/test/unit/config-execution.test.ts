@@ -218,6 +218,30 @@ describe('Config Server - Environment Loading', () => {
 
       expect(config.observability.sentryDsn).toBe('https://sentry.io/123');
     });
+
+    it('should load remote IA backend mode without provider API keys', async () => {
+      process.env.SHOPIFY_API_KEY = 'test-api-key';
+      process.env.SHOPIFY_API_SECRET = 'test-api-secret';
+      process.env.SHOPIFY_APP_URL = 'https://test.ngrok.io';
+      process.env.DATABASE_URL = 'postgresql://localhost/test';
+      process.env.SESSION_SECRET = 'g'.repeat(32);
+      process.env.IA_EXECUTION_MODE = 'remote';
+      process.env.IA_BACKEND_URL = 'http://localhost:3001';
+      process.env.IA_BACKEND_API_KEY = 'remote-api-key-32chars-padded-here!';
+      delete process.env.OPENAI_API_KEY;
+      delete process.env.ANTHROPIC_API_KEY;
+      delete process.env.GEMINI_API_KEY;
+
+      const { loadEnvironmentConfig } = await import('../../app/config.server');
+      const config = loadEnvironmentConfig();
+
+      expect(config.ia.executionMode).toBe('remote');
+      expect(config.ia.backendUrl).toBe('http://localhost:3001');
+      expect(config.ia.backendApiKey).toBe('remote-api-key-32chars-padded-here!');
+      expect(config.ai.openai).toBeUndefined();
+      expect(config.ai.anthropic).toBeUndefined();
+      expect(config.ai.gemini).toBeUndefined();
+    });
   });
 
   describe('loadEnvironmentConfig - Feature flags', () => {
@@ -413,6 +437,36 @@ describe('Config Server - Environment Loading', () => {
       expect(() => loadEnvironmentConfig()).toThrow(
         'Invalid AI_PROVIDER: invalid-provider. Must be one of: openai, anthropic, gemini'
       );
+    });
+
+    it('should throw error for missing IA_BACKEND_URL when remote mode is enabled', async () => {
+      process.env.SHOPIFY_API_KEY = 'test-api-key';
+      process.env.SHOPIFY_API_SECRET = 'test-api-secret';
+      process.env.SHOPIFY_APP_URL = 'https://test.ngrok.io';
+      process.env.DATABASE_URL = 'postgresql://localhost/test';
+      process.env.SESSION_SECRET = 'pq'.repeat(16);
+      process.env.IA_EXECUTION_MODE = 'remote';
+      delete process.env.IA_BACKEND_URL;
+      process.env.IA_BACKEND_API_KEY = 'remote-api-key-32chars-padded-here!';
+
+      const { loadEnvironmentConfig } = await import('../../app/config.server');
+
+      expect(() => loadEnvironmentConfig()).toThrow('Missing required environment variable: IA_BACKEND_URL');
+    });
+
+    it('should throw error for missing IA_BACKEND_API_KEY when remote mode is enabled', async () => {
+      process.env.SHOPIFY_API_KEY = 'test-api-key';
+      process.env.SHOPIFY_API_SECRET = 'test-api-secret';
+      process.env.SHOPIFY_APP_URL = 'https://test.ngrok.io';
+      process.env.DATABASE_URL = 'postgresql://localhost/test';
+      process.env.SESSION_SECRET = 'rs'.repeat(16);
+      process.env.IA_EXECUTION_MODE = 'remote';
+      process.env.IA_BACKEND_URL = 'http://localhost:3001';
+      delete process.env.IA_BACKEND_API_KEY;
+
+      const { loadEnvironmentConfig } = await import('../../app/config.server');
+
+      expect(() => loadEnvironmentConfig()).toThrow('Missing required environment variable: IA_BACKEND_API_KEY');
     });
 
     it('should throw error for missing OPENAI_API_KEY when provider is openai', async () => {

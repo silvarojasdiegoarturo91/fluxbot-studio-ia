@@ -2,12 +2,12 @@
  * API Endpoint: Trigger Evaluation
  * 
  * POST /api/triggers/evaluate - Evaluate triggers for a session
- * GET /api/triggers/config - Get trigger configurations for a shop
- * POST /api/triggers/config - Create new trigger
  */
 
-import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
-import { TriggerEvaluationService } from "../services/trigger-evaluation.server";
+import type { ActionFunctionArgs } from "react-router";
+import prisma from "../db.server";
+import { IABackendError } from "../services/ia-backend.client";
+import { getIAGateway, type GatewayTriggerEvaluation } from "../services/ia-gateway.server";
 
 // Helper to create JSON responses
 function json(data: any, init?: ResponseInit) {
@@ -73,32 +73,28 @@ export async function action({ request }: ActionFunctionArgs) {
       return json({ error: "sessionId is required" }, { status: 400 });
     }
 
-    // Evaluate all triggers for this session
-    const evaluations = await TriggerEvaluationService.evaluateSessionTriggers(
+    const shop = await prisma.shop.findUnique({
+      where: { domain: shopDomain },
+      select: { id: true },
+    });
+
+    if (!shop) {
+      return json({ error: "Shop not found" }, { status: 404 });
+    }
+
+    const gateway = getIAGateway();
+    const { evaluations, recommendation } = await gateway.evaluateTriggers(
+      {
+        shopId: shop.id,
+        sessionId,
+        visitorId,
+      },
       shopDomain,
-      sessionId,
-      visitorId
     );
 
-    // Find the best recommendation (first SEND, or first CONDITION_NOT_MET if no SEND)
-    const sendRecommendations = evaluations.filter((e) => e.decision === "SEND");
-    const recommendation =
-      sendRecommendations.length > 0
-        ? {
-            triggerId: sendRecommendations[0].triggerId,
-            action: "SEND",
-            message: sendRecommendations[0].message,
-            triggerName: sendRecommendations[0].triggerName,
-            score: sendRecommendations[0].score,
-          }
-        : evaluations.length > 0
-          ? {
-              triggerId: evaluations[0].triggerId,
-              action: evaluations[0].decision,
-              reason: evaluations[0].reason,
-              triggerName: evaluations[0].triggerName,
-            }
-          : null;
+    const sendRecommendations = evaluations.filter(
+      (evaluation: GatewayTriggerEvaluation) => evaluation.decision === "SEND",
+    );
 
     return json(
       {
@@ -119,12 +115,14 @@ export async function action({ request }: ActionFunctionArgs) {
     );
   } catch (error) {
     console.error("[Trigger API] Evaluation failed:", error);
+    const status = error instanceof IABackendError ? (error.statusCode || 502) : 500;
+
     return json(
       {
         success: false,
         error: error instanceof Error ? error.message : "Evaluation failed",
       },
-      { status: 500 }
+      { status }
     );
   }
 }

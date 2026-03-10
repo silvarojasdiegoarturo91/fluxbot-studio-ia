@@ -186,26 +186,11 @@ model ChatbotConfig {
   updatedAt          DateTime  @updatedAt
   
   shop               Shop      @relation(fields: [shopId], references: [id], onDelete: Cascade)
-  aiProviderConfigs  AIProviderConfig[]
+  // AI configuration moved to fluxbot-studio-back-ia
+  // AIProviderConfig moved to backend
   
   @@unique([shopId])
   @@map("chatbot_configs")
-}
-
-model AIProviderConfig {
-  id                 String    @id @default(uuid())
-  chatbotConfigId    String
-  provider           String    // 'openai', 'anthropic', 'gemini'
-  apiKey             String
-  model              String
-  isPrimary          Boolean   @default(false)
-  isActive           Boolean   @default(true)
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
-  
-  chatbotConfig      ChatbotConfig @relation(fields: [chatbotConfigId], references: [id], onDelete: Cascade)
-  
-  @@map("ai_provider_configs")
 }
 
 // ============================================================================
@@ -314,48 +299,9 @@ model KnowledgeDocument {
   version            Int               @default(1)
   metadata           Json?
   createdAt          DateTime          @default(now())
-  updatedAt          DateTime          @updatedAt
-  deletedAt          DateTime?
-  
-  source             KnowledgeSource   @relation(fields: [sourceId], references: [id], onDelete: Cascade)
-  chunks             KnowledgeChunk[]
-  
-  @@unique([sourceId, externalId])
-  @@index([sourceId, externalId])
-  @@map("knowledge_documents")
 }
 
-model KnowledgeChunk {
-  id                 String            @id @default(uuid())
-  documentId         String
-  sequence           Int
-  content            String
-  tokenCount         Int?
-  metadata           Json?
-  createdAt          DateTime          @default(now())
-  
-  document           KnowledgeDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  embeddings         EmbeddingRecord[]
-  
-  @@unique([documentId, sequence])
-  @@index([documentId, sequence])
-  @@map("knowledge_chunks")
-}
-
-model EmbeddingRecord {
-  id                 String            @id @default(uuid())
-  chunkId            String            @unique
-  provider           String            // 'openai', 'gemini', etc.
-  model              String
-  embedding          Json              // Store as JSON for now, pgvector later
-  dimension          Int
-  createdAt          DateTime          @default(now())
-  
-  chunk              KnowledgeChunk    @relation(fields: [chunkId], references: [id], onDelete: Cascade)
-  
-  @@index([chunkId])
-  @@map("embedding_records")
-}
+// EmbeddingRecord moved to fluxbot-studio-back-ia
 
 // ============================================================================
 // COMMERCE PROJECTIONS

@@ -1,5 +1,75 @@
 # # Copilot Instructions — Shopify AI Chatbot App
 
+## ⚠️ IMPORTANTE: Arquitectura Separada
+
+Este proyecto utiliza una **arquitectura separada** entre frontend y backend de IA:
+
+### Repositorios
+
+1. **fluxbot-studio-ia** (este repositorio)
+   - Frontend: App de Admin Shopify
+   - UI: Shopify Polaris + React
+   - Base de datos: PostgreSQL (solo datos de Shopify)
+   - API: REST/GraphQL para operaciones de Shopify
+   - **NO maneja API keys de IA**
+
+2. **fluxbot-studio-back-ia** (`~/Documents/fluxbot-studio-back-ia`)
+   - Backend: API de IA
+   - Servicios: Orquestación LLM, embeddings, RAG, triggers proactivos
+   - API Keys: OpenAI, Anthropic, Gemini (gestionados aquí)
+   - Base de datos: PostgreSQL (datos de IA)
+
+### Comunicación Frontend → Backend
+
+El frontend llama al backend de IA via HTTP usando el cliente:
+
+```typescript
+// apps/shopify-admin-app/app/services/ia-backend.client.ts
+import { iaClient } from './services/ia-backend.client';
+
+const response = await iaClient.chat.send({
+  message: 'Hola, quiero comprar algo',
+  conversationId: 'conv-123',
+  context: { shopId: 'shop-1', locale: 'es' }
+}, shopDomain);
+```
+
+### Variables de Entorno
+
+**Frontend** (`apps/shopify-admin-app/.env`):
+```env
+IA_BACKEND_URL=http://localhost:3001
+IA_BACKEND_API_KEY=your_ia_backend_api_key
+# NO incluye OPENAI_API_KEY, ANTHROPIC_API_KEY, etc.
+```
+
+**Backend** (`fluxbot-studio-back-ia/.env`):
+```env
+OPENAI_API_KEY=sk-...
+ANTHROPIC_API_KEY=sk-ant-...
+GEMINI_API_KEY=...
+DATABASE_URL=postgresql://.../fluxbot_ia
+```
+
+### Modelos de Base de Datos
+
+**Frontend (fluxbot_dev):**
+- Shop, Session, User, ChatbotConfig
+- Conversation, ConversationMessage, ConversationEvent
+- KnowledgeSource, KnowledgeDocument
+- ProductProjection, PolicyProjection, OrderProjection
+- ConsentRecord, AuditLog, WebhookEvent, SyncJob
+- BehaviorEvent, IntentSignal, ProactiveTrigger, ProactiveMessage
+- ConversionEvent, HandoffRequest
+
+**Backend (fluxbot_ia):**
+- AIProviderConfig (CON apiKeys)
+- KnowledgeChunk, EmbeddingRecord
+- IntentSignal, ProactiveTrigger
+- AIAnalytics, ToolInvocation
+
+---
+
 ## Estado actual del proyecto
 Este proyecto no parte de cero.
 
@@ -166,7 +236,7 @@ Justificación técnica:
 ## Stack técnico objetivo
 Usa este stack por defecto salvo que haya una razón fuerte para cambiarlo:
 
-### App shell
+### App shell (este repositorio)
 - Shopify Remix app template
 - TypeScript
 - Node.js
@@ -174,24 +244,21 @@ Usa este stack por defecto salvo que haya una razón fuerte para cambiarlo:
 - Polaris
 - App Bridge
 
-### Backend
+### Backend (este repositorio)
 - Remix loaders/actions para capa web inicial
 - servicios desacoplados por dominio
 - Prisma ORM
 - PostgreSQL
 - Redis para caché, colas cortas y rate limiting
-- cola de jobs: BullMQ o equivalente
 
-### IA
-- proveedor LLM desacoplado por interfaz
-- soporte para OpenAI, Anthropic y Gemini mediante adapters
-- embeddings desacoplados
-- vector store desacoplado mediante repositorio
-- estrategia RAG híbrida:
-  - retrieval semántico
-  - filtros estructurados
-  - reranking
-  - grounding con contexto Shopify
+### IA (en repositorio separado: fluxbot-studio-back-ia)
+- **NO escribir código de IA en este repositorio**
+- El backend de IA está en `~/Documents/fluxbot-studio-back-ia`
+- Usar el cliente `iaClient` para comunicarse con el backend
+- Proveedor LLM desacoplado por interfaz (en backend)
+- Soporte para OpenAI, Anthropic y Gemini mediante adapters (en backend)
+- Embeddings y vector store (en backend)
+- Estrategia RAG híbrida (en backend)
 
 ### Storefront widget
 - Theme App Extension
@@ -430,11 +497,12 @@ Debe incluir:
 ## Requisitos de diseño del dominio
 Modela el sistema como multi-tenant por shop.
 
-Entidades mínimas:
+**IMPORTANTE: Algunos modelos están en el backend separado (fluxbot-studio-back-ia)**
+
+Entidades en ESTE repositorio (Frontend):
 - Shop
 - ShopInstallation
 - User
-- BillingPlan
 - ChatbotConfig
 - Conversation
 - ConversationMessage
@@ -442,19 +510,31 @@ Entidades mínimas:
 - CustomerIdentity
 - KnowledgeSource
 - KnowledgeDocument
-- KnowledgeChunk
-- EmbeddingRecord
 - ProductProjection
 - PolicyProjection
 - OrderProjection
-- AIProviderConfig
-- ToolInvocation
+- ToolInvocation (referencia)
 - HandoffRequest
 - ConsentRecord
 - AuditLog
 - WebhookEvent
 - SyncJob
-- FeatureFlag
+- BehaviorEvent
+- IntentSignal (referencia)
+- ProactiveTrigger (referencia)
+- ProactiveMessage
+- ConversionEvent
+- OmnichannelCallbackReceipt
+- DeadLetterCallback
+
+Entidades en FLUXBOT-STUDIO-BACK-IA (Backend IA):
+- AIProviderConfig (CON apiKeys)
+- KnowledgeChunk
+- EmbeddingRecord
+- IntentSignal
+- ProactiveTrigger
+- AIAnalytics
+- ToolInvocation
 
 Debes proponer:
 - esquema Prisma inicial
@@ -466,14 +546,30 @@ Debes proponer:
 ---
 
 ## Requisitos de APIs internas
+**NOTA: Las APIs de IA están en el backend separado.**
+
 Diseña APIs y contratos antes de implementarlos.
 
 Define:
-- endpoints admin
-- endpoints storefront
-- webhook handlers
-- jobs async
+- endpoints admin (en este repo)
+- endpoints storefront (en este repo)
+- webhook handlers (en este repo)
+- jobs async (en este repo)
 - contratos de tools para el agente
+
+**Para operaciones de IA, usa el cliente iaClient:**
+```typescript
+import { iaClient } from './services/ia-backend.client';
+
+// Chat
+const chatResponse = await iaClient.chat.send({ message, conversationId, context }, shopDomain);
+
+// RAG Search
+const ragResults = await iaClient.rag.search({ query, filters }, shopDomain);
+
+// Embeddings
+const embedding = await iaClient.embeddings.generate(text, provider, shopDomain);
+```
 
 Ejemplos de tools internas:
 - `searchProducts(query, filters, locale)`
@@ -598,30 +694,29 @@ Debes preparar el sistema para:
 
 ---
 
-## Estructura recomendada del monorepo
-Propón algo similar a esto y ajústalo si hay una opción mejor:
+## Estructura recomendada del repositorio
+**NOTA: Este repositorio es solo el frontend. Los servicios de IA están en `~/Documents/fluxbot-studio-back-ia`**
+
+Estructura de ESTE repositorio:
 
 apps/
-  shopify-admin-app/
-  storefront-widget/
-services/
-  ai-orchestrator/
-  ingestion-service/
-  sync-service/
-  analytics-service/
+  shopify-admin-app/     # App de Admin Shopify
+  storefront-widget/     # Widget para el storefront
+services/               # Servicios compartidos (si aplica)
 packages/
   shopify-client/
   ui/
-  prompts/
   shared-types/
   config/
   observability/
   compliance/
   testing/
 infra/
-  prisma/
+  prisma/               # Schema de base de datos (solo datos de Shopify)
   docker/
   terraform/
+
+**Para servicios de IA, trabajar en:** `~/Documents/fluxbot-studio-back-ia`
 
 Si eliges otra estructura, justifícala.
 

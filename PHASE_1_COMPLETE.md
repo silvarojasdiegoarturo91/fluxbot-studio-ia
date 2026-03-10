@@ -1,6 +1,8 @@
-## Phase 1 MVP Implementation Complete
+## ~~Phase 1 MVP Implementation Complete~~
 
-> Canonical status source: [STATUS_MATRIX.md](./STATUS_MATRIX.md). This document is historical context.
+> ⚠️ **SUPERSEDED** — Este documento es histórico y puede contener referencias a modelos (`KnowledgeChunk`, `EmbeddingRecord`, `AIProviderConfig`) que ya no existen en este repositorio (fueron movidos a `fluxbot-studio-back-ia`).
+>
+> **Fuente canónica de estado:** [STATUS_MATRIX.md](./STATUS_MATRIX.md)
 
 **Status:** ✅ All 10 Core Tasks Completed | 🟢 Ready for functionality testing
 

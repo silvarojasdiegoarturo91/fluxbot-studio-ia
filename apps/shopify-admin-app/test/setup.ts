@@ -16,6 +16,9 @@ if (!process.env.SCOPES) {
 if (!process.env.DATABASE_URL) {
   process.env.DATABASE_URL = "postgresql://test:test@localhost:5432/test_db";
 }
+if (!process.env.IA_EXECUTION_MODE) {
+  process.env.IA_EXECUTION_MODE = "local";
+}
 process.env.NODE_ENV = "test";
 
 // Keep a hook for explicit test lifecycle clarity.

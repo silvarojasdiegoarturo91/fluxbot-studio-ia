@@ -8,8 +8,11 @@ Este README ya no mantiene checklists de fase para evitar desalineaciones.
 
 ### Resumen rápido
 - ✅ Base estable de app Shopify embebida + widget storefront
+- ✅ Fase 1 cerrada en este repo: gateway IA remoto por defecto + order lookup verificado
 - ✅ Cierre inicial de Fase 2: `add-to-cart` y `human handoff` en backend
-- ✅ Cierre inicial de Fase 3: omnicanal bridge (WA/IG/SMS/EMAIL) + `llms.txt`
+- ✅ Migración de Fase 2: intent detection + trigger decisioning remotos (sin fallback local), con dispatch proactivo en frontend
+- ✅ Migración de quality pipeline: retrieval/reranking remoto (sin fallback local en frontend)
+- ✅ Fase 3 `llms.txt`: generación en backend IA y publicación en frontend
 - 🔄 Resto de iniciativas V2/V3 en ejecución, con seguimiento en `STATUS_MATRIX.md`
 
 ---

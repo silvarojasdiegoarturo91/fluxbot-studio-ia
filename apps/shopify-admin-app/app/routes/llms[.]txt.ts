@@ -1,4 +1,5 @@
 import type { LoaderFunctionArgs } from "react-router";
+import { IABackendError } from "../services/ia-backend.client";
 import { LlmsTxtService } from "../services/llms-txt.server";
 
 function text(content: string, init?: ResponseInit) {
@@ -38,8 +39,11 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
     return text(payload, { status: 200 });
   } catch (error) {
+    const status =
+      error instanceof IABackendError ? (error.statusCode || 502) : 500;
+
     return text(error instanceof Error ? error.message : "Could not generate llms.txt", {
-      status: 500,
+      status,
     });
   }
 }

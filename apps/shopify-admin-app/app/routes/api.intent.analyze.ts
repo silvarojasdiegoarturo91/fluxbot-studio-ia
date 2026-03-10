@@ -2,11 +2,13 @@
  * API Endpoint: Intent Analysis
  * 
  * POST /api/intent/analyze - Analyze session intent
- * GET /api/intent/session/:sessionId - Get stored signals for session
+ * GET /api/intent/analyze?sessionId=:sessionId - Get stored signals for session
  */
 
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
-import { IntentDetectionEngine } from "../services/intent-detection.server";
+import prisma from "../db.server";
+import { IABackendError } from "../services/ia-backend.client";
+import { getIAGateway } from "../services/ia-gateway.server";
 
 // Helper to create JSON responses
 function json(data: any, init?: ResponseInit) {
@@ -43,11 +45,23 @@ export async function action({ request }: ActionFunctionArgs) {
       return json({ error: "sessionId is required" }, { status: 400 });
     }
 
-    // Analyze session and optionally record signal
-    const { analysis, signal } = await IntentDetectionEngine.analyzeAndRecord(
-      shopDomain, // Using shopDomain as shopId for now
-      sessionId,
-      visitorId
+    const shop = await prisma.shop.findUnique({
+      where: { domain: shopDomain },
+      select: { id: true },
+    });
+
+    if (!shop) {
+      return json({ error: "Shop not found" }, { status: 404 });
+    }
+
+    const gateway = getIAGateway();
+    const { analysis, signal } = await gateway.analyzeIntent(
+      {
+        shopId: shop.id,
+        sessionId,
+        visitorId,
+      },
+      shopDomain,
     );
 
     return json({
@@ -63,30 +77,34 @@ export async function action({ request }: ActionFunctionArgs) {
     });
   } catch (error) {
     console.error("[Intent API] Analysis failed:", error);
+    const status = error instanceof IABackendError ? (error.statusCode || 502) : 500;
+
     return json(
       { 
         success: false, 
         error: error instanceof Error ? error.message : "Analysis failed" 
       },
-      { status: 500 }
+      { status }
     );
   }
 }
 
 /**
- * GET /api/intent/session/:sessionId
+ * GET /api/intent/analyze?sessionId=:sessionId
  * Retrieve stored intent signals for a session
  */
-export async function loader({ params, request }: LoaderFunctionArgs) {
+export async function loader({ request }: LoaderFunctionArgs) {
   try {
-    const { sessionId } = params;
+    const url = new URL(request.url);
+    const sessionId = url.searchParams.get("sessionId");
+    const shopDomain = request.headers.get("X-Shop-Domain") || url.searchParams.get("shopDomain") || undefined;
 
     if (!sessionId) {
       return json({ error: "sessionId is required" }, { status: 400 });
     }
 
-    // Get stored signals
-    const signals = await IntentDetectionEngine.getSessionSignals(sessionId);
+    const gateway = getIAGateway();
+    const signals = await gateway.getIntentSignals(sessionId, shopDomain);
 
     return json({
       success: true,
@@ -104,12 +122,14 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
     });
   } catch (error) {
     console.error("[Intent API] Failed to fetch signals:", error);
+    const status = error instanceof IABackendError ? (error.statusCode || 502) : 500;
+
     return json(
       { 
         success: false, 
         error: error instanceof Error ? error.message : "Failed to fetch signals" 
       },
-      { status: 500 }
+      { status }
     );
   }
 }

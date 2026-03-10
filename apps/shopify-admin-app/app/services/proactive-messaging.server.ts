@@ -15,6 +15,7 @@
 
 import prisma from "../db.server";
 import { EventTrackingService } from "./event-tracking.server";
+import { getExecutionMode, getIAGateway } from "./ia-gateway.server";
 import { TriggerEvaluationService } from "./trigger-evaluation.server";
 
 type ProactiveMessageDelegate = {
@@ -333,18 +334,49 @@ export class ProactiveMessagingService {
     // Get active sessions (last 5 minutes)
     const activeSessions = await EventTrackingService.getActiveSessions(shopId, 300000);
 
+    if (getExecutionMode() !== "remote") {
+      console.warn(
+        `[Proactive] Skipping trigger decisioning for shop ${shopId}: intent/trigger evaluation is remote-only.`,
+      );
+
+      return {
+        evaluated: activeSessions.length,
+        queued: 0,
+        skipped: activeSessions.length,
+      };
+    }
+
+    const shop = await prisma.shop.findUnique({
+      where: { id: shopId },
+      select: { domain: true },
+    });
+
     let evaluated = 0;
     let queued = 0;
     let skipped = 0;
+
+    if (!shop?.domain) {
+      console.warn(`[Proactive] Shop domain unavailable for shop ${shopId}`);
+      return {
+        evaluated: activeSessions.length,
+        queued: 0,
+        skipped: activeSessions.length,
+      };
+    }
+
+    const gateway = getIAGateway();
 
     for (const sessionId of activeSessions) {
       evaluated++;
 
       try {
         // Evaluate triggers for this session
-        const evaluations = await TriggerEvaluationService.evaluateSessionTriggers(
-          shopId,
-          sessionId
+        const { evaluations } = await gateway.evaluateTriggers(
+          {
+            shopId,
+            sessionId,
+          },
+          shop.domain,
         );
 
         // Find best SEND recommendation

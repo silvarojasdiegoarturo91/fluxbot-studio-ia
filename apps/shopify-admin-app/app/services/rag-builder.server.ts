@@ -2,24 +2,24 @@
  * RAG Builder Service - Phase 4
  *
  * Builds Retrieval-Augmented Generation (RAG) context by:
- * 1. Searching for relevant documents via vector similarity
+ * 1. Searching for relevant documents via remote IA quality pipeline
  * 2. Formatting results into structured context
- * 3. Handling fallbacks when confidence is low
+ * 3. Handling fallback contexts when remote retrieval is unavailable
  * 4. Integrating conversation history
  * 5. Supporting multi-language context
  */
 
 import prisma from '../db.server';
-import { getEmbeddingsProvider } from './embeddings.server';
-import {
-  searchCatalog,
-  searchProducts,
-  searchPolicies,
-  searchArticles,
-  rerank,
-  validateEmbedding,
-  type SearchResult,
-} from './vector-retrieval.server';
+import { iaClient, type RerankStrategy } from './ia-backend.client';
+
+interface SearchResult {
+  chunkId: string;
+  documentType: 'product' | 'policy' | 'article';
+  title: string;
+  content: string;
+  relevance: number;
+  metadata: Record<string, unknown>;
+}
 
 // ============================================================================
 // TYPES
@@ -33,6 +33,12 @@ export interface RAGContext {
   sources: SourceReference[];
   summary: string;
   fallback: boolean; // true if couldn't find good matches
+  qualityMetadata?: {
+    wasReranked: boolean;
+    rerankStrategy: string;
+    appliedMinScore: number;
+    candidatesBeforeRerank: number;
+  };
 }
 
 export interface FormattedProduct {
@@ -70,8 +76,203 @@ export interface RAGBuilderOptions {
   locale?: string;
   limit?: number;
   threshold?: number;
+  /** Reranking strategy forwarded to the backend quality pipeline. Defaults to 'cross_encoder'. */
+  rerankStrategy?: RerankStrategy;
   includeHistory?: boolean;
   conversationHistory?: Array<{ role: string; content: string }>;
+}
+
+const REMOTE_RAG_DEFAULT_LIMIT = 24;
+
+function isRemoteRagEnabled(): boolean {
+  return process.env.IA_EXECUTION_MODE !== 'local';
+}
+
+interface RemoteSearchSuccess {
+  status: 'ok';
+  results: SearchResult[];
+  qualityMetadata?: RAGContext['qualityMetadata'];
+}
+
+interface RemoteSearchUnavailable {
+  status: 'unavailable';
+  reason: string;
+}
+
+type RemoteSearchOutcome = RemoteSearchSuccess | RemoteSearchUnavailable;
+
+function asMetadata(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function clampRelevance(value: number): number {
+  if (!Number.isFinite(value)) return 0;
+  return Math.max(0, Math.min(1, value));
+}
+
+function mapRemoteSourceTypeToDocumentType(sourceType?: string): 'product' | 'policy' | 'article' {
+  switch (sourceType) {
+    case 'CATALOG':
+      return 'product';
+    case 'POLICIES':
+      return 'policy';
+    default:
+      return 'article';
+  }
+}
+
+function inferRemoteDocumentType(metadata: Record<string, unknown>): 'product' | 'policy' | 'article' {
+  if (typeof metadata.documentType === 'string') {
+    const value = metadata.documentType.toLowerCase();
+    if (value === 'product' || value === 'policy' || value === 'article') {
+      return value;
+    }
+  }
+
+  if (typeof metadata.productId === 'string') return 'product';
+  if (typeof metadata.policyType === 'string' || typeof metadata.category === 'string') return 'policy';
+
+  if (typeof metadata.sourceType === 'string') {
+    return mapRemoteSourceTypeToDocumentType(metadata.sourceType);
+  }
+
+  return 'article';
+}
+
+async function searchRemoteWithQualityPipeline(
+  query: string,
+  options: RAGBuilderOptions,
+  allowedTypes?: Array<'product' | 'policy' | 'article'>,
+): Promise<RemoteSearchOutcome> {
+  if (!isRemoteRagEnabled()) {
+    return {
+      status: 'unavailable',
+      reason: 'Remote quality pipeline requires IA_EXECUTION_MODE=remote.',
+    };
+  }
+
+  const shop = await prisma.shop.findUnique({
+    where: { id: options.shopId },
+    select: { domain: true },
+  });
+
+  if (!shop?.domain) {
+    return {
+      status: 'unavailable',
+      reason: 'Shop domain unavailable for remote retrieval.',
+    };
+  }
+
+  try {
+    const candidateLimit = Math.max((options.limit || 5) * 3, REMOTE_RAG_DEFAULT_LIMIT);
+    const response = await iaClient.rag.search(
+      {
+        query,
+        filters: {
+          language: options.locale,
+          limit: candidateLimit,
+          minScore: options.threshold,
+          rerankStrategy: options.rerankStrategy ?? 'cross_encoder',
+          topK: options.limit,
+        },
+      },
+      shop.domain,
+    );
+
+    const mapped = response.results.map((result) => {
+      const metadata = asMetadata(result.metadata);
+      const documentType = inferRemoteDocumentType(metadata);
+      const title =
+        (typeof metadata.title === 'string' && metadata.title.length > 0
+          ? metadata.title
+          : typeof metadata.name === 'string' && metadata.name.length > 0
+            ? metadata.name
+            : 'Knowledge Result');
+
+      return {
+        chunkId: result.chunkId,
+        documentType,
+        title,
+        content: result.content,
+        relevance: clampRelevance(result.score),
+        metadata,
+      } as SearchResult;
+    });
+
+    const typeFiltered = allowedTypes && allowedTypes.length > 0
+      ? mapped.filter((result) => allowedTypes.includes(result.documentType as any))
+      : mapped;
+
+    // Client-side belt-and-suspenders: drop any result that falls below threshold
+    // even if the backend returned it (e.g. backend doesn't yet implement minScore)
+    const minScore = options.threshold ?? 0;
+    const scoreFiltered = minScore > 0
+      ? typeFiltered.filter((r) => r.relevance >= minScore)
+      : typeFiltered;
+
+    return {
+      status: 'ok',
+      results: scoreFiltered.sort((a, b) => b.relevance - a.relevance),
+      qualityMetadata: response.qualityMetadata,
+    };
+  } catch (error) {
+    console.warn('[RAGBuilder] Remote retrieval unavailable:', error);
+    return {
+      status: 'unavailable',
+      reason: 'Remote retrieval request failed.',
+    };
+  }
+}
+
+function buildContextFromResultSets(
+  productResults: SearchResult[],
+  policyResults: SearchResult[],
+  articleResults: SearchResult[],
+  confidenceThreshold: number,
+  qualityMetadata?: RAGContext['qualityMetadata'],
+): RAGContext {
+  const topRelevance = Math.max(
+    productResults[0]?.relevance || 0,
+    policyResults[0]?.relevance || 0,
+    articleResults[0]?.relevance || 0,
+  );
+  const hasGoodMatches = topRelevance > confidenceThreshold;
+  const fallback = !hasGoodMatches;
+
+  const products = formatProductResults(productResults);
+  const policies = formatPolicyResults(policyResults);
+  const articles = formatArticleResults(articleResults);
+
+  const sources: SourceReference[] = [
+    ...productResults.map((r) => ({
+      title: r.title,
+      type: 'product' as const,
+      relevance: r.relevance,
+    })),
+    ...policyResults.map((r) => ({
+      title: r.title,
+      type: 'policy' as const,
+      relevance: r.relevance,
+    })),
+    ...articleResults.map((r) => ({
+      title: r.title,
+      type: 'article' as const,
+      relevance: r.relevance,
+    })),
+  ].sort((a, b) => b.relevance - a.relevance);
+
+  return {
+    products,
+    policies,
+    articles,
+    confidence: hasGoodMatches ? topRelevance : 0.3,
+    sources,
+    summary: buildContextSummary(products, policies, articles, fallback),
+    fallback,
+    qualityMetadata,
+  };
 }
 
 // ============================================================================
@@ -125,107 +326,40 @@ export async function buildCatalogContext(
   options: RAGBuilderOptions
 ): Promise<RAGContext> {
   const {
-    shopId,
-    locale = 'en',
     limit = 5,
     threshold = 0.4,
-    includeHistory = false,
-    conversationHistory,
   } = options;
 
   try {
-    // Get embeddings provider
-    const provider = getEmbeddingsProvider();
-    if (!provider) {
-      return getFallbackContext(
-        'Embeddings provider not configured',
-        options
-      );
+    const productLimit = Math.ceil(limit * 0.6);
+    const policyLimit = Math.ceil(limit * 0.25);
+    const articleLimit = Math.ceil(limit * 0.15);
+    const confidenceThreshold = Math.max(threshold, 0.6);
+
+    const remoteSearch = await searchRemoteWithQualityPipeline(query, options);
+    if (remoteSearch.status === 'unavailable') {
+      return getFallbackContext(remoteSearch.reason, options);
     }
 
-    // Generate query embedding
-    let queryEmbedding: number[];
-    try {
-      queryEmbedding = await provider.embed(query);
-    } catch (error) {
-      console.error('[RAGBuilder] Failed to embed query:', error);
-      return getFallbackContext('Failed to process query', options);
+    if (remoteSearch.results.length === 0) {
+      return getFallbackContext('No relevant remote context found.', options);
     }
 
-    // Validate embedding
-    if (!validateEmbedding(queryEmbedding)) {
-      return getFallbackContext('Invalid embedding generated', options);
+    const productResults = remoteSearch.results
+      .filter((result) => result.documentType === 'product')
+      .slice(0, productLimit);
+    const policyResults = remoteSearch.results
+      .filter((result) => result.documentType === 'policy')
+      .slice(0, policyLimit);
+    const articleResults = remoteSearch.results
+      .filter((result) => result.documentType === 'article')
+      .slice(0, articleLimit);
+
+    if (productResults.length + policyResults.length + articleResults.length === 0) {
+      return getFallbackContext('Remote retrieval did not return supported document types.', options);
     }
 
-    // Search across document types
-    const productResults = await searchProducts(queryEmbedding, {
-      limit: Math.ceil(limit * 0.6), // 60% products
-      threshold,
-      filter: { shopId, locales: [locale] },
-    });
-
-    const policyResults = await searchPolicies(queryEmbedding, {
-      limit: Math.ceil(limit * 0.25), // 25% policies
-      threshold: Math.max(threshold, 0.3), // Lower threshold for policies
-      filter: { shopId, locales: [locale] },
-    });
-
-    const articleResults = await searchArticles(queryEmbedding, {
-      limit: Math.ceil(limit * 0.15), // 15% articles
-      threshold: Math.max(threshold, 0.35),
-      filter: { shopId, locales: [locale] },
-    });
-
-    // Check confidence in results (if top result relevance is high)
-    const topRelevance = Math.max(
-      productResults[0]?.relevance || 0,
-      policyResults[0]?.relevance || 0,
-      articleResults[0]?.relevance || 0
-    );
-    const hasGoodMatches = topRelevance > 0.6;
-    const fallback = !hasGoodMatches;
-
-    // Format results
-    const products = formatProductResults(productResults);
-    const policies = formatPolicyResults(policyResults);
-    const articles = formatArticleResults(articleResults);
-
-    // Build sources reference
-    const sources: SourceReference[] = [
-      ...productResults.map((r) => ({
-        title: r.title,
-        type: 'product' as const,
-        relevance: r.relevance,
-      })),
-      ...policyResults.map((r) => ({
-        title: r.title,
-        type: 'policy' as const,
-        relevance: r.relevance,
-      })),
-      ...articleResults.map((r) => ({
-        title: r.title,
-        type: 'article' as const,
-        relevance: r.relevance,
-      })),
-    ].sort((a, b) => b.relevance - a.relevance);
-
-    // Build context summary
-    const summary = buildContextSummary(
-      products,
-      policies,
-      articles,
-      fallback
-    );
-
-    return {
-      products,
-      policies,
-      articles,
-      confidence: hasGoodMatches ? topRelevance : 0.3,
-      sources,
-      summary,
-      fallback,
-    };
+    return buildContextFromResultSets(productResults, policyResults, articleResults, confidenceThreshold, remoteSearch.qualityMetadata);
   } catch (error) {
     console.error('[RAGBuilder] Context build failed:', error);
     return getFallbackContext('Context generation failed', options);
@@ -239,42 +373,26 @@ export async function buildPoliciesContext(
   topic: string,
   options: RAGBuilderOptions
 ): Promise<RAGContext> {
-  const { shopId, locale = 'en', threshold = 0.5 } = options;
+  const { threshold = 0.5 } = options;
+  const confidenceThreshold = Math.max(threshold, 0.5);
 
   try {
-    const provider = getEmbeddingsProvider();
-    if (!provider) {
-      return getFallbackContext('Embeddings provider not available', options);
+    const remotePolicySearch = await searchRemoteWithQualityPipeline(
+      `policy ${topic}`,
+      options,
+      ['policy'],
+    );
+
+    if (remotePolicySearch.status === 'unavailable') {
+      return getFallbackContext(remotePolicySearch.reason, options);
     }
 
-    const embedding = await provider.embed(`policy ${topic}`);
-
-    if (!validateEmbedding(embedding)) {
-      return getFallbackContext('Failed to process policy query', options);
+    if (remotePolicySearch.results.length === 0) {
+      return getFallbackContext('No relevant remote policy context found.', options);
     }
 
-    const policyResults = await searchPolicies(embedding, {
-      limit: 8,
-      threshold,
-      filter: { shopId, locales: [locale] },
-    });
-
-    const topRelevance = policyResults[0]?.relevance || 0;
-    const hasGoodMatches = topRelevance > 0.5;
-
-    return {
-      products: [],
-      policies: formatPolicyResults(policyResults),
-      articles: [],
-      confidence: hasGoodMatches ? topRelevance : 0.2,
-      sources: policyResults.map((r) => ({
-        title: r.title,
-        type: 'policy' as const,
-        relevance: r.relevance,
-      })),
-      summary: buildContextSummary([], formatPolicyResults(policyResults), [], !hasGoodMatches),
-      fallback: !hasGoodMatches,
-    };
+    const limited = remotePolicySearch.results.slice(0, 8);
+    return buildContextFromResultSets([], limited, [], confidenceThreshold, remotePolicySearch.qualityMetadata);
   } catch (error) {
     console.error('[RAGBuilder] Policy context failed:', error);
     return getFallbackContext('Policy context failed', options);
@@ -288,16 +406,9 @@ export async function buildRecommendationContext(
   cartItems: Array<{ productId: string; name: string }>,
   options: RAGBuilderOptions
 ): Promise<RAGContext> {
-  const { shopId, locale = 'en' } = options;
-
   try {
     if (cartItems.length === 0) {
       return getFallbackContext('No cart items to base recommendations on', options);
-    }
-
-    const provider = getEmbeddingsProvider();
-    if (!provider) {
-      return getFallbackContext('Embeddings provider not available', options);
     }
 
     // Build context query from cart items
@@ -306,25 +417,27 @@ export async function buildRecommendationContext(
       .join(', ');
     const query = `recommend products similar to ${cartContext}`;
 
-    const embedding = await provider.embed(query);
+    const remoteProductSearch = await searchRemoteWithQualityPipeline(
+      query,
+      options,
+      ['product'],
+    );
 
-    if (!validateEmbedding(embedding)) {
-      return getFallbackContext('Failed to embed recommendation query', options);
+    if (remoteProductSearch.status === 'unavailable') {
+      return getFallbackContext(remoteProductSearch.reason, options);
     }
 
-    const productResults = await searchProducts(embedding, {
-      limit: 6,
-      threshold: 0.4,
-      filter: { shopId, locales: [locale] },
-    });
+    if (remoteProductSearch.results.length === 0) {
+      return getFallbackContext('No remote recommendations available for current cart context.', options);
+    }
 
-    const topRelevance = productResults[0]?.relevance || 0;
+    const productResults = remoteProductSearch.results.slice(0, 6);
 
     return {
       products: formatProductResults(productResults),
       policies: [],
       articles: [],
-      confidence: Math.min(1, topRelevance + 0.2), // Boost confidence for recommendations
+      confidence: Math.min(1, productResults[0]?.relevance || 0),
       sources: productResults.map((r) => ({
         title: r.title,
         type: 'product' as const,
@@ -332,6 +445,7 @@ export async function buildRecommendationContext(
       })),
       summary: `Recommended products based on your cart`,
       fallback: false,
+      qualityMetadata: remoteProductSearch.qualityMetadata,
     };
   } catch (error) {
     console.error('[RAGBuilder] Recommendation context failed:', error);

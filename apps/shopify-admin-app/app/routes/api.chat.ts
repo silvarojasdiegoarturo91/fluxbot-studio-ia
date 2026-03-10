@@ -6,7 +6,7 @@
 import type { ActionFunctionArgs } from "react-router";
 import { cors } from "remix-utils/cors";
 import prisma from "../db.server";
-import { AIOrchestrationService } from "../services/ai-orchestration.server";
+import { getIAGateway } from "../services/ia-gateway.server";
 
 // Helper to create JSON responses
 function json(data: any, init?: ResponseInit) {
@@ -107,12 +107,17 @@ export async function action({ request }: ActionFunctionArgs) {
       });
     }
 
-    // Process chat message using AI Orchestration Service
-    const chatResponse = await AIOrchestrationService.chat(
-      shop.id,
-      conversationId || conversation.id,
-      message,
-      locale || 'en'
+    // Process chat message via IAGateway (local or remote depending on IA_EXECUTION_MODE)
+    const gateway = getIAGateway();
+    const chatResponse = await gateway.chat(
+      {
+        message,
+        conversationId: conversationId || conversation.id,
+        shopId: shop.id,
+        locale: locale || 'en',
+        channel,
+      },
+      shopDomain,
     );
 
     // Return response

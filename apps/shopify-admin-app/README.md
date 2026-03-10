@@ -24,9 +24,11 @@ Full architecture documentation: [Architecture Plan](/memories/session/plan.md)
 Status is maintained in one place only: [`STATUS_MATRIX.md`](/STATUS_MATRIX.md).
 
 Snapshot:
-- ✅ Foundation and baseline chat/RAG stack running
+- ✅ Phase 1 complete: shell Shopify + gateway IA + order lookup read-only
 - ✅ Phase 2 closure started: add-to-cart + human handoff backend delivered
-- ✅ Phase 3 closure started: omnichannel bridge + `llms.txt` delivered
+- ✅ Phase 2 migration: intent + trigger decisioning now run remote-only through the IA gateway
+- ✅ Phase 2 migration: recommendation quality pipeline is now remote-only from frontend runtime
+- ✅ Phase 3 `llms.txt`: generated in backend IA and published by frontend routes
 - 🚧 Remaining V2/V3 items tracked in the matrix
 
 ## Prerequisites
@@ -186,7 +188,7 @@ npx prisma studio    # Open database GUI
 - [x] Multi-tenant data model
 - [ ] Catalog sync pipeline
 - [ ] RAG-based product/policy answers
-- [ ] Order lookup with verification
+- [x] Order lookup with verification
 - [ ] Basic analytics
 - [ ] GDPR consent tracking
 

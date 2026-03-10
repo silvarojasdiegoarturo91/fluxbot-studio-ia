@@ -1,313 +1,366 @@
-# Especificación de Refactorización: Separación Frontend/Backend
+# Especificaciones de Refactorizacion del Separation Plan
 
-## Visión General
+## 1. Objetivo
 
-Separar el proyecto en dos repositorios independientes:
+Definir una especificacion tecnica unica para completar la separacion entre:
 
-1. **fluxbot-studio-ia** (este repo) → Solo Shopify Frontend App
-2. **fluxbot-studio-back-ia** → Backend de IA con API Keys, LLMs y lógica de IA
+- `fluxbot-studio-ia` (frontend Shopify + dominio Shopify/compliance)
+- `fluxbot-studio-back-ia` (backend IA + orquestacion LLM + RAG + embeddings)
 
----
-
-## Arquitectura Propuesta
-
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                              FLUXBOT-STUDIO-IA                              │
-│                         (Shopify Frontend App)                              │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
-│   ┌──────────────┐    ┌──────────────┐    ┌──────────────┐                  │
-│   │   Admin UI   │    │   Widget     │    │  Shopify     │                  │
-│   │  (Polaris)   │    │  Storefront  │    │  Admin API   │                  │
-│   └──────────────┘    └──────────────┘    └──────────────┘                  │
-│                                                                             │
-│   ┌────────────────────────────────────────────────────────────────────┐   │
-│   │                    FRONTEND SERVICES                                │   │
-│   │  - sync-service.server.ts (sincronización Shopify)                │   │
-│   │  - commerce-actions.server.ts (acciones de comercio)              │   │
-│   │  - delivery.server.ts (entrega de mensajes)                        │   │
-│   │  - consent-management.server.ts                                    │   │
-│   │  - analytics.server.ts (analítica agregada)                       │   │
-│   │  - handoff.server.ts (escalamiento a humano)                     │   │
-│   └────────────────────────────────────────────────────────────────────┘   │
-│                                                                             │
-│   ┌────────────────────────────────────────────────────────────────────┐   │
-│   │                    DATABASE (PostgreSQL)                          │   │
-│   │  - Shop, Session, User                                            │   │
-│   │  - ChatbotConfig (SIN apiKeys)                                    │   │
-│   │  - Conversation, Message, Events                                  │   │
-│   │  - KnowledgeSource, KnowledgeDocument                             │   │
-│   │  - ProductProjection, PolicyProjection, OrderProjection           │   │
-│   │  - ConsentRecord, AuditLog, WebhookEvent, SyncJob                 │   │
-│   │  - BehaviorEvent, IntentSignal, ProactiveTrigger                  │   │
-│   │  - ConversionEvent, HandoffRequest                                │   │
-│   └────────────────────────────────────────────────────────────────────┘   │
-│                                                                             │
-└─────────────────────────────────────────────────────────────────────────────┘
-                                      │
-                                      │ HTTP/REST
-                                      ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                          FLUXBOT-STUDIO-BACK-IA                             │
-│                         (Backend IA - Nuevo Repo)                           │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
-│   ┌────────────────────────────────────────────────────────────────────┐   │
-│   │                       CORE AI SERVICES                              │   │
-│   │  - ai-orchestration.server.ts (orquestación LLM)                  │   │
-│   │  - intent-detection.server.ts (detección de intención)            │   │
-│   │  - rag-builder.server.ts (construcción RAG)                       │   │
-│   │  - vector-retrieval.server.ts (recuperación vectorial)           │   │
-│   │  - embeddings.server.ts (generación de embeddings)               │   │
-│   │  - trigger-evaluation.server.ts (evaluación de triggers)          │   │
-│   │  - proactive-messaging.server.ts (mensajería proactiva)          │   │
-│   │  - llms-txt.server.ts (generación llms.txt)                      │   │
-│   │  - event-tracking.server.ts                                       │   │
-│   └────────────────────────────────────────────────────────────────────┘   │
-│                                                                             │
-│   ┌────────────────────────────────────────────────────────────────────┐   │
-│   │                    API KEYS & PROVIDERS                            │   │
-│   │  - OpenAI API Key                                                 │   │
-│   │  - Anthropic API Key                                              │   │
-│   │  - Google Gemini API Key                                         │   │
-│   │  - Vector Store (pinecone, weaviate, pgvector)                  │   │
-│   │  - Moderation APIs                                                │   │
-│   └────────────────────────────────────────────────────────────────────┘   │
-│                                                                             │
-│   ┌────────────────────────────────────────────────────────────────────┐   │
-│   │                    DATABASE (PostgreSQL)                          │   │
-│   │  - AIProviderConfig (CON apiKeys)                                 │   │
-│   │  - EmbeddingRecord                                                │   │
-│   │  - KnowledgeChunk                                                │   │
-│   │  - ToolInvocation                                                 │   │
-│   │  - IntentSignal                                                  │   │
-│   │  - ProactiveTrigger                                              │   │
-│   │  - AIAnalytics (métricas de IA)                                  │   │
-│   └────────────────────────────────────────────────────────────────────┘   │
-│                                                                             │
-│   ┌────────────────────────────────────────────────────────────────────┐   │
-│   │                         APIs EXPUESTAS                             │   │
-│   │  POST /api/chat - Procesar mensaje de chat                        │   │
-│   │  POST /api/intent - Detectar intención                           │   │
-│   │  POST /api/rag/search - Búsqueda RAG                             │   │
-│   │  POST /api/embeddings/generate - Generar embeddings              │   │
-│   │  POST /api/triggers/evaluate - Evaluar triggers                  │   │
-│   │  GET  /api/providers - Listar proveedores configurados           │   │
-│   │  POST /api/providers - Configurar proveedor                      │   │
-│   │  POST /api/llms-txt/generate - Generar llms.txt                  │   │
-│   └────────────────────────────────────────────────────────────────────┘   │
-│                                                                             │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
+Esta version sustituye la especificacion previa ambigua y alinea el plan con el estado real del codigo (2026-03-10).
 
 ---
 
-## Modelos de Base de Datos
+## 2. Estado Actual Verificado
 
-### Frontend (fluxbot-studio-ia)
+### 2.1 Hallazgos en `fluxbot-studio-ia`
 
-**Se quedan:**
-- Shop, Session, User
-- ChatbotConfig (SIN apiKey - solo configuración pública)
-- Conversation, ConversationMessage, ConversationEvent
-- CustomerIdentity
-- KnowledgeSource, KnowledgeDocument
-- ProductProjection, PolicyProjection, OrderProjection
-- ConsentRecord, AuditLog
-- WebhookEvent, SyncJob
-- BehaviorEvent, IntentSignal, ProactiveTrigger, ProactiveMessage
-- ConversionEvent, HandoffRequest
-- OmnichannelCallbackReceipt, DeadLetterCallback
+1. Existe cliente remoto: `apps/shopify-admin-app/app/services/ia-backend.client.ts`.
+2. Las rutas principales siguen usando servicios IA locales:
+- `apps/shopify-admin-app/app/routes/api.chat.ts`
+- `apps/shopify-admin-app/app/routes/api.intent.analyze.ts`
+- `apps/shopify-admin-app/app/routes/api.triggers.evaluate.ts`
+- `apps/shopify-admin-app/app/routes/api.llms-txt.ts`
+3. El schema Prisma ya movio parte de IA fuera del frontend (`AIProviderConfig`, `EmbeddingRecord`, `KnowledgeChunk` no estan en `infra/prisma/schema.prisma`), pero quedan modelos ligados a logica IA en frontend (`IntentSignal`, `ProactiveTrigger`, `ToolInvocation`).
+4. La configuracion del frontend sigue exigiendo claves de proveedor IA (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`) via `apps/shopify-admin-app/app/config.server.ts`.
+5. `.env.example` ya incluye `IA_BACKEND_URL` y `IA_BACKEND_API_KEY`, lo que confirma una arquitectura objetivo remota no finalizada.
 
-**Se eliminan:**
-- AIProviderConfig (se mueve al back)
-- EmbeddingRecord (se mueve al back)
-- KnowledgeChunk (se mueve al back)
+### 2.2 Conclusión
 
-### Backend (fluxbot-studio-back-ia)
-
-**Modelos propios:**
-- AIProviderConfig (CON apiKeys cifradas)
-- EmbeddingRecord
-- KnowledgeChunk
-- IntentSignal (recibido del front)
-- ProactiveTrigger (configuración)
-- AIAnalytics (métricas de uso de IA)
+El sistema esta en modo hibrido: contrato remoto definido, consumo real aun local.
 
 ---
 
-## Comunicación Frontend ↔ Backend
+## 3. Alcance del Refactor
 
-### Patrón de Comunicación
+### 3.1 Incluido
 
-```typescript
-// FRONTEND: Llamada al backend de IA
-const response = await fetch('https://api.fluxbot-back.ia/v1/chat', {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-    'X-Shop-Domain': shop.domain,
-    'Authorization': `Bearer ${shop.apiKey}` // API key del merchant
-  },
-  body: JSON.stringify({
-    message: userMessage,
-    conversationId: conversation.id,
-    context: {
-      shopId: shop.id,
-      locale: conversation.locale,
-      channel: conversation.channel
-    }
-  })
-});
-```
+- Separacion completa de ejecucion IA al backend externo.
+- Clarificacion de ownership por dominio y base de datos.
+- Migracion incremental sin corte total (strangler pattern).
+- Contratos HTTP versionados entre frontend y backend.
+- Endurecimiento de seguridad y observabilidad cross-repo.
 
-### Endpoints del Backend
+### 3.2 No Incluido
 
-| Endpoint | Método | Descripción |
-|----------|--------|-------------|
-| `/api/chat` | POST | Procesar mensaje y obtener respuesta |
-| `/api/intent` | POST | Detectar intención del mensaje |
-| `/api/rag/search` | POST | Buscar en knowledge base |
-| `/api/embeddings/generate` | POST | Generar embeddings |
-| `/api/triggers/evaluate` | POST | Evaluar triggers proactivos |
-| `/api/providers` | GET/POST | Gestionar proveedores IA |
-| `/api/llms-txt/generate` | POST | Generar llms.txt |
-| `/api/analytics` | POST | Enviar métricas |
+- Reescritura total del frontend Shopify.
+- Cambio de framework (Remix/React Router/Polaris se mantiene).
+- Big-bang migration en una sola release.
 
 ---
 
-## Variables de Entorno
+## 4. Principios de Diseño
 
-### Frontend (.env)
-
-```env
-# Shopify
-SHOPIFY_API_KEY=...
-SHOPIFY_API_SECRET=...
-SHOPIFY_APP_URL=...
-
-# Base de datos (solo datos del front)
-DATABASE_URL=postgresql://...
-
-# Backend de IA
-IA_BACKEND_URL=https://api.fluxbot-back.ia
-IA_BACKEND_API_KEY=... # API key interna para autenticar frente al back
-```
-
-### Backend (.env)
-
-```env
-# Base de datos (datos de IA)
-DATABASE_URL=postgresql://...
-
-# Proveedores IA (API Keys)
-OPENAI_API_KEY=sk-...
-ANTHROPIC_API_KEY=sk-ant-...
-GEMINI_API_KEY=...
-
-# Vector Store (opcional)
-PINECONE_API_KEY=...
-WEAVIATE_URL=...
-
-# Frontend (webhooks, callbacks)
-FRONTEND_WEBHOOK_URL=https://admin.fluxbot.ia/webhooks/ia
-```
+1. `Shopify-first`: todo lo que depende de OAuth, session y Admin API queda en frontend.
+2. `Provider-agnostic`: todo acceso a OpenAI/Anthropic/Gemini vive en backend.
+3. `Contract-first`: ningun modulo migra sin contrato de entrada/salida.
+4. `Multi-tenant`: toda llamada entre repos incluye contexto de tienda.
+5. `Observability by default`: correlacion obligatoria por request/conversation/shop.
+6. `Safe migration`: feature flags + rollback por ruta.
 
 ---
 
-## Pasos de Refactorización
+## 5. Arquitectura Objetivo
 
-### Fase 1: Crear nuevo proyecto
+### 5.1 Frontend (`fluxbot-studio-ia`)
 
-```bash
-# Crear estructura del proyecto backend
-cd ~/Documents
-mkdir -p fluxbot-studio-back-ia
-cd fluxbot-studio-back-ia
-npm init -y
-npm install express prisma @prisma/client openai anthropic google-auth-library
-```
+Responsable de:
 
-### Fase 2: Migrar servicios de IA
+- Embedded Admin App (Polaris/App Bridge)
+- OAuth y sesiones Shopify
+- Integracion Admin GraphQL
+- Webhooks Shopify y sync operacional
+- Proyecciones de catalogo/politicas/pedidos
+- Conversaciones y auditoria de negocio
+- Consentimiento, compliance y data governance
+- Canal de entrega/handoff/omnichannel bridge
+- Gateway HTTP hacia backend IA
 
-Mover de `apps/shopify-admin-app/app/services/`:
-- ai-orchestration.server.ts
-- intent-detection.server.ts
-- embeddings.server.ts
-- rag-builder.server.ts
-- vector-retrieval.server.ts
-- trigger-evaluation.server.ts
-- proactive-messaging.server.ts
-- llms-txt.server.ts
-- event-tracking.server.ts (o parte)
+### 5.2 Backend IA (`fluxbot-studio-back-ia`)
 
-### Fase 3: Crear API REST
+Responsable de:
 
-Crear endpoints Express que expongan la funcionalidad de los servicios.
+- Orquestacion de chat y herramientas IA
+- Deteccion de intencion y evaluacion de triggers
+- Retrieval semantico + RAG + reranking
+- Embeddings y vector store
+- Seleccion de proveedor/modelo y guardrails
+- Generacion `llms.txt`
+- Metricas de IA (latencia, coste, tokens, calidad)
+- Gestion segura de API keys de proveedores
 
-### Fase 4: Separar bases de datos
+### 5.3 Integracion entre repos
 
-1. Crear nueva base de datos PostgreSQL para el backend
-2. Crear nuevo schema Prisma para el backend
-3. Modificar schema del frontend para eliminar modelos movidos
-
-### Fase 5: Actualizar Frontend
-
-1. Reemplazar llamadas a servicios IA con HTTP calls al backend
-2. Eliminar dependencias de OpenAI/Anthropic/Gemini
-3. Mantener sync-service, commerce-actions, delivery, etc.
-
-### Fase 6: Actualizar AGENTS.md
-
-Agregar instrucciones específicas para cada proyecto.
+- Protocolo: HTTP JSON (v1)
+- Seguridad: `Authorization: Bearer`, `X-Shop-Domain`, `X-Correlation-Id`
+- Timeouts: obligatorios por endpoint
+- Retries: solo en operaciones idempotentes
 
 ---
 
-## Consideraciones de Seguridad
+## 6. Matriz de Ownership por Modulo
 
-### Frontend
-- No expone API keys de IA
-- Autenticación via Shopify OAuth
-- Rate limiting en llamadas al backend
-
-### Backend
-- API Keys cifradas en BD (AES-256)
-- Autenticación por API Key por shop
-- Rate limiting por shop
-- Logs de auditoría
-- Validación de entrada estricta
-
----
-
-## Recomendaciones de Implementación
-
-1. **Incremental**: No migrar todo de una vez
-2. **Contract-first**: Definir contratos de API primero
-3. **Mocking**: Mantener servicios mockeados para desarrollo local
-4. **Testing**: Tests de integración entre front y back
-5. **Documentación**: OpenAPI/Swagger para la API del backend
+| Modulo | Owner final | Estado actual | Accion |
+|---|---|---|---|
+| `sync-service.server.ts` | Frontend | Frontend | Mantener |
+| `commerce-actions.server.ts` | Frontend | Frontend | Mantener |
+| `delivery.server.ts` | Frontend | Frontend | Mantener |
+| `consent-management.server.ts` | Frontend | Frontend | Mantener |
+| `analytics.server.ts` (negocio) | Frontend | Frontend | Mantener + consumir IA analytics remoto |
+| `handoff.server.ts` | Frontend | Frontend | Mantener |
+| `omnichannel-bridge.server.ts` | Frontend | Frontend | Mantener |
+| `ai-orchestration.server.ts` | Backend IA | Frontend | Migrar |
+| `embeddings.server.ts` | Backend IA | Frontend | Migrar |
+| `rag-builder.server.ts` | Backend IA | Frontend | Migrar |
+| `vector-retrieval.server.ts` | Backend IA | Frontend | Migrar |
+| `intent-detection.server.ts` | Backend IA | Frontend | Migrar |
+| `trigger-evaluation.server.ts` | Backend IA | Frontend | Migrar |
+| `proactive-messaging.server.ts` (decisioning IA) | Backend IA | Frontend | Partir: decisioning back, dispatch front |
+| `llms-txt.server.ts` | Backend IA | Frontend | Migrar |
+| `event-tracking.server.ts` | Compartido | Frontend | Front captura, Back analiza |
+| `ia-backend.client.ts` | Frontend | Frontend | Convertir en gateway oficial |
 
 ---
 
-## Archivos a Modificar/Crear
+## 7. Ownership de Datos
 
-### En fluxbot-studio-ia (Frontend)
+### 7.1 Base `fluxbot_dev` (frontend)
 
-- [ ] Actualizar `infra/prisma/schema.prisma` - eliminar AIProviderConfig, EmbeddingRecord, KnowledgeChunk
-- [ ] Crear cliente HTTP para llamar al backend
-- [ ] Actualizar servicios que usan IA para llamar al backend
-- [ ] Actualizar routes de API
-- [ ] Actualizar `.env.example` y `.env`
-- [ ] Actualizar AGENTS.md
+Debe contener solo datos Shopify, operacionales y compliance:
 
-### En fluxbot-studio-back-ia (Backend - Nuevo)
+- `Shop`, `Session`, `User`, `ShopInstallation`
+- `ChatbotConfig` (sin secrets)
+- `Conversation`, `ConversationMessage`, `ConversationEvent`
+- `CustomerIdentity`, `HandoffRequest`
+- `KnowledgeSource`, `KnowledgeDocument`
+- `ProductProjection`, `PolicyProjection`, `OrderProjection`
+- `ConsentRecord`, `AuditLog`, `WebhookEvent`, `SyncJob`
+- `BehaviorEvent`, `ConversionEvent`
+- `OmnichannelCallbackReceipt`, `DeadLetterCallback`
 
-- [ ] Crear estructura de proyecto
-- [ ] Crear schema Prisma
-- [ ] Migrar servicios de IA
-- [ ] Crear API REST/GraphQL
-- [ ] Implementar autenticación por shop
-- [ ] Configurar logging y métricas
-- [ ] Crear Dockerfile
-- [ ] Crear AGENTS.md específico
+### 7.2 Base `fluxbot_ia` (backend)
+
+Debe contener solo datos de ejecucion IA:
+
+- `AIProviderConfig` (apiKeys cifradas)
+- `KnowledgeChunk`, `EmbeddingRecord`
+- `IntentSignal`, `ProactiveTrigger`
+- `ToolInvocation` de bajo nivel
+- `AIAnalytics` (tokens, coste, latencia, score)
+
+### 7.3 Decision clave sobre `ToolInvocation`
+
+Para evitar join cross-db entre `ConversationMessage` (frontend) y `ToolInvocation` (backend), se define:
+
+- Backend guarda detalle tecnico completo (`tool_input`, `tool_output`, `duration`, `provider`).
+- Frontend guarda solo resumen auditable por mensaje (`toolName`, `success`, `durationMs`, `correlationId`).
+
+---
+
+## 8. Contratos API (Contract-First)
+
+### 8.1 Reglas generales
+
+- Prefijo: `/api/v1`
+- JSON estricto con `requestId`, `shopDomain`, `conversationId` cuando aplique
+- Error envelope unico: `{ error: { code, message, details? } }`
+- Timeout por llamada desde frontend: 3s-8s segun endpoint
+
+### 8.2 Endpoints minimos
+
+1. `POST /api/v1/chat`
+- Input: `message`, `conversationId?`, `context`
+- Output: `message`, `confidence`, `toolsUsed`, `actions`, `sourceReferences`
+
+2. `POST /api/v1/chat/stream`
+- Igual que chat, respuesta en stream
+
+3. `POST /api/v1/intent/analyze`
+- Input: `sessionId`, `visitorId?`, `signals?`
+- Output: `dominantIntent`, `confidence`, `recommendations`
+
+4. `POST /api/v1/triggers/evaluate`
+- Input: `sessionId`, `visitorId?`, `context`
+- Output: `evaluations[]`, `recommendation`
+
+5. `POST /api/v1/rag/search`
+- Input: `query`, `filters`, `locale`
+- Output: `results[]` con score y metadata
+
+6. `POST /api/v1/embeddings/generate`
+- Input: `text` o `texts[]`
+- Output: `embedding` o `embeddings`
+
+7. `POST /api/v1/analytics/ingest`
+- Input: eventos IA
+- Output: confirmacion + `ingestedCount`
+
+8. `POST /api/v1/llms-txt/generate`
+- Input: `shopId`
+- Output: contenido y metadatos de version/freshness
+
+### 8.3 Headers obligatorios
+
+- `Authorization: Bearer <IA_BACKEND_API_KEY>`
+- `X-Shop-Domain: <shop>.myshopify.com`
+- `X-Correlation-Id: <uuid>`
+- `Content-Type: application/json`
+
+---
+
+## 9. Estrategia de Migracion (Oleadas)
+
+### Oleada 0: Baseline de seguridad y contrato
+
+1. Versionar contratos en ambos repos (`/api/v1`).
+2. Estandarizar error model y correlation id.
+3. Agregar feature flags:
+- `IA_EXECUTION_MODE=local|remote|hybrid`
+- `IA_ROUTE_CHAT_REMOTE=true|false`
+- `IA_ROUTE_INTENT_REMOTE=true|false`
+
+### Oleada 1: Chat orchestration remota
+
+1. `api.chat.ts` deja de importar `AIOrchestrationService` local.
+2. `api.chat.ts` consume `ia-backend.client.ts`.
+3. Persistencia de `Conversation` y `ConversationMessage` se mantiene en frontend.
+4. Guardar telemetria minima de tool usage en frontend.
+
+Criterio de salida:
+
+- 100% de requests de chat pasan por backend IA con fallback controlado.
+
+### Oleada 2: Intent + triggers
+
+1. `api.intent.analyze.ts` y `api.triggers.evaluate.ts` pasan a backend.
+2. `event-tracking` se mantiene en frontend para captura primaria.
+3. Backend consume eventos via endpoint o replicacion asincrona.
+
+Criterio de salida:
+
+- Sin import directo a `intent-detection.server.ts` o `trigger-evaluation.server.ts` desde rutas frontend.
+
+### Oleada 3: RAG, embeddings y llms.txt
+
+1. Mover `embeddings.server.ts`, `rag-builder.server.ts`, `vector-retrieval.server.ts`, `llms-txt.server.ts`.
+2. Frontend mantiene solo orquestacion de sync y publicacion operacional.
+
+Criterio de salida:
+
+- Frontend sin dependencias de proveedor LLM en runtime.
+
+### Oleada 4: Limpieza final
+
+1. Eliminar claves `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GEMINI_API_KEY` del runtime frontend.
+2. Actualizar `config.server.ts` para modo remoto obligatorio.
+3. Eliminar codigo IA legacy del repo frontend.
+
+Criterio de salida:
+
+- `apps/shopify-admin-app/app/services` sin servicios de ejecucion IA.
+
+---
+
+## 10. Cambios Especificos en Frontend
+
+1. Crear interfaz `IAGateway` con implementaciones:
+- `LocalIAGateway` (transitorio)
+- `RemoteIAGateway` (`ia-backend.client.ts`)
+
+2. Migrar rutas por adapter, no por `if` dispersos:
+- `api.chat.ts`
+- `api.intent.analyze.ts`
+- `api.triggers.evaluate.ts`
+- `api.llms-txt.ts`
+
+3. Desacoplar `config.server.ts` de provider keys cuando `IA_EXECUTION_MODE=remote`.
+
+4. Mantener compatibilidad temporal con `hybrid` hasta cierre de oleada 4.
+
+---
+
+## 11. Seguridad y Cumplimiento
+
+1. Secrets de proveedores IA solo en backend.
+2. Frontend nunca debe enviar PII no necesaria al backend.
+3. Logs sin prompts completos en nivel `info`.
+4. Trazabilidad minima por accion:
+- `shopId`
+- `conversationId`
+- `requestId`
+- `toolName`
+- `outcome`
+- `latencyMs`
+5. HMAC opcional para hardening entre repos en V2.
+
+---
+
+## 12. Testing y Validacion
+
+### 12.1 Regresion obligatoria
+
+Tras cambios en codigo de produccion del frontend:
+
+- Ejecutar `npm test` en `apps/shopify-admin-app`.
+- Fase 0 debe permanecer verde (`68/68` minimo esperado por contrato actual).
+
+### 12.2 Nuevas pruebas requeridas
+
+1. Contract tests frontend-backend para `/api/v1/chat`, `/intent/analyze`, `/triggers/evaluate`.
+2. Tests de fallback (`remote -> local`) solo mientras exista modo `hybrid`.
+3. Tests de errores de autenticacion (`401`, `403`) y timeout (`504`).
+4. Tests de idempotencia para eventos batch.
+
+---
+
+## 13. Riesgos y Mitigaciones
+
+| Riesgo | Impacto | Mitigacion |
+|---|---|---|
+| Drift de contratos entre repos | Alto | Versionado `/api/v1` + contract tests en CI |
+| Latencia adicional por llamada remota | Medio | Timeouts + retries idempotentes + cache de contexto |
+| Doble escritura de telemetria | Medio | Definir ownership por tabla/evento |
+| Rollback incompleto | Alto | Feature flags por ruta + modo `hybrid` |
+| Exposicion de secrets en frontend | Critico | Eliminar provider keys del runtime frontend |
+
+---
+
+## 14. Criterios de Aceptacion Global
+
+1. Ninguna ruta frontend invoca servicios de ejecucion IA local.
+2. `ia-backend.client.ts` (o `IAGateway`) es unico punto de acceso IA en frontend.
+3. Frontend no requiere `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`.
+4. Conversaciones, compliance y auditoria siguen funcionando en frontend.
+5. Contratos `/api/v1` cubiertos por pruebas de contrato.
+6. `npm test` en `apps/shopify-admin-app` pasa tras cada cambio de produccion.
+
+---
+
+## 15. Checklist de Ejecucion
+
+### Frontend (`fluxbot-studio-ia`)
+
+- [ ] Introducir `IAGateway` y feature flags de migracion
+- [ ] Migrar `api.chat.ts` a gateway remoto
+- [ ] Migrar `api.intent.analyze.ts` y `api.triggers.evaluate.ts`
+- [ ] Migrar `api.llms-txt.ts`
+- [ ] Limpiar `config.server.ts` para modo remoto
+- [ ] Eliminar servicios IA legacy al cierre
+- [ ] Ejecutar suite de pruebas despues de cada cambio productivo
+
+### Backend (`fluxbot-studio-back-ia`)
+
+- [ ] Publicar contratos `/api/v1` estables
+- [ ] Implementar autenticacion por `IA_BACKEND_API_KEY` + `X-Shop-Domain`
+- [ ] Exponer trazabilidad por `X-Correlation-Id`
+- [ ] Cifrar credenciales de proveedores
+- [ ] Publicar metricas de latencia/coste/token
+- [ ] Asegurar retries idempotentes para tareas pesadas
+
+---
+
+## 16. Gobernanza de Documentacion
+
+- `SEPARATION_PLAN.md`: plan operativo por fases y tracking.
+- `REFACTORING_SEPARATION.md` (este archivo): especificacion tecnica y criterios de implementacion.
+- Si hay conflicto, prevalece este archivo para decisiones tecnicas de separacion.

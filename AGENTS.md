@@ -1,5 +1,56 @@
 # Instrucciones de ingeniería para asistentes de IA (Copilot, Codex, Gemini) — App Shopify
 
+## IMPORTANTE: Arquitectura Separada
+
+Este proyecto utiliza una **arquitectura separada** entre frontend y backend de IA:
+
+### Repositorios
+
+1. **fluxbot-studio-ia** (este repositorio)
+   - Frontend: App de Admin Shopify
+   - UI: Shopify Polaris + React
+   - Base de datos: PostgreSQL (solo datos de Shopify)
+   - API: REST/GraphQL para operaciones de Shopify
+
+2. **fluxbot-studio-back-ia** (`~/Documents/fluxbot-studio-back-ia`)
+   - Backend: API de IA
+   - Servicios: Orquestación LLM, embeddings, RAG, triggers proactivos
+   - API Keys: OpenAI, Anthropic, Gemini (gestionados aquí)
+   - Base de datos: PostgreSQL (datos de IA)
+
+### Comunicación Frontend → Backend
+
+El frontend llama al backend de IA via HTTP:
+
+```typescript
+// apps/shopify-admin-app/app/services/ia-backend.client.ts
+import { iaClient } from './services/ia-backend.client';
+
+const response = await iaClient.chat.send({
+  message: 'Hola, quiero comprar algo',
+  conversationId: 'conv-123',
+  context: { shopId: 'shop-1', locale: 'es' }
+}, shopDomain);
+```
+
+### Variables de Entorno
+
+**Frontend** (`apps/shopify-admin-app/.env`):
+```env
+IA_BACKEND_URL=http://localhost:3001
+IA_BACKEND_API_KEY=your_ia_backend_api_key
+```
+
+**Backend** (`fluxbot-studio-back-ia/.env`):
+```env
+OPENAI_API_KEY=sk-...
+ANTHROPIC_API_KEY=sk-ant-...
+GEMINI_API_KEY=...
+DATABASE_URL=postgresql://.../fluxbot_ia
+```
+
+---
+
 ## Propósito del archivo
 Este archivo define las reglas, prioridades, restricciones técnicas y criterios de calidad que **cualquier asistente de IA de desarrollo** debe seguir al generar código para esta aplicación Shopify.
 
@@ -183,8 +234,11 @@ Cuando no se especifique lo contrario, priorizar el siguiente stack:
 - Vector store desacoplado por interfaz si hay búsqueda semántica
 
 ### Integraciones IA
-- abstracciones provider-agnostic
-- RAG con recuperación híbrida cuando haya catálogo/documentación
+**NOTA: Toda la lógica de IA está en el repositorio separado `fluxbot-studio-back-ia`**
+- Usar el cliente `iaClient` para llamadas al backend de IA
+- No implementar lógica de LLMs, embeddings o RAG en este repositorio
+- abstracciones provider-agnostic (en backend)
+- RAG con recuperación híbrida cuando haya catálogo/documentación (en backend)
 - uso de herramientas/functions para acciones verificables
 - guardrails y evaluación de confianza
 
@@ -246,6 +300,26 @@ packages/
 
 ## Módulos funcionales mínimos
 La IA debe intentar construir el sistema en módulos reutilizables.
+
+**NOTA IMPORTANTE:** Algunos módulos están en ESTE repositorio y otros en `fluxbot-studio-back-ia`:
+
+### Módulos en ESTE repositorio (Frontend):
+- Onboarding de tienda
+- Sincronización Shopify
+- Gestión de consentimiento
+- Entrega de mensajes
+- Analytics (frontend)
+- Escalamiento a humano
+- Commerce actions
+
+### Módulos en fluxbot-studio-back-ia (Backend IA):
+- Chat orchestration (orquestación LLM)
+- Knowledge ingestion (embeddings, chunking)
+- Motor de recomendaciones (IA)
+- Detección de intención
+- RAG y búsqueda vectorial
+- Triggers proactivos
+- Generación llms.txt
 
 ### 1. Onboarding de tienda
 - instalación OAuth Shopify

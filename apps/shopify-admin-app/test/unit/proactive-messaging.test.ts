@@ -12,7 +12,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { ProactiveMessagingService } from "../../app/services/proactive-messaging.server";
 import { EventTrackingService } from "../../app/services/event-tracking.server";
+import { getIAGateway } from "../../app/services/ia-gateway.server";
 import { TriggerEvaluationService } from "../../app/services/trigger-evaluation.server";
+
+const mockEvaluateTriggers = vi.fn();
 
 // Mock dependencies
 vi.mock("../../app/db.server", () => ({
@@ -37,9 +40,13 @@ vi.mock("../../app/services/event-tracking.server", () => ({
   },
 }));
 
+vi.mock("../../app/services/ia-gateway.server", () => ({
+  getIAGateway: vi.fn(),
+  getExecutionMode: vi.fn(() => "remote"),
+}));
+
 vi.mock("../../app/services/trigger-evaluation.server", () => ({
   TriggerEvaluationService: {
-    evaluateSessionTriggers: vi.fn(),
     recordTriggerFire: vi.fn(),
   },
 }));
@@ -47,6 +54,10 @@ vi.mock("../../app/services/trigger-evaluation.server", () => ({
 describe("ProactiveMessagingService", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockEvaluateTriggers.mockReset();
+    vi.mocked(getIAGateway).mockReturnValue({
+      evaluateTriggers: mockEvaluateTriggers,
+    } as any);
   });
 
   function createStoredMessage(overrides: Record<string, unknown> = {}) {
@@ -186,20 +197,30 @@ describe("ProactiveMessagingService", () => {
       const prisma = (await import("../../app/db.server")).default;
 
       vi.mocked(EventTrackingService.getActiveSessions).mockResolvedValue(["sess-sms"]);
-      vi.mocked(TriggerEvaluationService.evaluateSessionTriggers).mockResolvedValue([
-        {
-          triggerId: "trigger-sms",
-          triggerName: "Cart Abandonment SMS",
-          decision: "SEND",
-          message: "You left items in your cart",
-          score: 0.9,
-          metadata: {
-            targetChannel: "sms",
-            recipientId: "+15551234567",
+      mockEvaluateTriggers.mockResolvedValue({
+        evaluations: [
+          {
+            triggerId: "trigger-sms",
+            triggerName: "Cart Abandonment SMS",
+            decision: "SEND",
+            message: "You left items in your cart",
+            score: 0.9,
+            metadata: {
+              targetChannel: "sms",
+              recipientId: "+15551234567",
+            },
           },
-        } as any,
-      ]);
+        ],
+        recommendation: {
+          triggerId: "trigger-sms",
+          action: "SEND",
+          message: "You left items in your cart",
+        },
+      });
       vi.mocked(TriggerEvaluationService.recordTriggerFire).mockImplementation(() => {});
+      vi.mocked(prisma.shop.findUnique).mockResolvedValue({
+        domain: "shop1.myshopify.com",
+      } as any);
       vi.mocked(prisma.proactiveMessage.findFirst).mockResolvedValue(null);
       vi.mocked(prisma.proactiveMessage.create).mockResolvedValue({
         id: "msg-sms-1",
@@ -226,19 +247,29 @@ describe("ProactiveMessagingService", () => {
       const prisma = (await import("../../app/db.server")).default;
 
       vi.mocked(EventTrackingService.getActiveSessions).mockResolvedValue(["sess-web"]);
-      vi.mocked(TriggerEvaluationService.evaluateSessionTriggers).mockResolvedValue([
-        {
-          triggerId: "trigger-web",
-          triggerName: "Invalid Channel Trigger",
-          decision: "SEND",
-          message: "Fallback message",
-          score: 0.8,
-          metadata: {
-            targetChannel: "fax",
+      mockEvaluateTriggers.mockResolvedValue({
+        evaluations: [
+          {
+            triggerId: "trigger-web",
+            triggerName: "Invalid Channel Trigger",
+            decision: "SEND",
+            message: "Fallback message",
+            score: 0.8,
+            metadata: {
+              targetChannel: "fax",
+            },
           },
-        } as any,
-      ]);
+        ],
+        recommendation: {
+          triggerId: "trigger-web",
+          action: "SEND",
+          message: "Fallback message",
+        },
+      });
       vi.mocked(TriggerEvaluationService.recordTriggerFire).mockImplementation(() => {});
+      vi.mocked(prisma.shop.findUnique).mockResolvedValue({
+        domain: "shop1.myshopify.com",
+      } as any);
       vi.mocked(prisma.proactiveMessage.findFirst).mockResolvedValue(null);
       vi.mocked(prisma.proactiveMessage.create).mockResolvedValue({
         id: "msg-web-1",
