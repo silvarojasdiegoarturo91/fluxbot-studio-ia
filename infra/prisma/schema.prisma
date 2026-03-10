@@ -299,9 +299,48 @@ model KnowledgeDocument {
   version            Int               @default(1)
   metadata           Json?
   createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  deletedAt          DateTime?
+
+  source             KnowledgeSource   @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  chunks             KnowledgeChunk[]
+
+  @@unique([sourceId, externalId])
+  @@index([sourceId, externalId])
+  @@map("knowledge_documents")
 }
 
-// EmbeddingRecord moved to fluxbot-studio-back-ia
+model KnowledgeChunk {
+  id                 String            @id @default(uuid())
+  documentId         String
+  sequence           Int
+  content            String
+  tokenCount         Int?
+  metadata           Json?
+  createdAt          DateTime          @default(now())
+
+  document           KnowledgeDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  embeddingRecord    EmbeddingRecord?
+
+  @@unique([documentId, sequence])
+  @@index([documentId, sequence])
+  @@map("knowledge_chunks")
+}
+
+model EmbeddingRecord {
+  id                 String         @id @default(uuid())
+  chunkId            String         @unique
+  provider           String
+  model              String
+  embedding          Json
+  dimension          Int
+  createdAt          DateTime       @default(now())
+
+  chunk              KnowledgeChunk @relation(fields: [chunkId], references: [id], onDelete: Cascade)
+
+  @@index([chunkId])
+  @@map("embedding_records")
+}
 
 // ============================================================================
 // COMMERCE PROJECTIONS
