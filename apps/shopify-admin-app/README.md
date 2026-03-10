@@ -21,11 +21,13 @@ Full architecture documentation: [Architecture Plan](/memories/session/plan.md)
 
 ## Current Status
 
-✅ **Phase 0 Complete** - Foundation hardened  
-✅ **Phase 1 Partial** - Data model and widget deployed  
-🚧 **In Progress** - Backend integration and AI orchestration
+Status is maintained in one place only: [`STATUS_MATRIX.md`](/STATUS_MATRIX.md).
 
-See [IMPLEMENTATION.md](/IMPLEMENTATION.md) for detailed status.
+Snapshot:
+- ✅ Foundation and baseline chat/RAG stack running
+- ✅ Phase 2 closure started: add-to-cart + human handoff backend delivered
+- ✅ Phase 3 closure started: omnichannel bridge + `llms.txt` delivered
+- 🚧 Remaining V2/V3 items tracked in the matrix
 
 ## Prerequisites
 
@@ -190,16 +192,16 @@ npx prisma studio    # Open database GUI
 
 ### 🚧 V2 (Phase 2)
 - [ ] Proactive sales triggers
-- [ ] Add-to-cart from chat
-- [ ] Human handoff integrations
+- [x] Add-to-cart from chat (backend APIs + orchestration actions)
+- [x] Human handoff integrations (backend APIs + orchestration actions)
 - [ ] Advanced reranking
 - [ ] Conversion attribution
 - [ ] Advanced multilingual support
 
 ### ⏳ V3 (Phase 3)
-- [ ] Omnichannel support
+- [x] Omnichannel support (bridge + callback + delivery channels)
 - [ ] Marketing automations
-- [ ] AEO / llms.txt generator
+- [x] AEO / llms.txt generator
 - [ ] Advanced compliance controls
 
 ## Testing
@@ -262,7 +264,7 @@ docker run -p 3000:3000 --env-file .env fluxbot-studio-ia
 
 ## Documentation
 
-- [Implementation Status](../IMPLEMENTATION.md) - Detailed progress tracking
+- [Status Matrix](../STATUS_MATRIX.md) - Canonical implementation status
 - [Architecture Plan](/memories/session/plan.md) - Complete system design
 - [Copilot Instructions](../.github/copilot-instructions.md) - Development guidelines
 
@@ -270,7 +272,7 @@ docker run -p 3000:3000 --env-file .env fluxbot-studio-ia
 
 This is a production-grade Shopify app. For questions or issues:
 
-1. Check [IMPLEMENTATION.md](../IMPLEMENTATION.md) for current status
+1. Check [STATUS_MATRIX.md](../STATUS_MATRIX.md) for current status
 2. Review architecture plan for design decisions
 3. Ensure all prerequisites are met
 4. Verify environment configuration

@@ -1,5 +1,7 @@
 ## Phase 1 MVP Implementation Complete
 
+> Canonical status source: [STATUS_MATRIX.md](./STATUS_MATRIX.md). This document is historical context.
+
 **Status:** ✅ All 10 Core Tasks Completed | 🟢 Ready for functionality testing
 
 ---

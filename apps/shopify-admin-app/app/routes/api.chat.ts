@@ -38,6 +38,7 @@ interface ChatResponse {
   requiresEscalation?: boolean;
   escalationReason?: string;
   toolsUsed?: string[];
+  actions?: Array<Record<string, unknown>>;
   sourceReferences?: Array<{
     documentId: string;
     chunkId: string;
@@ -123,6 +124,7 @@ export async function action({ request }: ActionFunctionArgs) {
       requiresEscalation: chatResponse.requiresEscalation,
       escalationReason: chatResponse.escalationReason,
       toolsUsed: chatResponse.toolsUsed,
+      actions: chatResponse.actions,
       sourceReferences: chatResponse.sourceReferences,
     };
 

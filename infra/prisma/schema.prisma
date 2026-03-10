@@ -98,6 +98,16 @@ model Shop {
   consentRecords     ConsentRecord[]
   auditLogs          AuditLog[]
   syncJobs           SyncJob[]
+  behaviorEvents     BehaviorEvent[]
+  intentSignals      IntentSignal[]
+  proactiveTriggers  ProactiveTrigger[]
+  proactiveMessages  ProactiveMessage[]
+  callbackReceipts   OmnichannelCallbackReceipt[]
+  deadLetterCallbacks DeadLetterCallback[]
+  handoffRequests    HandoffRequest[]
+  conversionEvents   ConversionEvent[]
+  dataExportJobs     DataExportJob[]
+  dataDeletionJobs   DataDeletionJob[]
   
   @@map("shops")
 }
@@ -221,6 +231,7 @@ model Conversation {
   events             ConversationEvent[]
   customerIdentity   CustomerIdentity?
   handoffRequests    HandoffRequest[]
+  conversionEvents   ConversionEvent[]
   
   @@index([shopId, startedAt])
   @@index([customerId])
@@ -426,16 +437,20 @@ model ToolInvocation {
 
 model HandoffRequest {
   id                 String       @id @default(uuid())
+  shopId             String
   conversationId     String
   reason             String
+  context            Json?        // { lastMessages, detectedIssue, customerSentiment, etc. }
   agentNotes         String?
-  status             String       @default("pending") // 'pending', 'assigned', 'completed'
+  status             String       @default("pending") // 'pending', 'assigned', 'completed', 'resolved', 'cancelled'
   assignedTo         String?
   createdAt          DateTime     @default(now())
   resolvedAt         DateTime?
   
+  shop               Shop         @relation(fields: [shopId], references: [id], onDelete: Cascade)
   conversation       Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   
+  @@index([shopId, status])
   @@index([conversationId])
   @@map("handoff_requests")
 }
@@ -482,6 +497,38 @@ model AuditLog {
 
 // ============================================================================
 // SYNC & EVENTS
+
+model DataExportJob {
+  id               String   @id @default(uuid())
+  shopId           String
+  requestedBy      String?  // userId or "visitor:<id>"
+  status           String   @default("PENDING") // PENDING, PROCESSING, COMPLETE, FAILED
+  exportUrl        String?
+  expiresAt        DateTime?
+  createdAt        DateTime @default(now())
+  completedAt      DateTime?
+
+  shop             Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@index([shopId, createdAt])
+  @@map("data_export_jobs")
+}
+
+model DataDeletionJob {
+  id               String   @id @default(uuid())
+  shopId           String
+  requestedBy      String?
+  status           String   @default("PENDING") // PENDING, PROCESSING, COMPLETE, FAILED
+  recordsDeleted   Int?
+  createdAt        DateTime @default(now())
+  completedAt      DateTime?
+
+  shop             Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@index([shopId, createdAt])
+  @@map("data_deletion_jobs")
+}
+
 // ============================================================================
 
 model WebhookEvent {
@@ -516,4 +563,166 @@ model SyncJob {
   
   @@index([shopId, status])
   @@map("sync_jobs")
+}
+
+model OmnichannelCallbackReceipt {
+  id                 String    @id @default(uuid())
+  shopId             String
+  messageId          String
+  eventKey           String
+  providerMessageId  String?
+  requestedStatus    String
+  callbackTimestamp  Int
+  signatureDigest    String
+  applied            Boolean   @default(false)
+  createdAt          DateTime  @default(now())
+
+  shop               Shop      @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@unique([shopId, eventKey])
+  @@index([shopId, messageId, createdAt])
+  @@map("omnichannel_callback_receipts")
+}
+
+model DeadLetterCallback {
+  id                 String    @id @default(uuid())
+  shopId             String
+  messageId          String
+  channel            String    // WEB_CHAT, EMAIL, SMS, etc.
+  originalStatus     String    // SENT, DELIVERED, FAILED
+  failureReason      String    // "permanent network error", "message not found", etc.
+  errorDetails       Json?     // { code, message, statusCode, attempt, ... }
+  retryCount         Int       @default(0)
+  maxRetries         Int       @default(3)
+  nextRetryAt        DateTime?
+  isResolved         Boolean   @default(false)
+  resolvedAt         DateTime?
+  resolvedBy         String?   // "manual", "retry_succeeded", "expired", etc.
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  shop               Shop      @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@index([shopId, createdAt])
+  @@index([shopId, isResolved])
+  @@index([nextRetryAt])
+  @@map("dead_letter_callbacks")
+}
+
+// ============================================================================
+// PHASE 2: BEHAVIORAL TRACKING & PROACTIVE ENGAGEMENT
+// ============================================================================
+
+model BehaviorEvent {
+  id                 String    @id @default(uuid())
+  shopId             String
+  sessionId          String
+  visitorId          String?
+  customerId         String?
+  eventType          String    // PAGE_VIEW, PRODUCT_VIEW, ADD_TO_CART, REMOVE_FROM_CART, EXIT_INTENT, SCROLL_DEPTH, etc.
+  eventData          Json      // { productId, dwellTimeMs, scrollDepth, cartValue, etc. }
+  timestamp          DateTime  @default(now())
+  
+  shop               Shop      @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  
+  @@index([shopId, sessionId])
+  @@index([shopId, eventType, timestamp])
+  @@index([sessionId, timestamp])
+  @@map("behavior_events")
+}
+
+model IntentSignal {
+  id                 String    @id @default(uuid())
+  shopId             String
+  sessionId          String
+  visitorId          String?
+  signalType         String    // BROWSE_INTENT, PURCHASE_INTENT, ABANDONMENT_RISK, NEEDS_HELP, PRICE_SHOPPER, etc.
+  confidence         Float     // 0.0 to 1.0
+  triggerData        Json      // { dwellTime, productViewCount, cartValue, lastActivity, etc. }
+  actionTaken        String?   // PROACTIVE_MESSAGE, RECOMMENDATION, DISCOUNT_OFFER, NONE, etc.
+  outcome            String?   // CONVERTED, DISMISSED, IGNORED, ENGAGED, etc.
+  createdAt          DateTime  @default(now())
+  
+  shop               Shop      @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  
+  @@index([shopId, sessionId])
+  @@index([shopId, signalType, createdAt])
+  @@index([sessionId, createdAt])
+  @@map("intent_signals")
+}
+
+model ProactiveTrigger {
+  id                 String    @id @default(uuid())
+  shopId             String
+  name               String
+  description        String?
+  enabled            Boolean   @default(true)
+  triggerType        String    // EXIT_INTENT, DWELL_TIME, CART_ABANDONMENT, PRICE_SENSITIVITY, etc.
+  conditions         Json      // { dwellTimeSeconds: 30, productViewCount: 3, cartValueMin: 50, etc. }
+  messageTemplate    String    // "Hey! I noticed you're interested in {{productName}}. Need help?"
+  priority           Int       @default(0)
+  cooldownMs         Int       @default(300000) // 5 minutes default
+  targetLocale       String?   // null = all locales
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  
+  shop               Shop      @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  proactiveMessages  ProactiveMessage[]
+  
+  @@index([shopId, enabled])
+  @@index([shopId, triggerType])
+  @@map("proactive_triggers")
+}
+
+model ProactiveMessage {
+  id                 String    @id @default(uuid())
+  shopId             String
+  sessionId          String
+  triggerId          String
+  recipientId        String?
+  channel            String    @default("WEB_CHAT")
+  messageTemplate    String
+  renderedMessage    String
+  messageMetadata    Json?
+  status             String    @default("QUEUED")
+  sentAt             DateTime?
+  deliveredAt        DateTime?
+  interactedAt       DateTime?
+  outcome            String?
+  errorMessage       String?
+  retryCount         Int       @default(0)
+  maxRetries         Int       @default(3)
+  expiresAt          DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  shop               Shop             @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  trigger            ProactiveTrigger @relation(fields: [triggerId], references: [id], onDelete: Cascade)
+
+  @@index([shopId, createdAt])
+  @@index([shopId, status])
+  @@index([sessionId, status])
+  @@index([triggerId, status])
+  @@index([shopId, channel, createdAt])
+  @@map("proactive_messages")
+}
+
+model ConversionEvent {
+  id                 String        @id @default(uuid())
+  shopId             String
+  conversationId     String
+  orderId            String?
+  productId          String?
+  revenue            Float?        // Revenue attributed to this conversation
+  attributionType    String        // DIRECT_RECOMMENDATION, ASSISTED, PROACTIVE_TRIGGER, CART_RECOVERY, etc.
+  metadata           Json?         // { products, discount, triggerId, etc. }
+  createdAt          DateTime      @default(now())
+  
+  shop               Shop          @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  conversation       Conversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  
+  @@index([shopId, createdAt])
+  @@index([conversationId])
+  @@index([shopId, attributionType, createdAt])
+  @@map("conversion_events")
 }

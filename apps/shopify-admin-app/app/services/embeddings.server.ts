@@ -434,3 +434,7 @@ export class EmbeddingsService {
     };
   }
 }
+
+export function getEmbeddingsProvider(): EmbeddingProvider {
+  return EmbeddingsService.getProvider();
+}

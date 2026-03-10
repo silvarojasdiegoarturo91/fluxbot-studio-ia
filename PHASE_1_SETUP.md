@@ -1,5 +1,7 @@
 # Phase 1 Setup Guide
 
+> Canonical status source: [STATUS_MATRIX.md](./STATUS_MATRIX.md). This document is historical context.
+
 ## Prerequisites Checklist
 
 Before running Phase 1, ensure you have:

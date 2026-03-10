@@ -6,6 +6,8 @@
 import prisma from '../db.server';
 import { getConfig } from '../config.server';
 import { EmbeddingsService } from './embeddings.server';
+import { CommerceActionsService } from './commerce-actions.server';
+import { HandoffService } from './handoff.server';
 import type { ConversationMessage, MessageRole, Prisma } from '@prisma/client';
 
 // ============================================================================
@@ -32,6 +34,7 @@ export interface ChatResponse {
   escalationReason?: string;
   toolsUsed: string[];
   sourceReferences: SourceReference[];
+  actions?: Array<Record<string, unknown>>;
   metadata: Record<string, any>;
 }
 
@@ -362,6 +365,7 @@ export class AIOrchestrationService {
     language: string = 'en'
   ): Promise<ChatResponse> {
     const config = getConfig();
+    const humanHandoffEnabled = config.features?.humanHandoff === true;
 
     // 1. Get conversation context
     const conversation = await prisma.conversation.findUniqueOrThrow({
@@ -418,8 +422,54 @@ export class AIOrchestrationService {
     }
 
     // 6. Apply guardrails
-    const { message: finalMessage, requiresEscalation, confidence } =
-      this.applyGuardrails(botMessage, intent);
+    const guardrailResult = this.applyGuardrails(botMessage, intent);
+    let finalMessage = guardrailResult.message;
+    const { requiresEscalation, confidence } = guardrailResult;
+    const actions: Array<Record<string, unknown>> = [];
+    let escalationReason: string | undefined;
+
+    if (this.shouldSuggestAddToCart(intent, userMessage, sourceReferences)) {
+      const addToCartAction = await this.maybeBuildAddToCartAction({
+        shopId,
+        conversationId,
+        sessionId: conversation.sessionId || undefined,
+        userMessage,
+        sourceReferences,
+      });
+
+      if (addToCartAction) {
+        actions.push(addToCartAction);
+      }
+    }
+
+    if (requiresEscalation) {
+      escalationReason = this.buildEscalationReason(intent, confidence);
+
+      if (humanHandoffEnabled) {
+        const handoffAction = await this.maybeCreateHandoffAction({
+          shopId,
+          conversationId,
+          reason: escalationReason,
+          context: {
+            intentType: intent.type,
+            confidence,
+            language,
+            sourceReferences,
+            lastMessages: conversation.messages.slice(-4).map((message) => ({
+              role: message.role,
+              content: message.content,
+              createdAt: message.createdAt,
+            })),
+          },
+        });
+
+        if (handoffAction) {
+          actions.push(handoffAction);
+        }
+      }
+
+      finalMessage = this.appendEscalationHint(finalMessage, language);
+    }
 
     // 7. Store conversation
     await prisma.conversationMessage.create({
@@ -431,16 +481,20 @@ export class AIOrchestrationService {
       },
     });
 
+    const assistantMetadata: Prisma.InputJsonValue = {
+      intent: intent.type,
+      toolsUsed: [],
+      actions: actions as unknown as Prisma.InputJsonValue,
+      escalationReason: escalationReason || null,
+    };
+
     const assistantMessage = await prisma.conversationMessage.create({
       data: {
         conversationId,
         role: 'assistant' as MessageRole,
         content: finalMessage,
         confidence,
-        metadata: {
-          intent: intent.type,
-          toolsUsed: [],
-        },
+        metadata: assistantMetadata,
       },
     });
 
@@ -462,13 +516,132 @@ export class AIOrchestrationService {
       message: finalMessage,
       confidence,
       requiresEscalation,
+      escalationReason,
       toolsUsed: sourceReferences.length > 0 ? ['rag'] : [],
       sourceReferences,
+      actions,
       metadata: {
         intent: intent.type,
         language,
       },
     };
+  }
+
+  private static shouldSuggestAddToCart(
+    intent: Intent,
+    userMessage: string,
+    sourceReferences: SourceReference[]
+  ): boolean {
+    if (intent.type !== 'SALES') return false;
+    if (sourceReferences.length === 0) return false;
+
+    return /(add to cart|buy now|checkout|purchase|comprar|agregar al carrito|anadir al carrito|añadir al carrito)/i.test(
+      userMessage
+    );
+  }
+
+  private static extractProductReference(sourceReferences: SourceReference[]): string | null {
+    if (sourceReferences.length === 0) return null;
+
+    const primary = sourceReferences[0];
+    if (primary.url) {
+      const match = primary.url.match(/\/products\/([^/?#]+)/i);
+      if (match?.[1]) return match[1];
+    }
+
+    return primary.documentId || null;
+  }
+
+  private static parseDesiredQuantity(userMessage: string): number {
+    const explicitQuantity = userMessage.match(/\b(\d{1,2})\s?(x|items?|units?|unidades?)\b/i);
+    if (!explicitQuantity) return 1;
+
+    const parsed = Number(explicitQuantity[1]);
+    if (!Number.isFinite(parsed) || parsed < 1) return 1;
+
+    return Math.min(Math.floor(parsed), 20);
+  }
+
+  private static async maybeBuildAddToCartAction(params: {
+    shopId: string;
+    conversationId: string;
+    sessionId?: string;
+    userMessage: string;
+    sourceReferences: SourceReference[];
+  }): Promise<Record<string, unknown> | null> {
+    const productRef = this.extractProductReference(params.sourceReferences);
+    if (!productRef) return null;
+
+    try {
+      const quantity = this.parseDesiredQuantity(params.userMessage);
+
+      const prepared = await CommerceActionsService.prepareAddToCartByShopId({
+        shopId: params.shopId,
+        productRef,
+        quantity,
+        conversationId: params.conversationId,
+        sessionId: params.sessionId,
+        source: 'chat',
+      });
+
+      return {
+        type: 'ADD_TO_CART',
+        label: 'Add to cart',
+        variantId: prepared.variantId,
+        quantity: prepared.quantity,
+        productRef: prepared.productRef || null,
+        cartUrl: prepared.cartUrl,
+        checkoutUrl: prepared.checkoutUrl,
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  private static buildEscalationReason(intent: Intent, confidence: number): string {
+    if (intent.type === 'SUPPORT') {
+      return `Support request requires human follow-up (confidence ${confidence.toFixed(2)})`;
+    }
+
+    return `Escalation requested by guardrails (confidence ${confidence.toFixed(2)})`;
+  }
+
+  private static async maybeCreateHandoffAction(params: {
+    shopId: string;
+    conversationId: string;
+    reason: string;
+    context: Record<string, unknown>;
+  }): Promise<Record<string, unknown> | null> {
+    try {
+      const handoff = await HandoffService.create({
+        shopId: params.shopId,
+        conversationId: params.conversationId,
+        reason: params.reason,
+        context: params.context,
+      });
+
+      return {
+        type: 'HUMAN_HANDOFF',
+        label: 'Connect with support',
+        handoffId: handoff.id,
+        status: handoff.status,
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  private static appendEscalationHint(message: string, language: string): string {
+    const isSpanish = language.toLowerCase().startsWith('es');
+    const hint = isSpanish
+      ? ' Un agente de soporte puede continuar esta conversación contigo.'
+      : ' A support agent can continue this conversation with you.';
+
+    if (message.includes(hint.trim())) {
+      return message;
+    }
+
+    return `${message.trim()}${hint}`;
   }
 
   /**
@@ -608,8 +781,19 @@ Guidelines:
     conversationId: string,
     reason: string
   ) {
+    // Get conversation to retrieve shopId
+    const conversation = await prisma.conversation.findUnique({
+      where: { id: conversationId },
+      select: { shopId: true },
+    });
+
+    if (!conversation) {
+      throw new Error(`Conversation ${conversationId} not found`);
+    }
+
     return prisma.handoffRequest.create({
       data: {
+        shopId: conversation.shopId,
         conversationId,
         reason,
         status: 'pending',

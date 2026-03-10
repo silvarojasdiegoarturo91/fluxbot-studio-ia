@@ -267,6 +267,7 @@ describe("Phase 1 E2E: Chat Flow", () => {
 
       const handoff = await prisma.handoffRequest.create({
         data: {
+          shopId: testShop.id,
           conversationId: conversation.id,
           reason: "Customer requests complex technical support",
           status: "pending",

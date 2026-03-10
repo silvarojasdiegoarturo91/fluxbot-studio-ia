@@ -2,13 +2,15 @@
 
 ## 📋 Estado del Proyecto
 
-✅ **Estable** - Estructura correctamente configurada y validada
+La fuente de verdad del estado del producto y de cada fase es `STATUS_MATRIX.md`.
 
-### Validaciones Completadas
-- ✅ TypeScript compilation (0 errors)
-- ✅ Production build (175ms)
-- ✅ Workspace detection (14 packages)
-- ✅ Prisma schema structure
+Este README ya no mantiene checklists de fase para evitar desalineaciones.
+
+### Resumen rápido
+- ✅ Base estable de app Shopify embebida + widget storefront
+- ✅ Cierre inicial de Fase 2: `add-to-cart` y `human handoff` en backend
+- ✅ Cierre inicial de Fase 3: omnicanal bridge (WA/IG/SMS/EMAIL) + `llms.txt`
+- 🔄 Resto de iniciativas V2/V3 en ejecución, con seguimiento en `STATUS_MATRIX.md`
 
 ---
 
@@ -201,36 +203,11 @@ Este proyecto usa **npm workspaces** para gestionar el monorepo:
 
 ## 📊 Estado de Implementación
 
-### ✅ Fase 0: Foundation (COMPLETADA)
-- ✅ Estructura del monorepo
-- ✅ Configuración de workspaces
-- ✅ Shopify app shell (OAuth + Admin UI)
-- ✅ Storefront widget skeleton
-- ✅ Schema Prisma básico
-- ✅ Build pipeline funcional
+Para estado detallado por capability (Fase 0-4), usa solo `STATUS_MATRIX.md`.
 
-### 🔄 Fase 1: MVP (EN PROGRESO)
-- ⏳ Configuración de base de datos
-- ⏳ Sistema de autenticación Shopify
-- ⏳ Sincronización básica de catálogo
-- ⏳ RAG sobre productos y páginas
-- ⏳ Chat endpoint funcional
-- ⏳ Widget storefront integrado
-- ⏳ Order lookup básico
-
-### 📋 Fase 2: Venta Proactiva
-- ⏳ Detección de intención de compra
-- ⏳ Triggers conductuales
-- ⏳ Recomendaciones contextuales
-- ⏳ Recuperación de carrito
-- ⏳ Analytics de conversión
-
-### 📋 Fase 3: Enterprise
-- ⏳ Handoff humano (Zendesk/Gorgias)
-- ⏳ AEO / llms.txt
-- ⏳ Multi-idioma avanzado
-- ⏳ Omnicanalidad (WhatsApp, Instagram)
-- ⏳ Compliance GDPR completo
+Regla de mantenimiento documental:
+- `STATUS_MATRIX.md` es canónico.
+- `README.md` y documentos `PHASE_*` solo resumen o contexto histórico.
 
 ---
 
@@ -272,7 +249,7 @@ npm run build
 
 - **[QUICK_START.md](./QUICK_START.md)** - Setup en 10 minutos
 - **[ARCHITECTURE.md](./ARCHITECTURE.md)** - Arquitectura completa
-- **[PROJECT_STATUS.md](./PROJECT_STATUS.md)** - Estado actual detallado
+- **[STATUS_MATRIX.md](./STATUS_MATRIX.md)** - Estado actual detallado
 - **[.github/copilot-instructions.md](./.github/copilot-instructions.md)** - Reglas arquitectónicas
 - **[AGENTS.md](./AGENTS.md)** - Guías para asistentes IA
 
@@ -284,16 +261,9 @@ Privado - Todos los derechos reservados
 
 ---
 
-**Última actualización:** 2025-03-08  
+**Última actualización:** 2026-03-10  
 **Versión:** 0.1.0  
-**Estado:** Development / Pre-MVP
-- Testing & observability requirements
-- API contract definitions
-- Naming conventions
-- DDD patterns and bounded contexts
-
-**For:** All AI-assisted development  
-**Read if:** You want to establish team coding standards
+**Estado canónico:** ver `STATUS_MATRIX.md`
 
 ---
 
@@ -341,7 +311,7 @@ Privado - Todos los derechos reservados
 /
 ├── QUICK_START.md                  ← START HERE (setup)
 ├── ARCHITECTURE.md                 ← Full guide
-├── PROJECT_STATUS.md               ← Status report
+├── STATUS_MATRIX.md               ← Status report
 ├── RELEASE_NOTES.md                ← What's new
 ├── RESTRUCTURING_SUMMARY.md        ← What changed
 ├── AGENTS.md                       ← Engineering rules
@@ -373,7 +343,7 @@ Privado - Todos los derechos reservados
 
 ### For Deep Dive (2 hours)
 1. **ARCHITECTURE.md** (30 min) — Full system design
-2. **PROJECT_STATUS.md** (20 min) — Status & metrics
+2. **STATUS_MATRIX.md** (20 min) — Status & metrics
 3. **RESTRUCTURING_SUMMARY.md** (20 min) — What changed
 4. **PHASE_1_COMPLETE.md** (20 min) — Phase 1 achievements
 5. **AGENTS.md** (30 min) — Engineering guidelines
@@ -385,7 +355,7 @@ Privado - Todos los derechos reservados
 
 ### For Infrastructure/Ops (1 hour)
 1. **QUICK_START.md** (10 min) — Setup instructions
-2. **PROJECT_STATUS.md** (20 min) — Deployment readiness
+2. **STATUS_MATRIX.md** (20 min) — Deployment readiness
 3. **ARCHITECTURE.md** section on "Deployment Readiness" (15 min)
 4. **infra/docker/** folder (15 min) — Docker setup
 
@@ -404,10 +374,10 @@ Privado - Todos los derechos reservados
 | ...run migrations? | QUICK_START.md | Step 3 |
 | ...add a new service? | ARCHITECTURE.md | Modules section |
 | ...understand the database? | ARCHITECTURE.md | Section 9 |
-| ...deploy to production? | PROJECT_STATUS.md | Deployment section |
+| ...deploy to production? | STATUS_MATRIX.md | Deployment section |
 | ...write code that follows rules? | AGENTS.md | All sections |
 | ...see what changed? | RESTRUCTURING_SUMMARY.md | All sections |
-| ...check project status? | PROJECT_STATUS.md | All sections |
+| ...check project status? | STATUS_MATRIX.md | All sections |
 
 ### "I want to know about..."
 
@@ -419,7 +389,7 @@ Privado - Todos los derechos reservados
 | Security & compliance | ARCHITECTURE.md + AGENTS.md |
 | Services architecture | ARCHITECTURE.md (Modules) |
 | Workspace structure | RESTRUCTURING_SUMMARY.md |
-| Build & deployment | PROJECT_STATUS.md |
+| Build & deployment | STATUS_MATRIX.md |
 | Phase planning | PHASE_1_COMPLETE.md |
 | Code quality standards | AGENTS.md |
 
@@ -432,7 +402,7 @@ Privado - Todos los derechos reservados
 | QUICK_START.md | 7 KB | 10 min | Setup & first run |
 | ARCHITECTURE.md | 16 KB | 20-30 min | Full system design |
 | RESTRUCTURING_SUMMARY.md | 13 KB | 15 min | What changed |
-| PROJECT_STATUS.md | 14 KB | 10-15 min | Status snapshot |
+| STATUS_MATRIX.md | 14 KB | 10-15 min | Status snapshot |
 | RELEASE_NOTES.md | 8 KB | 5-10 min | Overview |
 | AGENTS.md | 18 KB | 30 min | Engineering rules |
 | PHASE_1_COMPLETE.md | 15 KB | 15 min | MVP delivery |
@@ -468,7 +438,7 @@ Privado - Todos los derechos reservados
 - ✅ Breaking changes
 - ✅ Migration impact
 
-### PROJECT_STATUS.md
+### STATUS_MATRIX.md
 - ✅ Executive summary
 - ✅ Completion checklist
 - ✅ Build status
@@ -541,7 +511,7 @@ Privado - Todos los derechos reservados
 
 ### "There's a problem"
 ```
-1. Check PROJECT_STATUS.md (known limitations)
+1. Check STATUS_MATRIX.md (known limitations)
 2. Check ARCHITECTURE.md troubleshooting
 3. Check QUICK_START.md troubleshooting
 4. Check relevant service code
@@ -551,7 +521,7 @@ Privado - Todos los derechos reservados
 ### "I want to add a feature"
 ```
 1. Check PHASE_1_COMPLETE.md (what's done)
-2. Check PROJECT_STATUS.md (what's next)
+2. Check STATUS_MATRIX.md (what's next)
 3. Read ARCHITECTURE.md (relevant section)
 4. Follow AGENTS.md standards
 5. Implement in appropriate layer (routes, services, etc)
@@ -577,7 +547,7 @@ Privado - Todos los derechos reservados
 → Check RESTRUCTURING_SUMMARY.md breaking changes
 
 ### What Changed
-→ Check RESTRUCTURING_SUMMARY.md or PROJECT_STATUS.md
+→ Check RESTRUCTURING_SUMMARY.md or STATUS_MATRIX.md
 
 ---
 

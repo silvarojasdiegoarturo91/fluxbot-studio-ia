@@ -5,7 +5,6 @@ export default defineConfig({
   plugins: [tsconfigPaths() as any],
   test: {
     globals: true,
-    environment: "node",
     setupFiles: ["./test/setup.ts"],
     coverage: {
       provider: "v8",
@@ -20,5 +19,13 @@ export default defineConfig({
       ],
     },
     include: ["app/**/*.test.{ts,tsx}", "test/**/*.test.{ts,tsx}"],
+    // Support multiple test environments
+    environmentMatchGlobs: [
+      // React component tests run in jsdom
+      ['test/components/**/*.test.{ts,tsx}', 'jsdom'],
+      ['app/routes/**/*.test.{ts,tsx}', 'jsdom'],
+      // Everything else runs in node
+      ['**/*.test.{ts,tsx}', 'node'],
+    ],
   },
 });

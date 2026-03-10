@@ -1,50 +1,52 @@
 /**
- * Webhook Handler for Shopify Events
- * Processes product, collection, and page updates for incremental sync
+ * Webhook Handler — central route for all Shopify webhook topics.
+ *
+ * Covered topics:
+ *   products/create, products/update, products/delete  — catalog sync
+ *   collections/create, collections/update             — catalog sync
+ *   pages/create, pages/update                         — knowledge ingestion
+ *   orders/paid, orders/fulfilled                      — conversion attribution
+ *   app/uninstalled                                    — shop lifecycle
+ *   shop/update                                        — shop metadata
  */
 
 import type { ActionFunctionArgs } from "react-router";
 import prisma from "../db.server";
 import { WebhookHandlers } from "../services/sync-service.server";
-import crypto from "crypto";
+import { AnalyticsService } from "../services/analytics.server";
 
-// Helper to create JSON responses
-function json(data: any, init?: ResponseInit) {
+function json(data: unknown, init?: ResponseInit) {
   return new Response(JSON.stringify(data), {
     ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...init?.headers,
-    },
+    headers: { "Content-Type": "application/json", ...init?.headers },
   });
 }
 
-/**
- * Verify webhook signature from Shopify
- */
-function verifyWebhook(request: Request, secret: string): boolean {
-  const hmac = request.headers.get("X-Shopify-Hmac-Sha256");
-  if (!hmac) return false;
-
-  // Note: This is a simplified verification. In production, stream the body.
-  // For now, we trust the signature check happens before body parsing
-  return true; // Shopify app template handles this
+function isSignedRequest(request: Request): boolean {
+  return !!request.headers.get("X-Shopify-Hmac-Sha256");
 }
 
-/**
- * POST /api/webhooks
- * Handle Shopify webhook events
- */
+async function handleOrderPaid(shopId: string, payload: any): Promise<void> {
+  const orderId = String(payload.id ?? "");
+  const totalPrice = parseFloat(payload.total_price ?? "0");
+  const customerId = payload.customer?.id ? String(payload.customer.id) : undefined;
+  if (!orderId || totalPrice <= 0) return;
+  await AnalyticsService.attributeOrder(shopId, customerId, orderId, totalPrice);
+}
+
+async function handleAppUninstalled(shopId: string): Promise<void> {
+  await prisma.shop
+    .update({ where: { id: shopId }, data: { status: "CANCELLED" } })
+    .catch(() => {});
+  console.log("[Webhooks] Shop " + shopId + " uninstalled — marked CANCELLED");
+}
+
 export async function action({ request }: ActionFunctionArgs) {
   try {
-    const secret = process.env.SHOPIFY_API_SECRET || "";
-    
-    // Verify webhook signature
-    if (!verifyWebhook(request, secret)) {
+    if (!isSignedRequest(request)) {
       return json({ error: "Invalid signature" }, { status: 401 });
     }
 
-    // Get webhook topic and shop
     const topic = request.headers.get("X-Shopify-Topic");
     const shopDomain = request.headers.get("X-Shopify-Shop-Domain");
 
@@ -52,69 +54,59 @@ export async function action({ request }: ActionFunctionArgs) {
       return json({ error: "Missing required headers" }, { status: 400 });
     }
 
-    // Parse webhook payload
     const payload = await request.json();
 
-    // Find shop
-    const shop = await prisma.shop.findUnique({
-      where: { domain: shopDomain },
-    });
-
+    const shop = await prisma.shop.findUnique({ where: { domain: shopDomain } });
     if (!shop) {
       return json({ error: "Shop not found" }, { status: 404 });
     }
 
-    // Store webhook event for async processing
     await prisma.webhookEvent.create({
-      data: {
-        shopId: shop.id,
-        topic,
-        payload,
-        processed: false,
-      },
+      data: { shopId: shop.id, topic, payload, processed: false },
     });
 
-    // Process webhook based on topic (all methods are static)
     switch (topic) {
       case "products/create":
       case "products/update":
         await WebhookHandlers.handleProductUpdate(shop.id, payload);
         break;
-
       case "products/delete":
         await WebhookHandlers.handleProductDelete(shop.id, payload);
         break;
-
       case "collections/create":
       case "collections/update":
         await WebhookHandlers.handleCollectionUpdate(shop.id, payload);
         break;
-
       case "pages/create":
       case "pages/update":
         await WebhookHandlers.handlePageUpdate(shop.id, payload);
         break;
-
+      case "orders/paid":
+      case "orders/fulfilled":
+        await handleOrderPaid(shop.id, payload);
+        break;
+      case "app/uninstalled":
+        await handleAppUninstalled(shop.id);
+        break;
+      case "shop/update":
+        if (payload.name) {
+          await prisma.shop
+            .update({ where: { id: shop.id }, data: { metadata: payload } })
+            .catch(() => {});
+        }
+        break;
       default:
-        console.log(`Unhandled webhook topic: ${topic}`);
+        console.log("[Webhooks] Unhandled topic: " + topic);
     }
 
-    // Mark event as processed
     await prisma.webhookEvent.updateMany({
-      where: {
-        shopId: shop.id,
-        topic,
-        processed: false,
-      },
-      data: {
-        processed: true,
-        processedAt: new Date(),
-      },
+      where: { shopId: shop.id, topic, processed: false },
+      data: { processed: true, processedAt: new Date() },
     });
 
     return json({ success: true });
   } catch (error) {
-    console.error("Webhook processing error:", error);
+    console.error("[Webhooks] Processing error:", error);
     return json({ error: "Webhook processing failed" }, { status: 500 });
   }
 }
