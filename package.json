@@ -10,7 +10,9 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "npm --workspace @fluxbot/shopify-admin-app run dev",
+    "dev": "bash ./scripts/dev-fullstack.sh",
+    "dev:frontend": "npm --workspace @fluxbot/shopify-admin-app run dev",
+    "dev:fullstack": "bash ./scripts/dev-fullstack.sh",
     "build": "npm --workspace @fluxbot/shopify-admin-app run build",
     "typecheck": "npm --workspace @fluxbot/shopify-admin-app run typecheck",
     "lint": "npm --workspace @fluxbot/shopify-admin-app run lint",
