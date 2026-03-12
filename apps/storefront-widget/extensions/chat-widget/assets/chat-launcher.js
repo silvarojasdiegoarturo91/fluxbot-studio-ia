@@ -8,6 +8,7 @@
   
   // Configuration
   const API_ENDPOINT = '/apps/fluxbot/chat'; // App proxy endpoint
+  const CART_ENDPOINT = '/apps/fluxbot/cart/add';
   
   // State
   let isOpen = false;
@@ -112,7 +113,26 @@
       
       // Add assistant response
       if (response.message) {
-        addMessage(response.message, 'assistant', response.metadata);
+        const mergedMetadata = response.metadata || {};
+
+        // Support both legacy metadata.products and newer actions payloads.
+        if (Array.isArray(response.actions)) {
+          const actionProducts = response.actions
+            .filter(action => action && typeof action === 'object')
+            .flatMap(action => {
+              if (Array.isArray(action.products)) return action.products;
+              if (action.product && typeof action.product === 'object') return [action.product];
+              return [];
+            });
+
+          if (actionProducts.length > 0) {
+            mergedMetadata.products = Array.isArray(mergedMetadata.products)
+              ? [...mergedMetadata.products, ...actionProducts]
+              : actionProducts;
+          }
+        }
+
+        addMessage(response.message, 'assistant', mergedMetadata);
       }
       
       // Update conversation ID
@@ -202,26 +222,32 @@
     container.className = 'fluxbot-product-cards';
     
     products.slice(0, 3).forEach(product => {
-      const card = document.createElement('a');
-      card.href = product.url || '#';
+      const card = document.createElement('div');
       card.className = 'fluxbot-product-card';
-      card.target = '_blank';
-      card.rel = 'noopener';
+
+      const productLink = document.createElement('a');
+      productLink.href = product.url || '#';
+      productLink.className = 'fluxbot-product-card__link';
+      productLink.target = '_blank';
+      productLink.rel = 'noopener';
       
       if (product.image) {
         const img = document.createElement('img');
         img.src = product.image;
         img.alt = product.title;
         img.className = 'fluxbot-product-card__image';
-        card.appendChild(img);
+        productLink.appendChild(img);
       }
       
       const info = document.createElement('div');
       info.className = 'fluxbot-product-card__info';
       
-      const title = document.createElement('div');
+      const title = document.createElement('a');
       title.className = 'fluxbot-product-card__title';
       title.textContent = product.title;
+      title.href = product.url || '#';
+      title.target = '_blank';
+      title.rel = 'noopener';
       info.appendChild(title);
       
       if (product.price) {
@@ -230,12 +256,85 @@
         price.textContent = product.price;
         info.appendChild(price);
       }
+
+      const actions = document.createElement('div');
+      actions.className = 'fluxbot-product-card__actions';
+
+      const addButton = document.createElement('button');
+      addButton.type = 'button';
+      addButton.className = 'fluxbot-product-card__add';
+      addButton.textContent = 'Add to cart';
+      addButton.addEventListener('click', async () => {
+        await addProductToCart(product, addButton);
+      });
+
+      actions.appendChild(addButton);
+      info.appendChild(actions);
       
-      card.appendChild(info);
+      productLink.appendChild(info);
+      card.appendChild(productLink);
       container.appendChild(card);
     });
     
     return container;
+  }
+
+  async function addProductToCart(product, buttonEl) {
+    const variantId = product.variantId || product.variant_id || null;
+    const productRef = product.productId || product.product_id || product.handle || product.id || null;
+
+    if (!variantId && !productRef) {
+      addMessage('I could not resolve the product variant for cart addition.', 'assistant');
+      return;
+    }
+
+    const originalLabel = buttonEl.textContent;
+    buttonEl.disabled = true;
+    buttonEl.textContent = 'Adding...';
+
+    try {
+      const response = await fetch(CART_ENDPOINT, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify({
+          variantId,
+          productRef,
+          quantity: 1,
+          commit: true,
+          conversationId,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const payload = await response.json();
+      if (!payload?.success) {
+        throw new Error(payload?.error || 'Cart add failed');
+      }
+
+      const cartUrl = payload?.data?.cartUrl;
+      if (cartUrl) {
+        addMessage(`Added to cart. [View cart](${cartUrl})`, 'assistant');
+      } else {
+        addMessage('Added to cart successfully.', 'assistant');
+      }
+
+      trackEvent('add_to_cart', {
+        variantId,
+        productRef,
+      });
+    } catch (error) {
+      console.error('Add to cart failed:', error);
+      addMessage('Sorry, I could not add this item to your cart right now.', 'assistant');
+    } finally {
+      buttonEl.disabled = false;
+      buttonEl.textContent = originalLabel;
+    }
   }
   
   function showTypingIndicator() {

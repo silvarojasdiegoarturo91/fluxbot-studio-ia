@@ -263,15 +263,19 @@
 }
 
 .fluxbot-product-card {
-  display: flex;
-  gap: 12px;
   padding: 12px;
   background: white;
   border-radius: 8px;
   border: 1px solid #e0e0e0;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.fluxbot-product-card__link {
+  display: flex;
+  gap: 12px;
+  width: 100%;
   text-decoration: none;
   color: inherit;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .fluxbot-product-card:hover {
@@ -300,6 +304,7 @@
   color: #1a1a1a;
   line-height: 1.4;
   display: -webkit-box;
+  line-clamp: 2;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
@@ -309,6 +314,30 @@
   font-size: 14px;
   font-weight: 600;
   color: var(--fluxbot-primary-color);
+}
+
+.fluxbot-product-card__actions {
+  margin-top: 8px;
+}
+
+.fluxbot-product-card__add {
+  border: 1px solid var(--fluxbot-primary-color);
+  color: var(--fluxbot-primary-color);
+  background: transparent;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.fluxbot-product-card__add:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.fluxbot-product-card__add:disabled {
+  opacity: 0.6;
+  cursor: wait;
 }
 
 /* === INPUT === */
