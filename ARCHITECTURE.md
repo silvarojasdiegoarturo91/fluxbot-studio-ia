@@ -2,6 +2,8 @@
 
 **Status:** ✅ **Restructuring Complete** — Production-ready workspace with clean build pipeline.
 
+> Canonical phase status lives in [STATUS_MATRIX.md](./STATUS_MATRIX.md). The roadmap checklist in this document is historical architecture context, not the current repo status source.
+
 **Last Updated:** 2025-03-08 | **API Version:** 2026-01 | **Build Status:** PASSING
 
 ---
@@ -210,26 +212,13 @@ Opens admin app at http://localhost:3000 (Shopify CLI tunnel).
 
 **Build Status:** ✅ TypeScript clean, build passing, workspace ready.
 
-### Phase 2: Proactive & Conversion (⏳ NEXT)
-**Focus:** Behavioral triggers, upsell, add-to-cart integration
+### Historical Roadmap Snapshot (Superseded)
 
-- [ ] Behavior tracking (dwell time, exit intent, scroll depth)
-- [ ] Trigger rules engine
-- [ ] Handoff to human (Zendesk, Gorgias, email)
-- [ ] Add-to-cart from chat
-- [ ] Conversion attribution
-- [ ] Dashboard analytics (revenue influenced, conversation ROI)
-- [ ] Reranking (better retrieval relevance)
+Current repo-local status in `STATUS_MATRIX.md` marks Phase 2 and Phase 3 as `DONE`.
 
-### Phase 3: Omnichannel & Enterprise (🚀 FUTURE)
-**Focus:** WhatsApp, email, Slack; advanced automations; compliance
-
-- [ ] WhatsApp Business API integration
-- [ ] Email/helpdesk integration
-- [ ] Slack bot (internal support)
-- [ ] AEO module (`llms.txt`, structured data)
-- [ ] RBAC for enterprise merchants
-- [ ] Data residency per region
+- Phase 2 delivered repo-local capabilities: behavioral capture, remote intent/trigger decisioning, proactive dispatch split, add-to-cart, handoff and quality routing.
+- Phase 3 delivered repo-local capabilities: omnichannel bridge/callback operations, `llms.txt` publication, campaign surfaces and multilingual dispatch support.
+- Use `STATUS_MATRIX.md` for any current or future phase tracking instead of this checklist.
 - [ ] Usage-based billing
 
 ---

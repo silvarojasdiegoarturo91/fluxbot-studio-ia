@@ -105,6 +105,13 @@ export interface MessageDeliveryResult {
   nextRetryAt?: Date;
 }
 
+interface CampaignDispatchConfig {
+  campaignId: string;
+  locale?: string;
+  visitorId?: string;
+  variables?: Record<string, string>;
+}
+
 export class ProactiveMessagingService {
   private static resolveChannelFromRecommendation(recommendation: {
     metadata?: Record<string, any>;
@@ -141,6 +148,135 @@ export class ProactiveMessagingService {
     if (typeof candidate !== "string") return undefined;
     const trimmed = candidate.trim();
     return trimmed.length > 0 ? trimmed : undefined;
+  }
+
+  private static resolveCampaignDispatchConfig(recommendation: {
+    metadata?: Record<string, any>;
+  }): CampaignDispatchConfig | null {
+    const metadata = recommendation.metadata || {};
+    const conditions = (metadata.conditions || {}) as Record<string, any>;
+
+    const campaignObject =
+      typeof metadata.campaign === "object" && metadata.campaign !== null
+        ? (metadata.campaign as Record<string, unknown>)
+        : null;
+
+    const rawCampaignId =
+      metadata.campaignId ||
+      metadata.marketingCampaignId ||
+      conditions.campaignId ||
+      campaignObject?.id;
+
+    if (typeof rawCampaignId !== "string" || rawCampaignId.trim().length === 0) {
+      return null;
+    }
+
+    const rawLocale = metadata.locale || metadata.targetLocale || conditions.locale;
+    const locale = typeof rawLocale === "string" && rawLocale.trim().length > 0
+      ? rawLocale.trim()
+      : undefined;
+
+    const rawVisitorId = metadata.visitorId || conditions.visitorId;
+    const visitorId = typeof rawVisitorId === "string" && rawVisitorId.trim().length > 0
+      ? rawVisitorId.trim()
+      : undefined;
+
+    const rawVariables = metadata.variables || conditions.variables;
+    let variables: Record<string, string> | undefined;
+    if (typeof rawVariables === "object" && rawVariables !== null) {
+      variables = {};
+      for (const [key, value] of Object.entries(rawVariables as Record<string, unknown>)) {
+        if (value === null || value === undefined) continue;
+        variables[key] = typeof value === "string" ? value : String(value);
+      }
+      if (Object.keys(variables).length === 0) {
+        variables = undefined;
+      }
+    }
+
+    return {
+      campaignId: rawCampaignId.trim(),
+      locale,
+      visitorId,
+      variables,
+    };
+  }
+
+  private static getInternalAppBaseUrl(): string | null {
+    const appUrl = process.env.SHOPIFY_APP_URL || process.env.APP_URL;
+    if (!appUrl || typeof appUrl !== "string") {
+      return null;
+    }
+
+    return appUrl.endsWith("/") ? appUrl.slice(0, -1) : appUrl;
+  }
+
+  private static async dispatchCampaignFromDecision(params: {
+    shopDomain: string;
+    sessionId: string;
+    channel: string;
+    recommendation: {
+      triggerId: string;
+      metadata?: Record<string, any>;
+    };
+  }): Promise<boolean> {
+    const config = this.resolveCampaignDispatchConfig(params.recommendation);
+    if (!config) {
+      return false;
+    }
+
+    const baseUrl = this.getInternalAppBaseUrl();
+    if (!baseUrl) {
+      console.warn(
+        `[Proactive] Campaign dispatch skipped for trigger ${params.recommendation.triggerId}: SHOPIFY_APP_URL not configured.`,
+      );
+      return false;
+    }
+
+    const endpoint = `${baseUrl}/api/campaigns/${encodeURIComponent(config.campaignId)}/dispatch`;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+    try {
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Shop-Domain": params.shopDomain,
+        },
+        body: JSON.stringify({
+          sessionId: params.sessionId,
+          visitorId: config.visitorId,
+          locale: config.locale,
+          channel: params.channel,
+          variables: config.variables || {},
+        }),
+        signal: controller.signal,
+      });
+
+      const payload = await response.json().catch(() => null);
+      if (response.ok && payload && payload.dispatched === true) {
+        return true;
+      }
+
+      const reason =
+        payload && typeof payload.reason === "string"
+          ? payload.reason
+          : `HTTP ${response.status}`;
+
+      console.warn(
+        `[Proactive] Campaign dispatch not applied (campaign ${config.campaignId}, trigger ${params.recommendation.triggerId}): ${reason}`,
+      );
+      return false;
+    } catch (error) {
+      console.warn(
+        `[Proactive] Campaign dispatch request failed (campaign ${config.campaignId}, trigger ${params.recommendation.triggerId}):`,
+        error,
+      );
+      return false;
+    } finally {
+      clearTimeout(timeoutId);
+    }
   }
 
   /**
@@ -407,6 +543,24 @@ export class ProactiveMessagingService {
 
         const resolvedChannel = this.resolveChannelFromRecommendation(recommendation);
         const resolvedRecipientId = this.resolveRecipientIdFromRecommendation(recommendation);
+
+        // If backend decisioning resolved a campaign recommendation, dispatch it via API first.
+        // Fallback to legacy proactive queue if dispatch was not applied.
+        const campaignDispatched = await this.dispatchCampaignFromDecision({
+          shopDomain: shop.domain,
+          sessionId,
+          channel: resolvedChannel,
+          recommendation,
+        });
+
+        if (campaignDispatched) {
+          queued++;
+          TriggerEvaluationService.recordTriggerFire(
+            recommendation.triggerId,
+            sessionId
+          );
+          continue;
+        }
 
         // Queue the message
         await this.queueMessage({

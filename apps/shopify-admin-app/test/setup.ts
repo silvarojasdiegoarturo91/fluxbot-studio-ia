@@ -10,15 +10,13 @@ if (!process.env.SHOPIFY_API_SECRET) {
 if (!process.env.SHOPIFY_APP_URL) {
   process.env.SHOPIFY_APP_URL = "https://test.ngrok.io";
 }
-if (!process.env.SCOPES) {
-  process.env.SCOPES = "read_products,write_products,read_orders";
-}
+// Force deterministic baseline scopes for tests.
+process.env.SCOPES = "read_products,write_products,read_orders";
 if (!process.env.DATABASE_URL) {
   process.env.DATABASE_URL = "postgresql://test:test@localhost:5432/test_db";
 }
-if (!process.env.IA_EXECUTION_MODE) {
-  process.env.IA_EXECUTION_MODE = "local";
-}
+// Force local execution by default; specific tests override this when needed.
+process.env.IA_EXECUTION_MODE = "local";
 process.env.NODE_ENV = "test";
 
 // Keep a hook for explicit test lifecycle clarity.

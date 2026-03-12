@@ -2,13 +2,18 @@ import { TextEncoder } from "node:util";
 import * as jose from "jose";
 import { useEffect, useState } from "react";
 import type { HeadersFunction, LoaderFunctionArgs } from "react-router";
-import { Outlet, useLoaderData, useRouteError } from "react-router";
+import { Outlet, redirect, useLoaderData, useLocation, useRouteError } from "react-router";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { AppProvider as ShopifyEmbeddedAppProvider } from "@shopify/shopify-app-react-router/react";
 import { AppProvider as PolarisReactAppProvider } from "@shopify/polaris";
-import polarisTranslations from "@shopify/polaris/locales/en.json";
+import { NavMenu } from "@shopify/app-bridge-react";
+import polarisTranslationsEn from "@shopify/polaris/locales/en.json";
+import polarisTranslationsEs from "@shopify/polaris/locales/es.json";
 
+import { getMerchantAdminConfig } from "../services/admin-config.server";
+import { ensureShopForSession } from "../services/shop-context.server";
 import { authenticate } from "../shopify.server";
+import type { AdminLanguage } from "../services/admin-config.server";
 
 const AUTH_DEBUG_HEADER_NAMES = [
   "x-shopify-api-request-failure-reauthorize",
@@ -17,6 +22,49 @@ const AUTH_DEBUG_HEADER_NAMES = [
   "www-authenticate",
   "location",
 ] as const;
+
+const ADMIN_NAV_ITEMS: Record<AdminLanguage, Array<{ label: string; url: string }>> = {
+  en: [
+    { label: "Dashboard", url: "/app" },
+    { label: "Onboarding", url: "/app/onboarding" },
+    { label: "Assistant", url: "/app/settings" },
+    { label: "Data Sources", url: "/app/data-sources" },
+    { label: "Campaigns", url: "/app/campaigns" },
+    { label: "Conversations", url: "/app/conversations" },
+    { label: "Analytics", url: "/app/analytics" },
+    { label: "Compliance", url: "/app/privacy" },
+    { label: "Operations", url: "/app/operations" },
+    { label: "Widget", url: "/app/widget-settings" },
+    { label: "Billing", url: "/app/billing" },
+  ],
+  es: [
+    { label: "Panel", url: "/app" },
+    { label: "Onboarding", url: "/app/onboarding" },
+    { label: "Asistente", url: "/app/settings" },
+    { label: "Fuentes de datos", url: "/app/data-sources" },
+    { label: "Campanas", url: "/app/campaigns" },
+    { label: "Conversaciones", url: "/app/conversations" },
+    { label: "Analitica", url: "/app/analytics" },
+    { label: "Cumplimiento", url: "/app/privacy" },
+    { label: "Operaciones", url: "/app/operations" },
+    { label: "Widget", url: "/app/widget-settings" },
+    { label: "Facturacion", url: "/app/billing" },
+  ],
+};
+
+function normalizeAdminLanguage(value: unknown): AdminLanguage {
+  return value === "es" ? "es" : "en";
+}
+
+function buildOnboardingRedirectPath(requestUrl: URL, step: number): string {
+  const params = new URLSearchParams(requestUrl.search);
+  params.delete("saved");
+  params.delete("onboarding");
+  params.set("step", String(Math.max(1, Math.min(7, Math.floor(step) || 1))));
+
+  const queryString = params.toString();
+  return `/app/onboarding${queryString ? `?${queryString}` : ""}`;
+}
 
 function decodeJwtClaims(token: string) {
   const payloadSegment = token.split(".")[1];
@@ -106,18 +154,37 @@ async function inspectAuthorizationToken(request: Request) {
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const authTokenDebug = await inspectAuthorizationToken(request);
+  const requestUrl = new URL(request.url);
+  let adminLanguage: AdminLanguage = "en";
 
   try {
-    await authenticate.admin(request);
+    const authResult = await authenticate.admin(request);
+
+    const shop = await ensureShopForSession((authResult as { session?: unknown }).session);
+    if (shop) {
+      const adminConfig = await getMerchantAdminConfig(shop.id);
+      adminLanguage = normalizeAdminLanguage(adminConfig.adminLanguage);
+
+      if (!requestUrl.pathname.startsWith("/app/onboarding") && !adminConfig.onboardingCompleted) {
+        throw redirect(buildOnboardingRedirectPath(requestUrl, adminConfig.onboardingStep));
+      }
+    }
 
     // Debug signal for embedded auth loops without leaking sensitive values.
     console.info("[auth-debug] /app authenticated", {
       ...authTokenDebug,
     });
 
-    return { apiKey: process.env.SHOPIFY_API_KEY || "" };
+    return {
+      apiKey: process.env.SHOPIFY_API_KEY || "",
+      adminLanguage,
+    };
   } catch (error) {
     if (error instanceof Response) {
+      if (error.status >= 300 && error.status < 400) {
+        throw error;
+      }
+
       console.error("[auth-debug] /app authenticate.admin response", {
         status: error.status,
         statusText: error.statusText,
@@ -135,8 +202,15 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 };
 
 export default function App() {
-  const { apiKey } = useLoaderData<typeof loader>();
+  const { apiKey, adminLanguage } = useLoaderData<typeof loader>();
+  const location = useLocation();
   const [isHydrated, setIsHydrated] = useState(false);
+  const normalizedLanguage = normalizeAdminLanguage(adminLanguage);
+  const navItems = ADMIN_NAV_ITEMS[normalizedLanguage] ?? ADMIN_NAV_ITEMS.en;
+  const polarisTranslations =
+    normalizedLanguage === "es" ? polarisTranslationsEs : polarisTranslationsEn;
+
+  const withEmbeddedQuery = (path: string) => `${path}${location.search || ""}`;
 
   useEffect(() => {
     setIsHydrated(true);
@@ -145,7 +219,18 @@ export default function App() {
   return (
     <ShopifyEmbeddedAppProvider embedded apiKey={apiKey}>
       <PolarisReactAppProvider i18n={polarisTranslations}>
-        {isHydrated ? <Outlet /> : null}
+        {isHydrated ? (
+          <>
+            <NavMenu>
+              {navItems.map((item) => (
+                <a key={item.url} href={withEmbeddedQuery(item.url)}>
+                  {item.label}
+                </a>
+              ))}
+            </NavMenu>
+            <Outlet />
+          </>
+        ) : null}
       </PolarisReactAppProvider>
     </ShopifyEmbeddedAppProvider>
   );

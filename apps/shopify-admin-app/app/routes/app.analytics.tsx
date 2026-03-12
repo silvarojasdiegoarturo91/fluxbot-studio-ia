@@ -12,6 +12,7 @@ import type { LoaderFunctionArgs } from "react-router";
 import { useLoaderData, useLocation } from "react-router";
 import { authenticate } from "../shopify.server";
 import { AnalyticsService } from "../services/analytics.server";
+import { useIsSpanish } from "../hooks/use-admin-language";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const { session } = await authenticate.admin(request);
@@ -32,39 +33,40 @@ function currency(value: number) {
 export default function AnalyticsPage() {
   const { report, days } = useLoaderData<typeof loader>();
   const location = useLocation();
+  const isEs = useIsSpanish();
   const backUrl = `/app${location.search || ""}`;
   const { conversations, revenue, proactive, intents, topTriggers } = report;
 
   return (
     <Page
-      title="Analytics"
-      subtitle={`Last ${days} days`}
-      backAction={{ content: "Dashboard", url: backUrl }}
+      title={isEs ? "Analitica" : "Analytics"}
+      subtitle={isEs ? `Ultimos ${days} dias` : `Last ${days} days`}
+      backAction={{ content: isEs ? "Panel" : "Dashboard", url: backUrl }}
     >
       <Layout>
         <Layout.Section>
           <InlineGrid columns={{ xs: 1, sm: 2, md: 4 }} gap="400">
             <Card>
               <BlockStack gap="100">
-                <Text as="p" variant="bodySm" tone="subdued">Conversations</Text>
+                <Text as="p" variant="bodySm" tone="subdued">{isEs ? "Conversaciones" : "Conversations"}</Text>
                 <Text as="p" variant="headingXl">{conversations.total}</Text>
                 <Text as="p" variant="bodySm" tone="subdued">
-                  Resolution: {pct(conversations.resolutionRate)}
+                  {isEs ? "Resolucion" : "Resolution"}: {pct(conversations.resolutionRate)}
                 </Text>
               </BlockStack>
             </Card>
             <Card>
               <BlockStack gap="100">
-                <Text as="p" variant="bodySm" tone="subdued">Assisted Revenue</Text>
+                <Text as="p" variant="bodySm" tone="subdued">{isEs ? "Ingresos asistidos" : "Assisted Revenue"}</Text>
                 <Text as="p" variant="headingXl">{currency(revenue.totalRevenue)}</Text>
                 <Text as="p" variant="bodySm" tone="subdued">
-                  {revenue.conversionCount} orders attributed
+                  {revenue.conversionCount} {isEs ? "pedidos atribuidos" : "orders attributed"}
                 </Text>
               </BlockStack>
             </Card>
             <Card>
               <BlockStack gap="100">
-                <Text as="p" variant="bodySm" tone="subdued">Proactive Sent</Text>
+                <Text as="p" variant="bodySm" tone="subdued">{isEs ? "Proactivos enviados" : "Proactive Sent"}</Text>
                 <Text as="p" variant="headingXl">{proactive.sent}</Text>
                 <Text as="p" variant="bodySm" tone="subdued">
                   CVR: {pct(proactive.conversionRate)}
@@ -73,10 +75,10 @@ export default function AnalyticsPage() {
             </Card>
             <Card>
               <BlockStack gap="100">
-                <Text as="p" variant="bodySm" tone="subdued">Handoff Rate</Text>
+                <Text as="p" variant="bodySm" tone="subdued">{isEs ? "Tasa de handoff" : "Handoff Rate"}</Text>
                 <Text as="p" variant="headingXl">{pct(conversations.handoffRate)}</Text>
                 <Text as="p" variant="bodySm" tone="subdued">
-                  {conversations.escalated} escalated
+                  {conversations.escalated} {isEs ? "escaladas" : "escalated"}
                 </Text>
               </BlockStack>
             </Card>
@@ -86,16 +88,16 @@ export default function AnalyticsPage() {
         <Layout.Section>
           <Card>
             <BlockStack gap="400">
-              <Text as="h2" variant="headingMd">Revenue Attribution</Text>
+              <Text as="h2" variant="headingMd">{isEs ? "Atribucion de ingresos" : "Revenue Attribution"}</Text>
               <DataTable
                 columnContentTypes={["text", "numeric"]}
-                headings={["Attribution Type", "Revenue"]}
+                headings={isEs ? ["Tipo de atribucion", "Ingresos"] : ["Attribution Type", "Revenue"]}
                 rows={[
-                  ["Direct Recommendation", currency(revenue.directRevenue)],
-                  ["Assisted", currency(revenue.assistedRevenue)],
-                  ["Cart Recovery", currency(revenue.cartRecoveryRevenue)],
-                  ["Proactive Trigger", currency(revenue.proactiveTriggerRevenue)],
-                  ["Total", currency(revenue.totalRevenue)],
+                  [isEs ? "Recomendacion directa" : "Direct Recommendation", currency(revenue.directRevenue)],
+                  [isEs ? "Asistido" : "Assisted", currency(revenue.assistedRevenue)],
+                  [isEs ? "Recuperacion de carrito" : "Cart Recovery", currency(revenue.cartRecoveryRevenue)],
+                  [isEs ? "Trigger proactivo" : "Proactive Trigger", currency(revenue.proactiveTriggerRevenue)],
+                  [isEs ? "Total" : "Total", currency(revenue.totalRevenue)],
                 ]}
               />
             </BlockStack>
@@ -105,16 +107,16 @@ export default function AnalyticsPage() {
         <Layout.Section>
           <Card>
             <BlockStack gap="400">
-              <Text as="h2" variant="headingMd">Proactive Messaging Funnel</Text>
+              <Text as="h2" variant="headingMd">{isEs ? "Embudo de mensajeria proactiva" : "Proactive Messaging Funnel"}</Text>
               <DataTable
                 columnContentTypes={["text", "numeric", "text"]}
-                headings={["Stage", "Count", "Rate"]}
+                headings={isEs ? ["Etapa", "Cantidad", "Tasa"] : ["Stage", "Count", "Rate"]}
                 rows={[
-                  ["Queued", String(proactive.queued), "—"],
-                  ["Sent", String(proactive.sent), "—"],
-                  ["Delivered", String(proactive.delivered), pct(proactive.deliveryRate)],
-                  ["Converted", String(proactive.converted), pct(proactive.conversionRate)],
-                  ["Failed", String(proactive.failed), "—"],
+                  [isEs ? "En cola" : "Queued", String(proactive.queued), "—"],
+                  [isEs ? "Enviados" : "Sent", String(proactive.sent), "—"],
+                  [isEs ? "Entregados" : "Delivered", String(proactive.delivered), pct(proactive.deliveryRate)],
+                  [isEs ? "Convertidos" : "Converted", String(proactive.converted), pct(proactive.conversionRate)],
+                  [isEs ? "Fallidos" : "Failed", String(proactive.failed), "—"],
                 ]}
               />
             </BlockStack>
@@ -124,17 +126,19 @@ export default function AnalyticsPage() {
         <Layout.Section variant="oneHalf">
           <Card>
             <BlockStack gap="400">
-              <Text as="h2" variant="headingMd">Intent Breakdown</Text>
+              <Text as="h2" variant="headingMd">{isEs ? "Desglose de intenciones" : "Intent Breakdown"}</Text>
               {intents.length === 0 ? (
-                <EmptyState heading="No intent data yet" image="">
+                <EmptyState heading={isEs ? "Sin datos de intencion" : "No intent data yet"} image="">
                   <Text as="p" variant="bodySm">
-                    Data will appear as visitors interact with the chat.
+                    {isEs
+                      ? "Los datos apareceran cuando visitantes interactuen con el chat."
+                      : "Data will appear as visitors interact with the chat."}
                   </Text>
                 </EmptyState>
               ) : (
                 <DataTable
                   columnContentTypes={["text", "numeric", "text"]}
-                  headings={["Intent Type", "Signals", "Avg Confidence"]}
+                  headings={isEs ? ["Tipo", "Senales", "Confianza prom."] : ["Intent Type", "Signals", "Avg Confidence"]}
                   rows={intents.map((i) => [i.type, String(i.count), pct(i.avgConfidence)])}
                 />
               )}
@@ -145,17 +149,19 @@ export default function AnalyticsPage() {
         <Layout.Section variant="oneHalf">
           <Card>
             <BlockStack gap="400">
-              <Text as="h2" variant="headingMd">Top Proactive Triggers</Text>
+              <Text as="h2" variant="headingMd">{isEs ? "Top triggers proactivos" : "Top Proactive Triggers"}</Text>
               {topTriggers.length === 0 ? (
-                <EmptyState heading="No trigger data yet" image="">
+                <EmptyState heading={isEs ? "Sin datos de triggers" : "No trigger data yet"} image="">
                   <Text as="p" variant="bodySm">
-                    Create and enable proactive triggers to see performance here.
+                    {isEs
+                      ? "Crea y activa triggers proactivos para ver rendimiento aqui."
+                      : "Create and enable proactive triggers to see performance here."}
                   </Text>
                 </EmptyState>
               ) : (
                 <DataTable
                   columnContentTypes={["text", "numeric", "numeric", "text"]}
-                  headings={["Trigger", "Sent", "Conversions", "CVR"]}
+                  headings={isEs ? ["Trigger", "Enviados", "Conversiones", "CVR"] : ["Trigger", "Sent", "Conversions", "CVR"]}
                   rows={topTriggers.map((t) => [
                     t.triggerName,
                     String(t.messagesSent),

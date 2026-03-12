@@ -16,6 +16,8 @@ import { getIAGateway } from "../../app/services/ia-gateway.server";
 import { TriggerEvaluationService } from "../../app/services/trigger-evaluation.server";
 
 const mockEvaluateTriggers = vi.fn();
+const mockFetch = vi.fn();
+vi.stubGlobal("fetch", mockFetch);
 
 // Mock dependencies
 vi.mock("../../app/db.server", () => ({
@@ -55,6 +57,8 @@ describe("ProactiveMessagingService", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockEvaluateTriggers.mockReset();
+    mockFetch.mockReset();
+    delete process.env.SHOPIFY_APP_URL;
     vi.mocked(getIAGateway).mockReturnValue({
       evaluateTriggers: mockEvaluateTriggers,
     } as any);
@@ -287,6 +291,114 @@ describe("ProactiveMessagingService", () => {
           }),
         })
       );
+    });
+
+    it("auto-dispatches campaigns via API when decision metadata includes campaignId", async () => {
+      const prisma = (await import("../../app/db.server")).default;
+
+      process.env.SHOPIFY_APP_URL = "http://localhost:3000";
+      vi.mocked(EventTrackingService.getActiveSessions).mockResolvedValue(["sess-campaign"]);
+      mockEvaluateTriggers.mockResolvedValue({
+        evaluations: [
+          {
+            triggerId: "trigger-campaign",
+            triggerName: "Campaign Push",
+            decision: "SEND",
+            message: "Campaign recommendation",
+            score: 0.95,
+            metadata: {
+              campaignId: "camp-123",
+              locale: "es",
+              variables: {
+                productName: "Chaqueta Azul",
+              },
+            },
+          },
+        ],
+        recommendation: {
+          triggerId: "trigger-campaign",
+          action: "SEND",
+        },
+      });
+      vi.mocked(TriggerEvaluationService.recordTriggerFire).mockImplementation(() => {});
+      vi.mocked(prisma.shop.findUnique).mockResolvedValue({
+        domain: "shop1.myshopify.com",
+      } as any);
+      vi.mocked(prisma.proactiveMessage.findFirst).mockResolvedValue(null);
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          dispatched: true,
+          dispatchEventId: "evt-1",
+        }),
+      });
+
+      const result = await ProactiveMessagingService.evaluateAndQueueMessages("shop1");
+
+      expect(result.evaluated).toBe(1);
+      expect(result.queued).toBe(1);
+      expect(prisma.proactiveMessage.create).not.toHaveBeenCalled();
+      expect(mockFetch).toHaveBeenCalledWith(
+        "http://localhost:3000/api/campaigns/camp-123/dispatch",
+        expect.objectContaining({
+          method: "POST",
+          headers: expect.objectContaining({
+            "X-Shop-Domain": "shop1.myshopify.com",
+          }),
+        }),
+      );
+    });
+
+    it("falls back to queueMessage when campaign dispatch API does not dispatch", async () => {
+      const prisma = (await import("../../app/db.server")).default;
+
+      process.env.SHOPIFY_APP_URL = "http://localhost:3000";
+      vi.mocked(EventTrackingService.getActiveSessions).mockResolvedValue(["sess-fallback"]);
+      mockEvaluateTriggers.mockResolvedValue({
+        evaluations: [
+          {
+            triggerId: "trigger-fallback",
+            triggerName: "Campaign Fallback",
+            decision: "SEND",
+            message: "Fallback message",
+            score: 0.8,
+            metadata: {
+              campaignId: "camp-fallback",
+            },
+          },
+        ],
+        recommendation: {
+          triggerId: "trigger-fallback",
+          action: "SEND",
+        },
+      });
+      vi.mocked(TriggerEvaluationService.recordTriggerFire).mockImplementation(() => {});
+      vi.mocked(prisma.shop.findUnique).mockResolvedValue({
+        domain: "shop1.myshopify.com",
+      } as any);
+      vi.mocked(prisma.proactiveMessage.findFirst).mockResolvedValue(null);
+      vi.mocked(prisma.proactiveMessage.create).mockResolvedValue({
+        id: "msg-fallback",
+        status: "QUEUED",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      } as any);
+      mockFetch.mockResolvedValue({
+        ok: false,
+        status: 422,
+        json: async () => ({
+          dispatched: false,
+          reason: "Campaign is paused",
+        }),
+      });
+
+      const result = await ProactiveMessagingService.evaluateAndQueueMessages("shop1");
+
+      expect(result.evaluated).toBe(1);
+      expect(result.queued).toBe(1);
+      expect(prisma.proactiveMessage.create).toHaveBeenCalledOnce();
+      expect(mockFetch).toHaveBeenCalledOnce();
     });
   });
 

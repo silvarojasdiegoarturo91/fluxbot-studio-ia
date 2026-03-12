@@ -43,7 +43,7 @@ Este documento se enfoca en seguimiento de ejecución y checklist por fase.
 
 ---
 
-## FASE 2: Configuración de Bases de Datos
+## FASE 2: Configuración de Bases de Datos (✅ COMPLETADO)
 
 ### 2.1 Base de Datos Frontend (fluxbot_dev)
 **Propietario**: fluxbot-studio-ia
@@ -90,19 +90,17 @@ Este documento se enfoca en seguimiento de ejecución y checklist por fase.
 | AIAnalytics | Métricas de uso de IA |
 | ToolInvocation | Invocaciones de herramientas |
 
-### 2.3 Acción Requerida
+### 2.3 Acción Requerida (✅ COMPLETADO)
 ```bash
-# Crear base de datos para backend
-psql postgres
-CREATE DATABASE fluxbot_ia;
-CREATE USER fluxbot_ia_user WITH ENCRYPTED PASSWORD 'secure_password';
-GRANT ALL PRIVILEGES ON DATABASE fluxbot_ia TO fluxbot_ia_user;
-\q
+# Base de datos fluxbot_ia creada en Docker
+# Usuario: fluxbot_ia_user
+# Contraseña: dev_password
+# Puerto: 5432
 ```
 
 ---
 
-## FASE 3: Migración de Servicios
+## FASE 3: Migración de Servicios (✅ COMPLETADO)
 
 ### 3.1 Servicios que permanecen en Frontend
 | Servicio | Razón |
@@ -229,7 +227,7 @@ PORT=3001
 
 ---
 
-## FASE 6: Checklist de Implementación (🔄 EN PROGRESO)
+## FASE 6: Checklist de Implementación (✅ COMPLETADO)
 
 ### Backend
 - [x] Crear base de datos `fluxbot_ia`
@@ -244,8 +242,8 @@ PORT=3001
 
 ### Frontend
 - [x] Actualizar .env con IA_BACKEND_URL
-- [ ] Eliminar servicios de IA migrados (mantener por compatibilidad)
-- [ ] Actualizar tests
+- [x] Eliminar servicios de IA migrados del flujo principal (mantener compatibilidad vía `IAGateway`)
+- [x] Actualizar tests
 - [x] Verificar que todo funciona
 
 ### Integración
@@ -253,7 +251,12 @@ PORT=3001
 - [x] Test de búsqueda RAG
 - [x] Test de triggers
 - [x] Métricas fluyen correctamente
-- [x] Tests de integración (7 tests passing)
+- [x] Tests de integración
+
+### Evidencia de cierre (2026-03-11)
+- Flujo principal de chat desacoplado de servicio legado y validado por contrato de gateway (`apps/shopify-admin-app/app/routes/api.chat.ts`, `apps/shopify-admin-app/app/services/ia-gateway.server.ts`).
+- Suite de ejecución de rutas alineada al contrato canónico `IAGateway` (`apps/shopify-admin-app/test/integration/route-handlers-execution.test.ts`).
+- Verificación integral frontend: `npm run typecheck` y `npm test` (ver snapshot canónico en `STATUS_MATRIX.md`).
 
 ---
 

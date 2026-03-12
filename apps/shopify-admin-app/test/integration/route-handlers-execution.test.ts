@@ -2,6 +2,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { action as chatAction, loader as chatLoader } from '../../app/routes/api.chat';
 import { action as webhookAction } from '../../app/routes/api.webhooks';
 
+const { mockGatewayChat } = vi.hoisted(() => ({
+  mockGatewayChat: vi.fn(),
+}));
+
 /**
  * Route Handler Execution Tests
  * Tests that actually execute route handler code with mocked dependencies
@@ -25,11 +29,11 @@ vi.mock('../../app/db.server', () => {
   return { default: mockPrisma };
 });
 
-// Mock AI Orchestration Service
-vi.mock('../../app/services/ai-orchestration.server', () => ({
-  AIOrchestrationService: {
-    chat: vi.fn(),
-  },
+// Mock IA Gateway (canonical runtime contract)
+vi.mock('../../app/services/ia-gateway.server', () => ({
+  getIAGateway: vi.fn(() => ({
+    chat: mockGatewayChat,
+  })),
 }));
 
 // Mock Webhook Handlers
@@ -48,12 +52,12 @@ vi.mock('remix-utils/cors', () => ({
 }));
 
 import prisma from '../../app/db.server';
-import { AIOrchestrationService } from '../../app/services/ai-orchestration.server';
 import { WebhookHandlers } from '../../app/services/sync-service.server';
 
 describe('Route Handler Execution - Chat API', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockGatewayChat.mockReset();
   });
 
   describe('POST /api/chat - Action Handler', () => {
@@ -86,7 +90,7 @@ describe('Route Handler Execution - Chat API', () => {
       // Setup mocks
       vi.mocked(prisma.shop.findUnique).mockResolvedValue(mockShop as any);
       vi.mocked(prisma.conversation.create).mockResolvedValue(mockConversation as any);
-      vi.mocked(AIOrchestrationService.chat).mockResolvedValue(mockChatResponse as any);
+      mockGatewayChat.mockResolvedValue(mockChatResponse as any);
 
       // Create request
       const requestBody = {
@@ -124,11 +128,15 @@ describe('Route Handler Execution - Chat API', () => {
         where: { domain: 'test-store.myshopify.com' },
       });
       expect(prisma.conversation.create).toHaveBeenCalled();
-      expect(AIOrchestrationService.chat).toHaveBeenCalledWith(
-        'shop-123',
-        'conv-456',
-        'Hello',
-        'en'
+      expect(mockGatewayChat).toHaveBeenCalledWith(
+        {
+          message: 'Hello',
+          conversationId: 'conv-456',
+          shopId: 'shop-123',
+          locale: 'en',
+          channel: 'WEB_CHAT',
+        },
+        'test-store.myshopify.com',
       );
     });
 
@@ -158,7 +166,7 @@ describe('Route Handler Execution - Chat API', () => {
 
       vi.mocked(prisma.shop.findUnique).mockResolvedValue(mockShop as any);
       vi.mocked(prisma.conversation.findUnique).mockResolvedValue(mockConversation as any);
-      vi.mocked(AIOrchestrationService.chat).mockResolvedValue(mockChatResponse as any);
+      mockGatewayChat.mockResolvedValue(mockChatResponse as any);
 
       const request = new Request('http://localhost/api/chat', {
         method: 'POST',

@@ -1,6 +1,8 @@
-# Project Status — March 8, 2025
+# Project Status — Historical Snapshot (March 8, 2025)
 
-**Overall Progress:** Phase 1 MVP Complete, Phase 2 Ready to Start
+> Canonical current status lives in [STATUS_MATRIX.md](./STATUS_MATRIX.md). Repo-local state on 2026-03-11: Phases 2, 3, 4, 5 and 6 are `DONE` in this repository.
+
+**Overall Progress:** Historical Phase 1 handoff snapshot, superseded by `STATUS_MATRIX.md`
 
 ---
 
@@ -51,7 +53,7 @@ The Fluxbot Studio IA project has successfully completed its **monorepo restruct
 - [x] Build pipeline (Vite + React Router)
 - [x] TypeScript strict mode (zero errors)
 
-### ⏳ NEXT (Phase 2+)
+### Historical Pending Work (Archived Phase 2+ Checklist)
 - [ ] Proactive behavioral triggers (intent detection, dwell time detection)
 - [ ] Add-to-cart integration
 - [ ] Human handoff (escalation to support team)
@@ -408,9 +410,9 @@ npm query ".workspace"
 
 ---
 
-## Next Meeting Agenda (Phase 2 Kickoff)
+## Historical Kickoff Agenda (Archived)
 
-When you're ready to start Phase 2:
+The checklist below reflects the original Phase 2 kickoff plan and is no longer the current repo status.
 
 1. **Database Verification** (5 min)
    - Confirm PostgreSQL running
@@ -453,7 +455,7 @@ The monorepo restructuring is complete, TypeScript is clean, and the build syste
 Once those are done, you can:
 - Access admin dashboard at your Shopify store
 - Explore the database schema
-- Start implementing Phase 2 features
+- Continue from the current capability matrix in `STATUS_MATRIX.md`
 - Deploy theme extension to storefront
 
 **Est. time to first working chat:** 2-3 hours of coding + database setup.

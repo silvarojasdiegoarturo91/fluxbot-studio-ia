@@ -13,7 +13,8 @@ Este README ya no mantiene checklists de fase para evitar desalineaciones.
 - ✅ Migración de Fase 2: intent detection + trigger decisioning remotos (sin fallback local), con dispatch proactivo en frontend
 - ✅ Migración de quality pipeline: retrieval/reranking remoto (sin fallback local en frontend)
 - ✅ Fase 3 `llms.txt`: generación en backend IA y publicación en frontend
-- 🔄 Resto de iniciativas V2/V3 en ejecución, con seguimiento en `STATUS_MATRIX.md`
+- ✅ Fases 2 a 6 cerradas en este repo (incluyendo compliance enterprise, hardening de conectores y cierre de separación)
+- ✅ El detalle por capability, ownership y siguientes incrementos vive en `STATUS_MATRIX.md`
 
 ---
 
@@ -471,7 +472,7 @@ Privado - Todos los derechos reservados
 - **Code location:** `/services/*/src/*.service.ts`
 - **Design doc:** ARCHITECTURE.md (Module section)
 - **Example:** Services for AI, ingestion, sync, analytics
-- **Next steps:** Phase 2 implementation
+- **Next steps:** Ver `STATUS_MATRIX.md` para ownership actual y trabajo incremental
 
 ### Database
 - **Schema location:** `/infra/prisma/schema.prisma`
@@ -483,7 +484,7 @@ Privado - Todos los derechos reservados
 - **Code location:** `/apps/shopify-admin-app/app/routes/`
 - **Design doc:** ARCHITECTURE.md (Delivery Layer)
 - **Status:** 8 dashboard pages ready
-- **Next steps:** Add content and Phase 2 features
+- **Next steps:** Ver `STATUS_MATRIX.md` para follow-up actual del frontend/runtime
 
 ### Compliance
 - **Framework location:** `/packages/compliance/`

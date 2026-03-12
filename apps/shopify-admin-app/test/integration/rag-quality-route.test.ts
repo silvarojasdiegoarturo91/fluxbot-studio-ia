@@ -51,7 +51,7 @@ describe("GET /api/rag/quality", () => {
   it("returns default policy when no config exists", async () => {
     vi.mocked(prisma.chatbotConfig.findFirst).mockResolvedValue(null);
 
-    const response = await loader({ request: makeRequest("GET"), params: {}, context: {} });
+    const response = await loader({ request: makeRequest("GET"), params: {}, context: {} } as any);
     const data = await response.json();
 
     expect(response.status).toBe(200);
@@ -65,7 +65,7 @@ describe("GET /api/rag/quality", () => {
       confidenceThreshold: 0.75,
     } as any);
 
-    const response = await loader({ request: makeRequest("GET"), params: {}, context: {} });
+    const response = await loader({ request: makeRequest("GET"), params: {}, context: {} } as any);
     const data = await response.json();
 
     expect(data.minScore).toBe(0.75);
@@ -87,7 +87,7 @@ describe("PUT /api/rag/quality", () => {
       request: makeRequest("PUT", { minScore: 0.8, rerankStrategy: "cross_encoder" }),
       params: {},
       context: {},
-    });
+    } as any);
     const data = await response.json();
 
     expect(response.status).toBe(200);
@@ -105,7 +105,7 @@ describe("PUT /api/rag/quality", () => {
       request: makeRequest("POST", { minScore: 0.5 }),
       params: {},
       context: {},
-    });
+    } as any);
     expect(response.status).toBe(405);
   });
 
@@ -114,7 +114,7 @@ describe("PUT /api/rag/quality", () => {
       request: makeRequest("PUT", { minScore: 1.5 }),
       params: {},
       context: {},
-    });
+    } as any);
     expect(response.status).toBe(422);
     const data = await response.json();
     expect(data.error).toContain("minScore");
@@ -125,7 +125,7 @@ describe("PUT /api/rag/quality", () => {
       request: makeRequest("PUT", { minScore: 0.5, rerankStrategy: "invalid_strategy" }),
       params: {},
       context: {},
-    });
+    } as any);
     expect(response.status).toBe(422);
     const data = await response.json();
     expect(data.error).toContain("rerankStrategy");
@@ -138,7 +138,7 @@ describe("PUT /api/rag/quality", () => {
       request: makeRequest("PUT", { minScore: 0.6 }),
       params: {},
       context: {},
-    });
+    } as any);
     expect(response.status).toBe(404);
   });
 
@@ -147,7 +147,7 @@ describe("PUT /api/rag/quality", () => {
       request: makeRequest("PUT", { minScore: 0.7, rerankStrategy: "bm25_hybrid", topK: 10 }),
       params: {},
       context: {},
-    });
+    } as any);
     const data = await response.json();
 
     expect(response.status).toBe(200);

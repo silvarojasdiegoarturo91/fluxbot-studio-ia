@@ -30,12 +30,25 @@ export async function loader({ request }: LoaderFunctionArgs) {
   }
 
   try {
-    const payload = await LlmsTxtService.generate({
+    const forceRefresh = url.searchParams.get("refresh") === "1";
+    const options: {
+      shopDomain: string;
+      includePolicies: boolean;
+      includeProducts: boolean;
+      maxProducts: number;
+      forceRefresh?: boolean;
+    } = {
       shopDomain,
       includePolicies: url.searchParams.get("includePolicies") !== "false",
       includeProducts: url.searchParams.get("includeProducts") !== "false",
       maxProducts: Number(url.searchParams.get("maxProducts") || "12"),
-    });
+    };
+
+    if (forceRefresh) {
+      options.forceRefresh = true;
+    }
+
+    const payload = await LlmsTxtService.generate(options);
 
     return text(payload, { status: 200 });
   } catch (error) {

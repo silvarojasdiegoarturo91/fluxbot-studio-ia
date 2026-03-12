@@ -11,8 +11,11 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
+  ComplianceSIEMExportService,
   DataResidencyService,
+  LegalHoldService,
   ProcessingRecordService,
+  RegionalDeploymentControlService,
   BreachNotificationService,
   RetentionEnforcementService,
   SupportAgentAccessService,
@@ -43,6 +46,17 @@ vi.mock("../../app/db.server", () => ({
     auditLog: {
       count: vi.fn(),
     },
+    regionalDeploymentControl: {
+      findUnique: vi.fn(),
+      upsert: vi.fn(),
+    },
+    legalHold: {
+      create: vi.fn(),
+      findMany: vi.fn(),
+      count: vi.fn(),
+      findUnique: vi.fn(),
+      update: vi.fn(),
+    },
   },
 }));
 
@@ -52,6 +66,10 @@ const SHOP_ID = "enterprise-shop.myshopify.com";
 
 beforeEach(() => {
   vi.clearAllMocks();
+  (prisma.regionalDeploymentControl.findUnique as any).mockResolvedValue(null);
+  (prisma.legalHold.findMany as any).mockResolvedValue([]);
+  (prisma.legalHold.count as any).mockResolvedValue(0);
+  (prisma.legalHold.findUnique as any).mockResolvedValue(null);
 });
 
 // ---------------------------------------------------------------------------
@@ -59,43 +77,196 @@ beforeEach(() => {
 // ---------------------------------------------------------------------------
 
 describe("DataResidencyService", () => {
-  it("returns GLOBAL config by default when none set", () => {
-    const config = DataResidencyService.getConfig("not-configured.myshopify.com");
+  it("returns GLOBAL config by default when none set", async () => {
+    const config = await DataResidencyService.getConfig("not-configured.myshopify.com");
     expect(config.region).toBe("GLOBAL");
     expect(config.enforced).toBe(false);
   });
 
-  it("stores and retrieves residency config", () => {
-    DataResidencyService.setConfig(SHOP_ID, "EU", ["DE", "FR", "ES"]);
-    const config = DataResidencyService.getConfig(SHOP_ID);
+  it("stores and retrieves residency config", async () => {
+    await DataResidencyService.setConfig(SHOP_ID, "EU", ["DE", "FR", "ES"]);
+    const config = await DataResidencyService.getConfig(SHOP_ID);
 
     expect(config.region).toBe("EU");
     expect(config.enforced).toBe(true);
     expect(config.enforcedCountries).toContain("DE");
   });
 
-  it("allows storage when region matches customer country", () => {
-    DataResidencyService.setConfig(SHOP_ID, "EU", ["DE"]);
-    expect(DataResidencyService.isStorageAllowed(SHOP_ID, "DE")).toBe(true);
-    expect(DataResidencyService.isStorageAllowed(SHOP_ID, "FR")).toBe(true); // FR is also EU
+  it("allows storage when region matches customer country", async () => {
+    await DataResidencyService.setConfig(SHOP_ID, "EU", ["DE"]);
+    await expect(DataResidencyService.isStorageAllowed(SHOP_ID, "DE")).resolves.toBe(true);
+    await expect(DataResidencyService.isStorageAllowed(SHOP_ID, "FR")).resolves.toBe(true); // FR is also EU
   });
 
-  it("blocks storage when customer country is outside enforced region", () => {
-    DataResidencyService.setConfig(SHOP_ID, "EU", ["DE"]);
-    expect(DataResidencyService.isStorageAllowed(SHOP_ID, "US")).toBe(false);
-    expect(DataResidencyService.isStorageAllowed(SHOP_ID, "JP")).toBe(false);
+  it("blocks storage when customer country is outside enforced region", async () => {
+    await DataResidencyService.setConfig(SHOP_ID, "EU", ["DE"]);
+    await expect(DataResidencyService.isStorageAllowed(SHOP_ID, "US")).resolves.toBe(false);
+    await expect(DataResidencyService.isStorageAllowed(SHOP_ID, "JP")).resolves.toBe(false);
   });
 
-  it("allows everything for GLOBAL region", () => {
-    DataResidencyService.setConfig(SHOP_ID, "GLOBAL");
-    expect(DataResidencyService.isStorageAllowed(SHOP_ID, "US")).toBe(true);
-    expect(DataResidencyService.isStorageAllowed(SHOP_ID, "JP")).toBe(true);
-    expect(DataResidencyService.isStorageAllowed(SHOP_ID, "DE")).toBe(true);
+  it("allows everything for GLOBAL region", async () => {
+    await DataResidencyService.setConfig(SHOP_ID, "GLOBAL");
+    await expect(DataResidencyService.isStorageAllowed(SHOP_ID, "US")).resolves.toBe(true);
+    await expect(DataResidencyService.isStorageAllowed(SHOP_ID, "JP")).resolves.toBe(true);
+    await expect(DataResidencyService.isStorageAllowed(SHOP_ID, "DE")).resolves.toBe(true);
   });
 
-  it("allows everything when config is not enforced (no countries)", () => {
-    DataResidencyService.setConfig(SHOP_ID, "EU", []);
-    expect(DataResidencyService.isStorageAllowed(SHOP_ID, "US")).toBe(true);
+  it("allows everything when config is not enforced (no countries)", async () => {
+    await DataResidencyService.setConfig(SHOP_ID, "EU", []);
+    await expect(DataResidencyService.isStorageAllowed(SHOP_ID, "US")).resolves.toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// REGIONAL DEPLOYMENT CONTROLS
+// ---------------------------------------------------------------------------
+
+describe("RegionalDeploymentControlService", () => {
+  it("returns GLOBAL defaults when no deployment control is configured", async () => {
+    (prisma.regionalDeploymentControl.findUnique as any).mockResolvedValue(null);
+
+    const config = await RegionalDeploymentControlService.getConfig("deployment-empty.myshopify.com");
+    expect(config.primaryRegion).toBe("GLOBAL");
+    expect(config.failoverRegions).toEqual([]);
+    expect(config.strictIsolation).toBe(false);
+  });
+
+  it("stores and retrieves deployment control overrides", async () => {
+    (prisma.regionalDeploymentControl.findUnique as any).mockResolvedValueOnce(null);
+    (prisma.regionalDeploymentControl.upsert as any).mockResolvedValue({
+      shopId: SHOP_ID,
+      primaryRegion: "EU",
+      failoverRegions: ["US", "APAC"],
+      strictIsolation: true,
+      piiRestrictedToPrimary: true,
+      updatedAt: new Date(),
+    });
+
+    const config = await RegionalDeploymentControlService.setConfig(SHOP_ID, {
+      primaryRegion: "EU",
+      failoverRegions: ["US", "APAC"],
+      strictIsolation: true,
+      piiRestrictedToPrimary: true,
+    });
+
+    expect(config.primaryRegion).toBe("EU");
+    expect(config.failoverRegions).toEqual(["US", "APAC"]);
+    expect(config.strictIsolation).toBe(true);
+    expect(config.piiRestrictedToPrimary).toBe(true);
+  });
+
+  it("returns deduplicated allowed regions", async () => {
+    (prisma.regionalDeploymentControl.findUnique as any).mockResolvedValue({
+      shopId: "deployment-allowed.myshopify.com",
+      primaryRegion: "US",
+      failoverRegions: ["EU", "US"],
+      strictIsolation: false,
+      piiRestrictedToPrimary: false,
+      updatedAt: new Date(),
+    });
+
+    await expect(RegionalDeploymentControlService.getAllowedRegions("deployment-allowed.myshopify.com")).resolves.toEqual([
+      "US",
+      "EU",
+    ]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// LEGAL HOLD WORKFLOW
+// ---------------------------------------------------------------------------
+
+describe("LegalHoldService", () => {
+  it("creates and lists legal holds", async () => {
+    (prisma.legalHold.create as any).mockResolvedValue({
+      id: "hold-1",
+      shopId: "legal-hold-shop.myshopify.com",
+      title: "Regulatory preservation",
+      reason: "Pending legal investigation",
+      scope: ["ALL"],
+      placedBy: "admin",
+      placedAt: new Date(),
+      expiresAt: null,
+      releasedAt: null,
+      releasedBy: null,
+      releaseReason: null,
+    });
+    (prisma.legalHold.findMany as any).mockResolvedValue([
+      {
+        id: "hold-1",
+        shopId: "legal-hold-shop.myshopify.com",
+        title: "Regulatory preservation",
+        reason: "Pending legal investigation",
+        scope: ["ALL"],
+        placedBy: "admin",
+        placedAt: new Date(),
+        expiresAt: null,
+        releasedAt: null,
+        releasedBy: null,
+        releaseReason: null,
+      },
+    ]);
+
+    const hold = await LegalHoldService.create("legal-hold-shop.myshopify.com", {
+      title: "Regulatory preservation",
+      reason: "Pending legal investigation",
+      scope: ["ALL"],
+      placedBy: "admin",
+    });
+
+    expect(hold.id).toBeDefined();
+    expect(hold.scope).toEqual(["ALL"]);
+    await expect(LegalHoldService.list("legal-hold-shop.myshopify.com")).resolves.toHaveLength(1);
+  });
+
+  it("tracks active hold count and release", async () => {
+    const shopId = "legal-hold-release.myshopify.com";
+    (prisma.legalHold.create as any).mockResolvedValue({
+      id: "hold-2",
+      shopId,
+      title: "Retention freeze",
+      reason: "Customer dispute",
+      scope: ["CONVERSATIONS"],
+      placedBy: "admin",
+      placedAt: new Date(),
+      expiresAt: null,
+      releasedAt: null,
+      releasedBy: null,
+      releaseReason: null,
+    });
+    (prisma.legalHold.count as any).mockResolvedValueOnce(1).mockResolvedValueOnce(0);
+    (prisma.legalHold.findUnique as any).mockResolvedValue({
+      id: "hold-2",
+      shopId,
+      releasedAt: null,
+    });
+    (prisma.legalHold.update as any).mockResolvedValue({
+      id: "hold-2",
+      shopId,
+      title: "Retention freeze",
+      reason: "Customer dispute",
+      scope: ["CONVERSATIONS"],
+      placedBy: "admin",
+      placedAt: new Date(),
+      expiresAt: null,
+      releasedAt: new Date(),
+      releasedBy: "admin",
+      releaseReason: "Case closed",
+    });
+
+    const hold = await LegalHoldService.create(shopId, {
+      title: "Retention freeze",
+      reason: "Customer dispute",
+      scope: ["CONVERSATIONS"],
+      placedBy: "admin",
+    });
+
+    await expect(LegalHoldService.getActiveHoldCount(shopId)).resolves.toBe(1);
+
+    const released = await LegalHoldService.release(shopId, hold.id, "admin", "Case closed");
+    expect(released).not.toBeNull();
+    expect(released?.releasedBy).toBe("admin");
+    await expect(LegalHoldService.getActiveHoldCount(shopId)).resolves.toBe(0);
   });
 });
 
@@ -104,8 +275,8 @@ describe("DataResidencyService", () => {
 // ---------------------------------------------------------------------------
 
 describe("ProcessingRecordService", () => {
-  it("registers a processing activity and returns it with id", () => {
-    const activity = ProcessingRecordService.registerActivity(SHOP_ID, {
+  it("registers a processing activity and returns it with id", async () => {
+    const activity = await ProcessingRecordService.registerActivity(SHOP_ID, {
       activityName: "Test Activity",
       purpose: "Test purpose",
       legalBasis: "Consent",
@@ -121,9 +292,9 @@ describe("ProcessingRecordService", () => {
     expect(activity.activityName).toBe("Test Activity");
   });
 
-  it("retrieves all activities for a shop", () => {
+  it("retrieves all activities for a shop", async () => {
     const shopId = "activities-test.myshopify.com";
-    ProcessingRecordService.registerActivity(shopId, {
+    await ProcessingRecordService.registerActivity(shopId, {
       activityName: "Activity A",
       purpose: "Purpose A",
       legalBasis: "Legitimate interest",
@@ -134,14 +305,14 @@ describe("ProcessingRecordService", () => {
       transferCountries: [],
     });
 
-    const activities = ProcessingRecordService.getActivities(shopId);
+    const activities = await ProcessingRecordService.getActivities(shopId);
     expect(activities.length).toBeGreaterThan(0);
     expect(activities[0].activityName).toBe("Activity A");
   });
 
-  it("removes an activity by id", () => {
+  it("removes an activity by id", async () => {
     const shopId = "remove-test.myshopify.com";
-    const activity = ProcessingRecordService.registerActivity(shopId, {
+    const activity = await ProcessingRecordService.registerActivity(shopId, {
       activityName: "Removable",
       purpose: "To be removed",
       legalBasis: "Consent",
@@ -152,22 +323,22 @@ describe("ProcessingRecordService", () => {
       transferCountries: [],
     });
 
-    const removed = ProcessingRecordService.removeActivity(shopId, activity.id);
+    const removed = await ProcessingRecordService.removeActivity(shopId, activity.id);
     expect(removed).toBe(true);
-    expect(ProcessingRecordService.getActivities(shopId)).toHaveLength(0);
+    await expect(ProcessingRecordService.getActivities(shopId)).resolves.toHaveLength(0);
   });
 
-  it("seeds default activities for new shops", () => {
+  it("seeds default activities for new shops", async () => {
     const shopId = "seed-test.myshopify.com";
-    ProcessingRecordService.seedDefaultActivities(shopId);
+    await ProcessingRecordService.seedDefaultActivities(shopId);
 
-    const activities = ProcessingRecordService.getActivities(shopId);
+    const activities = await ProcessingRecordService.getActivities(shopId);
     expect(activities.length).toBeGreaterThanOrEqual(3);
     expect(activities.some((a) => a.activityName.includes("Chat"))).toBe(true);
   });
 
-  it("returns empty array for shop with no activities", () => {
-    expect(ProcessingRecordService.getActivities("empty.myshopify.com")).toEqual([]);
+  it("returns empty array for shop with no activities", async () => {
+    await expect(ProcessingRecordService.getActivities("empty.myshopify.com")).resolves.toEqual([]);
   });
 });
 
@@ -176,8 +347,8 @@ describe("ProcessingRecordService", () => {
 // ---------------------------------------------------------------------------
 
 describe("BreachNotificationService", () => {
-  it("registers a breach and returns it with id", () => {
-    const breach = BreachNotificationService.register(SHOP_ID, {
+  it("registers a breach and returns it with id", async () => {
+    const breach = await BreachNotificationService.register(SHOP_ID, {
       detectedAt: new Date(),
       severity: "HIGH",
       description: "Unauthorized data access",
@@ -193,9 +364,9 @@ describe("BreachNotificationService", () => {
     expect(breach.severity).toBe("HIGH");
   });
 
-  it("sets reportedAt72h = true when breach detected within 72h", () => {
+  it("sets reportedAt72h = true when breach detected within 72h", async () => {
     const recentlyDetected = new Date(Date.now() - 10 * 60 * 60 * 1000); // 10h ago
-    const breach = BreachNotificationService.register(SHOP_ID, {
+    const breach = await BreachNotificationService.register(SHOP_ID, {
       detectedAt: recentlyDetected,
       severity: "MEDIUM",
       description: "Potential breach",
@@ -209,9 +380,9 @@ describe("BreachNotificationService", () => {
     expect(breach.reportedAt72h).toBe(true);
   });
 
-  it("sets reportedAt72h = false when breach detected over 72h ago", () => {
+  it("sets reportedAt72h = false when breach detected over 72h ago", async () => {
     const oldDetection = new Date(Date.now() - 100 * 60 * 60 * 1000); // 100h ago
-    const breach = BreachNotificationService.register(SHOP_ID, {
+    const breach = await BreachNotificationService.register(SHOP_ID, {
       detectedAt: oldDetection,
       severity: "LOW",
       description: "Old breach",
@@ -225,9 +396,9 @@ describe("BreachNotificationService", () => {
     expect(breach.reportedAt72h).toBe(false);
   });
 
-  it("marks a breach as reported to authority", () => {
+  it("marks a breach as reported to authority", async () => {
     const shopId = "report-breach.myshopify.com";
-    const breach = BreachNotificationService.register(shopId, {
+    const breach = await BreachNotificationService.register(shopId, {
       detectedAt: new Date(Date.now() - 5 * 60 * 60 * 1000), // 5h ago
       severity: "CRITICAL",
       description: "Critical breach",
@@ -238,7 +409,7 @@ describe("BreachNotificationService", () => {
       reportedAt72h: false,
     });
 
-    const updated = BreachNotificationService.markReported(shopId, breach.id);
+    const updated = await BreachNotificationService.markReported(shopId, breach.id);
 
     expect(updated).not.toBeNull();
     expect(updated!.reportedToAuthority).toBe(true);
@@ -246,14 +417,14 @@ describe("BreachNotificationService", () => {
     expect(updated!.reportedAt72h).toBe(true); // 5h < 72h
   });
 
-  it("returns null when marking unknown breach", () => {
-    const result = BreachNotificationService.markReported(SHOP_ID, "non-existent-id");
+  it("returns null when marking unknown breach", async () => {
+    const result = await BreachNotificationService.markReported(SHOP_ID, "non-existent-id");
     expect(result).toBeNull();
   });
 
-  it("retrieves all breaches for a shop", () => {
+  it("retrieves all breaches for a shop", async () => {
     const shopId = "list-breaches.myshopify.com";
-    BreachNotificationService.register(shopId, {
+    await BreachNotificationService.register(shopId, {
       detectedAt: new Date(),
       severity: "LOW",
       description: "Breach 1",
@@ -264,7 +435,7 @@ describe("BreachNotificationService", () => {
       reportedAt72h: true,
     });
 
-    const breaches = BreachNotificationService.getBreaches(shopId);
+    const breaches = await BreachNotificationService.getBreaches(shopId);
     expect(breaches.length).toBeGreaterThan(0);
   });
 });
@@ -320,6 +491,96 @@ describe("RetentionEnforcementService", () => {
     expect(policy.behaviorEventRetentionDays).toBe(90); // default unchanged
     expect(policy.auditLogRetentionDays).toBe(2555); // default unchanged
   });
+
+  it("persists retention policy overrides per shop", () => {
+    const updated = RetentionEnforcementService.setPolicy(SHOP_ID, {
+      conversationRetentionDays: 45,
+      behaviorEventRetentionDays: 21,
+    });
+
+    expect(updated.conversationRetentionDays).toBe(45);
+    expect(updated.behaviorEventRetentionDays).toBe(21);
+
+    const retrieved = RetentionEnforcementService.getPolicy(SHOP_ID);
+    expect(retrieved.conversationRetentionDays).toBe(45);
+    expect(retrieved.behaviorEventRetentionDays).toBe(21);
+  });
+
+  it("uses persisted retention policy when enforce() receives no inline override", async () => {
+    RetentionEnforcementService.setPolicy(SHOP_ID, {
+      conversationRetentionDays: 10,
+      behaviorEventRetentionDays: 5,
+    });
+
+    (prisma.conversation.deleteMany as any).mockResolvedValue({ count: 1 });
+    (prisma.behaviorEvent.deleteMany as any).mockResolvedValue({ count: 2 });
+
+    await RetentionEnforcementService.enforce(SHOP_ID);
+
+    const convCall = (prisma.conversation.deleteMany as any).mock.calls.at(-1)?.[0];
+    const convCutoff: Date = convCall.where.startedAt.lt;
+    const convDays = (Date.now() - convCutoff.getTime()) / 86400000;
+
+    expect(convDays).toBeCloseTo(10, 0);
+  });
+
+  it("skips retention when an active legal hold exists", async () => {
+    const shopId = "retention-hold.myshopify.com";
+    (prisma.legalHold.findMany as any).mockResolvedValue([
+      {
+        id: "hold-all",
+        shopId,
+        title: "Litigation",
+        reason: "Preserve records",
+        scope: ["ALL"],
+        placedBy: "admin",
+        placedAt: new Date(),
+        expiresAt: null,
+        releasedAt: null,
+        releasedBy: null,
+        releaseReason: null,
+      },
+    ]);
+
+    const result = await RetentionEnforcementService.enforce(shopId);
+
+    expect(result.skipped).toBe(true);
+    expect(result.skipReason).toMatch(/legal hold/i);
+    expect(result.conversationsDeleted).toBe(0);
+    expect(result.eventsDeleted).toBe(0);
+    expect(prisma.conversation.deleteMany).not.toHaveBeenCalled();
+    expect(prisma.behaviorEvent.deleteMany).not.toHaveBeenCalled();
+  });
+
+  it("applies scoped retention exclusion only to held data type", async () => {
+    const shopId = "retention-scope-shop.myshopify.com";
+    (prisma.legalHold.findMany as any).mockResolvedValue([
+      {
+        id: "hold-conv",
+        shopId,
+        title: "Conversation hold",
+        reason: "Ticket dispute",
+        scope: ["CONVERSATIONS"],
+        placedBy: "admin",
+        placedAt: new Date(),
+        expiresAt: null,
+        releasedAt: null,
+        releasedBy: null,
+        releaseReason: null,
+      },
+    ]);
+
+    (prisma.behaviorEvent.deleteMany as any).mockResolvedValue({ count: 9 });
+
+    const result = await RetentionEnforcementService.enforce(shopId);
+
+    expect(result.skipped).toBe(true);
+    expect(result.skippedScopes).toContain("CONVERSATIONS");
+    expect(result.conversationsDeleted).toBe(0);
+    expect(result.eventsDeleted).toBe(9);
+    expect(prisma.conversation.deleteMany).not.toHaveBeenCalled();
+    expect(prisma.behaviorEvent.deleteMany).toHaveBeenCalledOnce();
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -365,6 +626,95 @@ describe("AuditReportService", () => {
     expect(report.totalConsentEvents).toBe(0);
     expect(report.consentBreakdown).toEqual({});
     expect(report.deletedRecords).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// SIEM EXPORT PIPELINE
+// ---------------------------------------------------------------------------
+
+describe("ComplianceSIEMExportService", () => {
+  it("generates NDJSON export with enterprise compliance events", async () => {
+    const shopId = "siem-shop.myshopify.com";
+
+    (prisma.consentRecord.findMany as any).mockResolvedValue([{ consentType: "ANALYTICS" }]);
+    (prisma.dataExportJob.count as any).mockResolvedValue(1);
+    (prisma.dataDeletionJob.findMany as any).mockResolvedValue([{ recordsDeleted: 5 }]);
+    (prisma.auditLog.count as any).mockResolvedValue(12);
+
+    await DataResidencyService.setConfig(shopId, "EU", ["DE"]);
+    (prisma.regionalDeploymentControl.findUnique as any).mockResolvedValue({
+      shopId,
+      primaryRegion: "EU",
+      failoverRegions: ["US"],
+      strictIsolation: true,
+      piiRestrictedToPrimary: true,
+      updatedAt: new Date(),
+    });
+    (prisma.legalHold.findMany as any).mockResolvedValue([
+      {
+        id: "hold-1",
+        shopId,
+        title: "Case hold",
+        reason: "Regulatory review",
+        scope: ["ALL"],
+        placedBy: "admin",
+        placedAt: new Date(),
+        expiresAt: null,
+        releasedAt: null,
+        releasedBy: null,
+        releaseReason: null,
+      },
+    ]);
+
+    const result = await ComplianceSIEMExportService.generateNDJSON(shopId, 7);
+
+    expect(result.format).toBe("ndjson");
+    expect(result.windowDays).toBe(7);
+    expect(result.eventCount).toBeGreaterThanOrEqual(5);
+    const lines = result.content.split("\n");
+    expect(lines.length).toBe(result.eventCount);
+    expect(lines.some((line) => line.includes("compliance.audit.summary"))).toBe(true);
+    expect(lines.some((line) => line.includes("compliance.legal_hold"))).toBe(true);
+  });
+
+  it("dispatches NDJSON events to configured connector implementations", async () => {
+    const exportResult = {
+      exportId: "siem_dispatch_1",
+      shopId: "dispatch-shop.myshopify.com",
+      generatedAt: new Date(),
+      windowDays: 3,
+      format: "ndjson" as const,
+      eventCount: 1,
+      content: JSON.stringify({ type: "compliance.audit.summary", shopId: "dispatch-shop.myshopify.com" }),
+    };
+
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: async () => "",
+    });
+    vi.stubGlobal("fetch", mockFetch);
+
+    process.env.SIEM_DATADOG_API_KEY = "datadog-test-key";
+    process.env.SIEM_DATADOG_SITE = "datadoghq.com";
+    process.env.SIEM_SPLUNK_HEC_URL = "https://splunk.example.com/services/collector/event";
+    process.env.SIEM_SPLUNK_HEC_TOKEN = "splunk-test-token";
+
+    const dispatch = await ComplianceSIEMExportService.dispatchToConnectors(exportResult, [
+      "datadog",
+      "splunk",
+    ]);
+
+    expect(dispatch.connectors).toHaveLength(2);
+    expect(dispatch.connectors.every((entry) => entry.delivered)).toBe(true);
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+
+    delete process.env.SIEM_DATADOG_API_KEY;
+    delete process.env.SIEM_DATADOG_SITE;
+    delete process.env.SIEM_SPLUNK_HEC_URL;
+    delete process.env.SIEM_SPLUNK_HEC_TOKEN;
+    vi.unstubAllGlobals();
   });
 });
 

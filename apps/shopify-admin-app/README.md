@@ -29,7 +29,9 @@ Snapshot:
 - ✅ Phase 2 migration: intent + trigger decisioning now run remote-only through the IA gateway
 - ✅ Phase 2 migration: recommendation quality pipeline is now remote-only from frontend runtime
 - ✅ Phase 3 `llms.txt`: generated in backend IA and published by frontend routes
-- 🚧 Remaining V2/V3 items tracked in the matrix
+- ✅ Phase 4/5: enterprise compliance, regional deployment controls, legal holds, SIEM export/connectors
+- ✅ Phase 6: separation closure checklist completed (remote-first gateway + compatibility path + aligned route execution tests)
+- ✅ Phase 2 through Phase 6 are closed in this repo; capability-by-capability status lives in `../../STATUS_MATRIX.md`
 
 ## Prerequisites
 
@@ -180,31 +182,15 @@ npx prisma studio    # Open database GUI
   - Content: `read_content`, `read_policies`, `read_online_store_pages`
   - Locales: `read_locales`
 
-## Features Roadmap
+## Feature Status
 
-### ✅ MVP (Phase 1)
-- [x] Shopify app authentication
-- [x] Theme App Extension chat widget
-- [x] Multi-tenant data model
-- [ ] Catalog sync pipeline
-- [ ] RAG-based product/policy answers
-- [x] Order lookup with verification
-- [ ] Basic analytics
-- [ ] GDPR consent tracking
+Status is maintained in one place only: `../../STATUS_MATRIX.md`.
 
-### 🚧 V2 (Phase 2)
-- [ ] Proactive sales triggers
-- [x] Add-to-cart from chat (backend APIs + orchestration actions)
-- [x] Human handoff integrations (backend APIs + orchestration actions)
-- [ ] Advanced reranking
-- [ ] Conversion attribution
-- [ ] Advanced multilingual support
-
-### ⏳ V3 (Phase 3)
-- [x] Omnichannel support (bridge + callback + delivery channels)
-- [ ] Marketing automations
-- [x] AEO / llms.txt generator
-- [ ] Advanced compliance controls
+Current repo-local snapshot:
+- ✅ Phase 1: embedded app shell, widget, gateway integration, order lookup
+- ✅ Phase 2: proactive dispatch split, add-to-cart, handoff, remote intent/trigger decisioning, remote quality pipeline
+- ✅ Phase 3: omnichannel bridge/callback operations, `llms.txt` publication, campaign CRUD/dispatch surfaces
+- ✅ Phase 4/5: enterprise compliance, regional deployment controls, legal holds, SIEM export/connectors
 
 ## Testing
 

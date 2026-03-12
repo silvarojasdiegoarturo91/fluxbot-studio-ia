@@ -1,46 +1,40 @@
-# Phase 2 Implementation Status
+# Phase 2 Implementation Status (Historical Notes)
 
 > Canonical status source: [STATUS_MATRIX.md](./STATUS_MATRIX.md). This document is historical context.
+>
+> Current repo-local status on 2026-03-11: Phase 2 and Phase 3 are `DONE` in this repository.
 
-## Verification Update: 2026-03-10
+## Current Verification Snapshot: 2026-03-11
 
-This document is partially stale relative to the current codebase. The following status was verified directly against the repository, TypeScript compilation, and the automated suite.
+This document is partially stale relative to the current codebase. The following snapshot reflects the current repository verification and supersedes the older checkpoint that follows later in the file.
 
 ### Verified Technical Baseline
 
 - TypeScript compilation: `npm run typecheck` ✅
-- Automated tests: `39/39` files, `811/811` tests passing ✅
+- Automated tests: `49/49` files, `941/941` tests passing ✅
 - Phase 0 regression suite: `68/68` passing ✅
-- Current runtime blockers fixed: scheduler delegate safety, React Router route imports, Prisma schema mismatches ✅
+- Current runtime blockers fixed: scheduler delegate safety, React Router route imports, Prisma schema mismatches, enterprise persistence/connectors ✅
 
-### Verified Phase Finalization Matrix
+### Current Repo-Local Phase Matrix
 
 | Phase | Technical status | Product-scope status | Verification |
 |-------|------------------|----------------------|--------------|
 | Phase 0 | ✅ Finalized | ✅ Finalized | Core auth, navigation, environment, build and Shopify connection tests all pass |
 | Phase 1 | ✅ Finalized | ✅ Finalized | `test/phase1/chat-e2e.test.ts` passes and the base multi-tenant/chat/RAG foundation is present |
-| Phase 2 | ✅ Stable baseline | ❌ Not fully finalized | Event tracking, intent detection, trigger evaluation, proactive messaging, analytics and vector retrieval exist, but V2 scope is still incomplete |
-| Phase 3 | ✅ Stable baseline | ❌ Not fully finalized | Omnichannel bridge, callback security, dead-letter queue and operations metrics exist, but V3 scope is still incomplete |
+| Phase 2 | ✅ Finalized | ✅ Done in this repo | Event capture, remote intent/trigger decisioning, proactive dispatch split, add-to-cart, handoff, analytics and quality route are verified in code and tests |
+| Phase 3 | ✅ Finalized | ✅ Done in this repo | Omnichannel bridge/callbacks, `llms.txt` publication, campaigns/multilingual dispatch surfaces and operations coverage are verified in code and tests |
 
-### Why Phase 2 Is Not Fully Finalized
+### Historical Note
 
-- `Add-to-cart from chat` is still unchecked in `apps/shopify-admin-app/README.md` and no cart mutation flow was verified.
-- `Human handoff integrations` are not closed. Escalation records exist, but the README still marks the integration work as pending.
-- `Advanced reranking` is still pending in the README; the current implementation is heuristic reranking, not an advanced reranking pipeline.
-- `Advanced multilingual support` is still listed as pending in the README.
+The older gap analysis that previously followed this section reflected an intermediate checkpoint before the repository completed:
 
-### Why Phase 3 Is Not Fully Finalized
+- remote-only intent and trigger decisioning through the IA gateway
+- `llms.txt` backend generation plus frontend publication
+- campaign CRUD/dispatch surfaces and multilingual campaign resolution
+- omnichannel callback hardening
+- enterprise compliance closure plus Phase 5 connector hardening
 
-- `AEO / llms.txt generator` is still unchecked in `apps/shopify-admin-app/README.md` and no generator was found in the app code.
-- `Marketing automations` were not verified in the codebase.
-- Omnichannel support is partial: bridge dispatch exists, but `EMAIL` and `SMS` delivery paths still contain explicit TODO/incomplete integration markers in `app/services/delivery.server.ts`.
-- Advanced compliance controls exist in part, but the README still treats the full V3 scope as pending.
-
-### Practical Conclusion
-
-If the criterion is engineering health, the repository is currently healthy: it type-checks and the full suite passes.
-
-If the criterion is whether Phases 0, 1, 2 and 3 are all fully closed against the declared product scope, only Phase 0 and Phase 1 can be considered finalized today. Phase 2 and Phase 3 still have declared scope gaps.
+Keep the remainder of this file only as an implementation diary, not as the current status source.
 
 ## Overall Progress: 33% Complete (3/9 priorities)
 
