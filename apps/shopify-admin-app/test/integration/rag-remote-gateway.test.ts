@@ -8,7 +8,7 @@ vi.mock("../../app/db.server", () => ({
   },
 }));
 
-vi.mock("../../app/services/ia-backend.client", () => ({
+vi.mock("../../app/services/ia-backend.server", () => ({
   iaClient: {
     rag: {
       search: vi.fn(),
@@ -17,7 +17,7 @@ vi.mock("../../app/services/ia-backend.client", () => ({
 }));
 
 import prisma from "../../app/db.server";
-import { iaClient } from "../../app/services/ia-backend.client";
+import { iaClient } from "../../app/services/ia-backend.server";
 import {
   buildCatalogContext,
   buildPoliciesContext,

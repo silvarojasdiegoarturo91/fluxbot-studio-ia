@@ -19,6 +19,7 @@
     "prisma:migrate:deploy": "prisma migrate deploy --schema ../../infra/prisma/schema.prisma",
     "lint": "eslint --ignore-path ../../.gitignore --cache --cache-location ./node_modules/.cache/eslint .",
     "test": "vitest run",
+    "test:phase1:deep": "vitest run test/phase1/chat-e2e.test.ts --reporter=verbose && vitest run test/integration/route-handlers.test.ts test/integration/route-handlers-execution.test.ts test/integration/service-execution.test.ts --reporter=verbose && vitest run test/phase1/chat-e2e.test.ts --coverage --coverage.reporter=text-summary",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",

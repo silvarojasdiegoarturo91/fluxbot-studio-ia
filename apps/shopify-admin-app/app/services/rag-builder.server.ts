@@ -10,7 +10,7 @@
  */
 
 import prisma from '../db.server';
-import { iaClient, type RerankStrategy } from './ia-backend.client';
+import { iaClient, type RerankStrategy } from './ia-backend.server';
 
 interface SearchResult {
   chunkId: string;

@@ -1,4 +1,4 @@
-import { iaClient } from "./ia-backend.client";
+import { iaClient } from "./ia-backend.server";
 import prisma from "../db.server";
 
 export interface LlmsTxtOptions {

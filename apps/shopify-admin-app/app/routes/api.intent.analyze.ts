@@ -7,7 +7,7 @@
 
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
 import prisma from "../db.server";
-import { IABackendError } from "../services/ia-backend.client";
+import { IABackendError } from "../services/ia-backend.server";
 import { getIAGateway } from "../services/ia-gateway.server";
 
 // Helper to create JSON responses

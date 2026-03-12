@@ -14,7 +14,7 @@ import {
   type IntentSessionSignalsResponse,
   type TriggerEvaluationResult as BackendTriggerEvaluationResult,
   type TriggerEvaluateResponse,
-} from './ia-backend.client';
+} from './ia-backend.server';
 import type { IntentAnalysis, IntentSignalRecord } from './intent-detection.server';
 
 // ─── Canonical gateway types ─────────────────────────────────────────────────
@@ -140,12 +140,55 @@ function normalizeTriggerResponse(
   };
 }
 
+type IABackendErrorLike = {
+  message: string;
+  statusCode?: number;
+  isOperational?: boolean;
+  name?: string;
+};
+
+function isIABackendErrorLike(error: unknown): error is IABackendErrorLike {
+  if (!error || typeof error !== 'object') {
+    return false;
+  }
+
+  const candidate = error as Partial<IABackendErrorLike>;
+  return (
+    typeof candidate.message === 'string' &&
+    (candidate.name === 'IABackendError' || typeof candidate.statusCode === 'number')
+  );
+}
+
+function createGatewayBackendError(
+  message: string,
+  statusCode: number,
+  isOperational = true,
+): IABackendError {
+  if (typeof IABackendError === 'function') {
+    return new IABackendError(message, statusCode, isOperational);
+  }
+
+  const fallback = new Error(message) as IABackendError;
+  fallback.name = 'IABackendError';
+  fallback.statusCode = statusCode;
+  fallback.isOperational = isOperational;
+  return fallback;
+}
+
 function wrapGatewayError(error: unknown): never {
-  if (error instanceof IABackendError) {
+  if (typeof IABackendError === 'function' && error instanceof IABackendError) {
     throw error;
   }
 
-  throw new IABackendError(
+  if (isIABackendErrorLike(error)) {
+    throw createGatewayBackendError(
+      error.message,
+      typeof error.statusCode === 'number' ? error.statusCode : 502,
+      typeof error.isOperational === 'boolean' ? error.isOperational : true,
+    );
+  }
+
+  throw createGatewayBackendError(
     error instanceof Error ? error.message : 'Unknown backend error',
     502,
   );

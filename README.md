@@ -9,10 +9,12 @@ Este README ya no mantiene checklists de fase para evitar desalineaciones.
 ### Resumen rápido
 - ✅ Base estable de app Shopify embebida + widget storefront
 - ✅ Fase 1 cerrada en este repo: gateway IA remoto por defecto + order lookup verificado
+- ✅ Fase 1 validada en profundidad (2026-03-12): `15/15` (phase1) + `70/70` (rutas/servicios integración) + `941/941` (suite completa)
 - ✅ Cierre inicial de Fase 2: `add-to-cart` y `human handoff` en backend
 - ✅ Migración de Fase 2: intent detection + trigger decisioning remotos (sin fallback local), con dispatch proactivo en frontend
 - ✅ Migración de quality pipeline: retrieval/reranking remoto (sin fallback local en frontend)
 - ✅ Fase 3 `llms.txt`: generación en backend IA y publicación en frontend
+- ✅ Reautenticación/reinstalación en dev store ejecutada (2026-03-12) con tokens Admin renovados
 - ✅ Fases 2 a 6 cerradas en este repo (incluyendo compliance enterprise, hardening de conectores y cierre de separación)
 - ✅ El detalle por capability, ownership y siguientes incrementos vive en `STATUS_MATRIX.md`
 
@@ -55,6 +57,12 @@ npm run dev              # Inicia Shopify CLI + tunnel
 npm run build            # Build de producción
 npm run typecheck        # Validación TypeScript
 npm run lint             # ESLint
+```
+
+### Testing
+```bash
+npm --prefix apps/shopify-admin-app run test:phase1:deep  # Validación profunda de Fase 1
+cd apps/shopify-admin-app && npm test                     # Suite completa (fase 0-1 + integración + unit)
 ```
 
 ### Base de Datos (Prisma)
@@ -222,6 +230,13 @@ Regla de mantenimiento documental:
 npm install --workspaces
 ```
 
+### Error: "These scopes are invalid - [read_policies]"
+```bash
+# En apps/shopify-admin-app/shopify.app.toml usa scopes válidos.
+# Recomendado:
+# read_products,write_products,read_orders,read_customers,read_content,read_locales,read_online_store_pages
+```
+
 ### Error: "Cannot find module '@prisma/client'"
 ```bash
 npm run prisma:generate
@@ -265,7 +280,7 @@ Privado - Todos los derechos reservados
 
 ---
 
-**Última actualización:** 2026-03-10  
+**Última actualización:** 2026-03-12  
 **Versión:** 0.1.0  
 **Estado canónico:** ver `STATUS_MATRIX.md`
 

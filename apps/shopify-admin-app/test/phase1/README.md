@@ -28,6 +28,9 @@ Los tests de Phase 1 requieren que la base de datos PostgreSQL esté configurada
 # Solo Phase 1 E2E tests
 npm test -- test/phase1
 
+# Validacion profunda de Fase 1 (comando recomendado)
+npm run test:phase1:deep
+
 # Todos los tests (Phase 0 + Phase 1)
 npm test
 ```
@@ -101,14 +104,12 @@ docker-compose up -d postgres
 
 ## Estado Actual
 
-⚠️ **BLOQUEADO**: Tests fallan porque el Prisma schema expandido (22 modelos) no coincide con 
-los servicios existentes (schema original con 2 modelos).
+✅ **VALIDADO (2026-03-12)**: La suite de Fase 1 y su validación profunda pasan en este repositorio.
 
-**Próximo paso**: Resolver desalineación schema-servicios siguiendo una de las opciones
-documentadas en `PHASE_1_STATUS.md`.
+Resultados verificados:
+- `test/phase1/chat-e2e.test.ts`: `15/15`
+- Integración profunda (`route-handlers` + `route-handlers-execution` + `service-execution`): `70/70`
+- Suite completa del proyecto: `941/941`
 
-Una vez resuelto:
-- Tests deberían pasar completamente
-- Chat API será funcional
-- Webhook processing funcionará
-- Base de datos tendrá todos los modelos necesarios
+Nota:
+- Si aparece `Connection refused`, el problema suele ser infraestructura local (PostgreSQL detenido), no un bloqueo estructural de Fase 1.

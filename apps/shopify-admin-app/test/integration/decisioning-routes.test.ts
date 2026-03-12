@@ -13,7 +13,7 @@ vi.mock("../../app/services/ia-gateway.server", () => ({
 }));
 
 import prisma from "../../app/db.server";
-import { IABackendError } from "../../app/services/ia-backend.client";
+import { IABackendError } from "../../app/services/ia-backend.server";
 import { getIAGateway } from "../../app/services/ia-gateway.server";
 import {
   action as analyzeIntentAction,

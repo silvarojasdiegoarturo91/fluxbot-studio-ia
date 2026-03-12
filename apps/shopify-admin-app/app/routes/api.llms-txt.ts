@@ -1,5 +1,5 @@
 import type { LoaderFunctionArgs } from "react-router";
-import { IABackendError } from "../services/ia-backend.client";
+import { IABackendError } from "../services/ia-backend.server";
 import { LlmsTxtService } from "../services/llms-txt.server";
 
 function text(content: string, init?: ResponseInit) {

@@ -14,7 +14,7 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
 import { authenticate } from '../shopify.server';
 import prisma from '../db.server';
-import type { RerankStrategy } from '../services/ia-backend.client';
+import type { RerankStrategy } from '../services/ia-backend.server';
 
 function json(data: unknown, init?: ResponseInit) {
   return new Response(JSON.stringify(data), {

@@ -16,7 +16,7 @@ api_version = "2026-04"
 
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
-scopes = "read_products,write_products,read_orders,read_customers,read_content,read_locales,read_policies,read_online_store_pages"
+scopes = "read_products,write_products,read_orders,read_customers,read_content,read_locales,read_online_store_pages"
 
 [app_proxy]
 url = "https://unwishful-televisionally-leeann.ngrok-free.dev"

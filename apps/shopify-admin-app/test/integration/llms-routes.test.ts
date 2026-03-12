@@ -6,7 +6,7 @@ vi.mock("../../app/services/llms-txt.server", () => ({
   },
 }));
 
-import { IABackendError } from "../../app/services/ia-backend.client";
+import { IABackendError } from "../../app/services/ia-backend.server";
 import { LlmsTxtService } from "../../app/services/llms-txt.server";
 import { loader as apiLlmsLoader } from "../../app/routes/api.llms-txt";
 import { loader as publicLlmsLoader } from "../../app/routes/llms[.]txt";

@@ -58,7 +58,7 @@ vi.mock('../../app/services/ai-orchestration.server', () => ({
   },
 }));
 
-// Intercept global fetch used by ia-backend.client.ts
+// Intercept global fetch used by ia-backend.server.ts
 const mockFetch = vi.fn();
 vi.stubGlobal('fetch', mockFetch);
 
@@ -234,7 +234,7 @@ describe('RemoteIAGateway — remote contract (/api/v1/chat)', () => {
     const gateway = await buildRemoteGateway();
     mockFetch.mockRejectedValue(new Error('ECONNREFUSED'));
 
-    const { IABackendError } = await import('../../app/services/ia-backend.client');
+    const { IABackendError } = await import('../../app/services/ia-backend.server');
 
     await expect(
       gateway.chat(
@@ -246,7 +246,7 @@ describe('RemoteIAGateway — remote contract (/api/v1/chat)', () => {
 
   it('re-throws IABackendError unchanged', async () => {
     const gateway = await buildRemoteGateway();
-    const { IABackendError } = await import('../../app/services/ia-backend.client');
+    const { IABackendError } = await import('../../app/services/ia-backend.server');
     const original = new IABackendError('Forbidden', 403);
     mockFetch.mockRejectedValue(original);
 
