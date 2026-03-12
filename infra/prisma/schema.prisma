@@ -73,6 +73,35 @@ enum ConsentType {
   MARKETING
 }
 
+enum DataRegion {
+  EU
+  US
+  APAC
+  GLOBAL
+}
+
+enum LegalHoldScope {
+  ALL
+  CONVERSATIONS
+  BEHAVIOR_EVENTS
+  AUDIT_LOGS
+  CONSENT_RECORDS
+}
+
+enum CampaignScheduleType {
+  IMMEDIATE
+  SCHEDULED
+  RECURRING
+}
+
+enum CampaignStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  COMPLETED
+  ARCHIVED
+}
+
 // ============================================================================
 // TENANT & IDENTITY
 // ============================================================================
@@ -108,6 +137,9 @@ model Shop {
   conversionEvents   ConversionEvent[]
   dataExportJobs     DataExportJob[]
   dataDeletionJobs   DataDeletionJob[]
+  marketingCampaigns MarketingCampaign[]
+  regionalDeploymentControl RegionalDeploymentControl?
+  legalHolds         LegalHold[]
   
   @@map("shops")
 }
@@ -480,6 +512,43 @@ model AuditLog {
   @@map("audit_logs")
 }
 
+model RegionalDeploymentControl {
+  id                   String     @id @default(uuid())
+  shopId               String     @unique
+  primaryRegion        DataRegion @default(GLOBAL)
+  failoverRegions      DataRegion[] @default([])
+  strictIsolation      Boolean    @default(false)
+  piiRestrictedToPrimary Boolean  @default(false)
+  createdAt            DateTime   @default(now())
+  updatedAt            DateTime   @updatedAt
+
+  shop                 Shop       @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@map("regional_deployment_controls")
+}
+
+model LegalHold {
+  id                   String         @id @default(uuid())
+  shopId               String
+  title                String
+  reason               String
+  scope                LegalHoldScope[] @default([])
+  placedBy             String
+  placedAt             DateTime       @default(now())
+  expiresAt            DateTime?
+  releasedAt           DateTime?
+  releasedBy           String?
+  releaseReason        String?
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+
+  shop                 Shop           @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@index([shopId, releasedAt])
+  @@index([shopId, expiresAt])
+  @@map("legal_holds")
+}
+
 // ============================================================================
 // SYNC & EVENTS
 
@@ -711,3 +780,139 @@ model ConversionEvent {
   @@index([shopId, attributionType, createdAt])
   @@map("conversion_events")
 }
+
+// ============================================================================
+// PHASE 3: MARKETING AUTOMATIONS & MULTILINGUAL CAMPAIGNS
+// ============================================================================
+
+model MarketingCampaign {
+  id                 String               @id @default(uuid())
+  shopId             String
+  name               String
+  description        String?
+  status             CampaignStatus       @default(DRAFT)
+  scheduleType       CampaignScheduleType @default(IMMEDIATE)
+  // ISO 8601 cron expression for RECURRING; null for IMMEDIATE/SCHEDULED
+  cronExpression     String?
+  scheduledAt        DateTime?
+  startAt            DateTime?
+  endAt              DateTime?
+  // Locale-keyed message templates: { "en": "...", "es": "...", "fr": "..." }
+  // Null template = use trigger's default messageTemplate
+  localeTemplates    Json                 @default("{}")
+  // Ordered list of target locales; send-all if empty/null
+  targetLocales      String[]             @default([])
+  // IDs of ProactiveTrigger rows driven by this campaign
+  triggerIds         String[]             @default([])
+  // Audience segment filter (optional; passed to backend for decisioning)
+  audienceFilter     Json?
+  // Frequency capping: max dispatches per visitor per campaignWindowMs
+  frequencyCap       Int                  @default(1)
+  campaignWindowMs   Int                  @default(86400000) // 24 h default
+  totalDispatched    Int                  @default(0)
+  totalConverted     Int                  @default(0)
+  lastDispatchedAt   DateTime?
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+
+  shop               Shop                 @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  dispatchEvents     CampaignDispatchEvent[]
+
+  @@index([shopId, status])
+  @@index([shopId, scheduleType, scheduledAt])
+  @@index([shopId, createdAt])
+  @@map("marketing_campaigns")
+}
+
+model CampaignDispatchEvent {
+  id                 String            @id @default(uuid())
+  campaignId         String
+  shopId             String
+  sessionId          String
+  visitorId          String?
+  locale             String            @default("en")
+  renderedMessage    String
+  channel            String            @default("WEB_CHAT")
+  dispatchedAt       DateTime          @default(now())
+  outcome            String?           // CONVERTED, DISMISSED, IGNORED, ENGAGED
+  outcomeAt          DateTime?
+
+  campaign           MarketingCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId, dispatchedAt])
+  @@index([shopId, dispatchedAt])
+  @@index([sessionId, campaignId])
+  @@map("campaign_dispatch_events")
+}
+
+// ============================================================================
+// COMPLIANCE PERSISTENCE (C6) — replaces in-memory Maps
+// ============================================================================
+
+model DataResidencySetting {
+  id               String     @id @default(uuid())
+  shopId           String     @unique
+  region           DataRegion @default(GLOBAL)
+  enforced         Boolean    @default(false)
+  enforcedCountries String[]  @default([])
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  @@map("data_residency_settings")
+}
+
+model ProcessingActivityRecord {
+  id               String   @id @default(uuid())
+  shopId           String
+  activityName     String
+  purpose          String
+  legalBasis       String   // CONSENT, CONTRACT, LEGAL_OBLIGATION, LEGITIMATE_INTEREST, PUBLIC_TASK, VITAL_INTERESTS
+  dataCategories   String[] @default([])
+  dataSubjects     String[] @default([])
+  retentionDays    Int      @default(365)
+  thirdParties     String[] @default([])
+  transferCountries String[] @default([])
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([shopId, isActive])
+  @@map("processing_activity_records")
+}
+
+model BreachNotificationRecord {
+  id                   String   @id @default(uuid())
+  shopId               String
+  detectedAt           DateTime
+  reportedAt           DateTime?
+  severity             String   // LOW, MEDIUM, HIGH, CRITICAL
+  description          String
+  affectedDataSubjects Int      @default(0)
+  dataCategories       String[] @default([])
+  mitigationTaken      String   @default("Investigation in progress")
+  reportedToAuthority  Boolean  @default(false)
+  reportedAt72h        Boolean  @default(false)
+  notifiedAt           DateTime?
+  regulatorRef         String?
+  remediationSteps     String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@index([shopId, detectedAt])
+  @@map("breach_notification_records")
+}
+
+// ============================================================================
+// LLMS.TXT CACHE (S5)
+// ============================================================================
+
+model LlmsTxtCache {
+  id          String   @id @default(uuid())
+  shopId      String   @unique
+  content     String
+  generatedAt DateTime @default(now())
+  expiresAt   DateTime
+
+  @@map("llms_txt_cache")
+}
+
