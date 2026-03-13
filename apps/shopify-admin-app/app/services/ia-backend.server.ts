@@ -323,7 +323,18 @@ async function makeRequest<T>(
     throw new IABackendError(hint ? `${message}. ${hint}` : message, response.status);
   }
 
-  return response.json();
+  // Backend wraps all responses as { data: T, requestId, timestamp }.
+  // Unwrap here so callers and gateway normalizers work against the inner payload.
+  const envelope = await response.json();
+  if (
+    envelope !== null &&
+    typeof envelope === 'object' &&
+    'data' in envelope &&
+    typeof (envelope as { data: unknown }).data !== 'undefined'
+  ) {
+    return (envelope as { data: T }).data;
+  }
+  return envelope as T;
 }
 
 async function makeTextRequest(

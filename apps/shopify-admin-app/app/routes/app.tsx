@@ -35,6 +35,8 @@ const ADMIN_NAV_ITEMS: Record<AdminLanguage, Array<{ label: string; url: string 
     { label: "Compliance", url: "/app/privacy" },
     { label: "Operations", url: "/app/operations" },
     { label: "Widget", url: "/app/widget-settings" },
+    { label: "Widget Publish", url: "/app/widget-publish" },
+    { label: "llms.txt", url: "/app/llms-status" },
     { label: "Billing", url: "/app/billing" },
   ],
   es: [
@@ -48,6 +50,8 @@ const ADMIN_NAV_ITEMS: Record<AdminLanguage, Array<{ label: string; url: string 
     { label: "Cumplimiento", url: "/app/privacy" },
     { label: "Operaciones", url: "/app/operations" },
     { label: "Widget", url: "/app/widget-settings" },
+    { label: "Publicar widget", url: "/app/widget-publish" },
+    { label: "llms.txt", url: "/app/llms-status" },
     { label: "Facturacion", url: "/app/billing" },
   ],
 };

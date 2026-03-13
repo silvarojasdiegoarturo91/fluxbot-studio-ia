@@ -38,6 +38,12 @@ export interface MerchantAdminConfig {
   updatedAt: string;
 }
 
+export interface MerchantAdminConfigPatch
+  extends Partial<Omit<MerchantAdminConfig, "enabledCapabilities" | "widgetBranding">> {
+  enabledCapabilities?: Partial<EnabledCapabilities>;
+  widgetBranding?: Partial<WidgetBranding>;
+}
+
 const DEFAULT_ADMIN_CONFIG: MerchantAdminConfig = {
   adminLanguage: "es",
   primaryBotLanguage: "es",
@@ -170,7 +176,7 @@ function normalizeAdminConfig(value: unknown): MerchantAdminConfig {
 
 function mergeAdminConfig(
   current: MerchantAdminConfig,
-  patch: Partial<MerchantAdminConfig>,
+  patch: MerchantAdminConfigPatch,
 ): MerchantAdminConfig {
   const next: MerchantAdminConfig = {
     ...current,
@@ -238,7 +244,7 @@ export async function getMerchantAdminConfig(shopId: string): Promise<MerchantAd
 
 export async function saveMerchantAdminConfig(
   shopId: string,
-  patch: Partial<MerchantAdminConfig>,
+  patch: MerchantAdminConfigPatch,
 ): Promise<MerchantAdminConfig> {
   const [shop, currentConfig] = await Promise.all([
     prisma.shop.findUnique({

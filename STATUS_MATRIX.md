@@ -1,6 +1,6 @@
 # Implementation Status Matrix (Canonical)
 
-Last updated: 2026-03-11
+Last updated: 2026-03-13
 
 This is the only source of truth for implementation status in `fluxbot-studio-ia`.
 
@@ -13,9 +13,10 @@ Rules:
 - `README.md` and `PHASE_*.md` must reference this matrix instead of duplicating checklists.
 - Status values are: `DONE`, `IN_PROGRESS`, `PLANNED`, `BLOCKED`.
 
-Validation snapshot (2026-03-11):
+Validation snapshot (2026-03-13):
 - `npm run typecheck` ✅
-- `npm test` ✅ (`49/49` files, `941/941` tests, including Phase 0 `68/68`)
+- `npm test` ✅ (`52/52` files, `965/965` tests, including Phase 0 `68/68`)
+- `fluxbot-studio-back-ia`: `npm run build` ✅ and `npm test` ✅ (`3/3` files, `29/29` tests)
 
 ## Ownership Model
 
@@ -55,6 +56,8 @@ Backend repo (`fluxbot-studio-back-ia`) owns:
 | Phase 4 | Enterprise compliance, governance and regional controls | Frontend | Frontend | DONE | `apps/shopify-admin-app/app/routes/api.compliance.enterprise.ts`, `apps/shopify-admin-app/app/routes/app.privacy.tsx`, `apps/shopify-admin-app/app/services/enterprise-compliance.server.ts`, `apps/shopify-admin-app/app/jobs/scheduler.server.ts`, `apps/shopify-admin-app/test/integration/enterprise-compliance.test.ts`, `infra/prisma/schema.prisma` | Expand enterprise connectors (SIEM/export pipelines, legal hold workflows, and regional deployment controls) |
 | Phase 5 | Enterprise connector hardening (SIEM export pipeline, legal hold workflow, regional deployment controls) | Frontend | Frontend | DONE | `apps/shopify-admin-app/app/services/enterprise-compliance.server.ts`, `apps/shopify-admin-app/app/routes/api.compliance.enterprise.ts`, `apps/shopify-admin-app/app/routes/app.privacy.tsx`, `apps/shopify-admin-app/test/integration/enterprise-compliance.test.ts`, `apps/shopify-admin-app/test/integration/enterprise-compliance-route.test.ts` | Integrate external SIEM adapters (Datadog/Splunk), persist legal holds/deployment policies in DB, and add legal-hold scoped retention exclusions per data class |
 | Phase 6 | Separation closure checklist (legacy IA services out of primary flow, compatibility preserved, tests aligned) | Frontend | Remote-first via `IAGateway` with explicit local compatibility path | DONE | `SEPARATION_PLAN.md`, `apps/shopify-admin-app/app/services/ia-gateway.server.ts`, `apps/shopify-admin-app/app/routes/api.chat.ts`, `apps/shopify-admin-app/test/integration/route-handlers-execution.test.ts` | Keep compatibility paths only for controlled fallback workflows and continue contract-first gateway tests |
+| Phase 7 | Storefront widget publication operations in Admin (status, theme linkage, publish/reset controls) | Frontend | Frontend | DONE | `apps/shopify-admin-app/app/routes/app.widget-publish.tsx`, `apps/shopify-admin-app/test/integration/widget-publish-route.test.ts`, `apps/shopify-admin-app/app/routes/app.tsx` | Replace manual confirmation with automatic Theme App Embed verification via Shopify Admin API/App Extension status checks |
+| Phase 8 | Remote vector retrieval contract completed (`/api/v1/embeddings/search`) and remote-first retrieval wiring | Shared (frontend gateway + backend IA retrieval) | Remote-first with local fallback compatibility | DONE | `apps/shopify-admin-app/app/services/vector-retrieval.server.ts`, `apps/shopify-admin-app/app/services/ia-gateway.server.ts`, `apps/shopify-admin-app/test/contracts/vector-retrieval-gateway-contract.test.ts`, `fluxbot-studio-back-ia/src/routes/embeddings.ts` | Evolve storage from JSON embeddings to pgvector/ANN index for high-scale retrieval latency |
 
 ## Documentation Alignment
 
@@ -72,6 +75,8 @@ Phase coverage reference:
 - Phase 4: `PHASE_4_PLAN.md` is a planning artifact only and must not define live status.
 - Phase 5: no standalone `PHASE_5_*.md` document exists today; Phase 5 status is maintained only in this matrix until one is created.
 - Phase 6: closure checklist tracked in `SEPARATION_PLAN.md` (non-canonical for runtime status; canonical state remains this matrix).
+- Phase 7: widget publication operations are implemented in `app.widget-publish.tsx` and verified by `widget-publish-route.test.ts`.
+- Phase 8: remote vector retrieval contract is implemented via `IAGateway.searchEmbeddings` + backend `/api/v1/embeddings/search` and verified by `vector-retrieval-gateway-contract.test.ts`.
 
 The files below are non-canonical and must not maintain independent phase state:
 - `README.md`
