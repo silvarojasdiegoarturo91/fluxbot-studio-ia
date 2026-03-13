@@ -11,7 +11,8 @@ if (!process.env.SHOPIFY_APP_URL) {
   process.env.SHOPIFY_APP_URL = "https://test.ngrok.io";
 }
 // Force deterministic baseline scopes for tests.
-process.env.SCOPES = "read_products,write_products,read_orders";
+process.env.SCOPES =
+  "read_products,write_products,read_orders,read_customers,read_content,read_locales,read_online_store_pages";
 if (!process.env.DATABASE_URL) {
   process.env.DATABASE_URL = "postgresql://test:test@localhost:5432/test_db";
 }

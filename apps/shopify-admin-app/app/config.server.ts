@@ -139,7 +139,10 @@ export function loadEnvironmentConfig(): EnvironmentConfig {
       apiKey: validateRequiredEnv('SHOPIFY_API_KEY', process.env.SHOPIFY_API_KEY),
       apiSecret: validateRequiredEnv('SHOPIFY_API_SECRET', process.env.SHOPIFY_API_SECRET),
       appUrl: validateRequiredEnv('SHOPIFY_APP_URL', process.env.SHOPIFY_APP_URL),
-      scopes: getOptionalEnv('SCOPES', 'read_products,write_products'),
+      scopes: getOptionalEnv(
+        'SCOPES',
+        'read_products,write_products,read_orders,read_customers,read_content,read_locales,read_online_store_pages',
+      ),
     },
     
     database: {

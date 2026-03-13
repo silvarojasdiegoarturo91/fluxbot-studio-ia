@@ -87,11 +87,25 @@ describe("Phase 0: Environment Configuration", () => {
 
     it("should include required MVP scopes", () => {
       const scopes = process.env.SCOPES || "";
-      const requiredScopes = ["read_products", "write_products", "read_orders"];
+      const requiredScopes = [
+        "read_products",
+        "write_products",
+        "read_orders",
+        "read_customers",
+        "read_content",
+        "read_locales",
+        "read_online_store_pages",
+      ];
       
       requiredScopes.forEach((scope) => {
         expect(scopes).toContain(scope);
       });
+    });
+
+    it("should not contain deprecated invalid scopes", () => {
+      const scopes = process.env.SCOPES || "";
+
+      expect(scopes).not.toContain("read_policies");
     });
   });
 
