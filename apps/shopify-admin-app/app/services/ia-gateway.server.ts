@@ -8,6 +8,8 @@
 
 import { AIOrchestrationService } from './ai-orchestration.server';
 import {
+  type EmbeddingSearchRequest,
+  type EmbeddingSearchResult,
   iaClient,
   IABackendError,
   type IntentAnalyzeResponse,
@@ -76,6 +78,46 @@ export interface GatewayTriggerRecommendation {
 export interface GatewayTriggerEvaluateResponse {
   evaluations: GatewayTriggerEvaluation[];
   recommendation: GatewayTriggerRecommendation | null;
+}
+
+export interface GatewayVectorSearchRequest {
+  queryEmbedding: number[];
+  options?: EmbeddingSearchRequest['options'];
+}
+
+export interface GatewayVectorSearchResult {
+  chunkId: string;
+  documentType: string;
+  title: string;
+  content: string;
+  relevance: number;
+  metadata: Record<string, unknown>;
+}
+
+function asMetadata(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function normalizeEmbeddingSearchResult(
+  entry: EmbeddingSearchResult,
+): GatewayVectorSearchResult {
+  const relevanceValue =
+    typeof entry.relevance === 'number'
+      ? entry.relevance
+      : typeof entry.score === 'number'
+        ? entry.score
+        : 0;
+
+  return {
+    chunkId: entry.chunkId,
+    documentType: typeof entry.documentType === 'string' ? entry.documentType : 'article',
+    title: typeof entry.title === 'string' && entry.title.length > 0 ? entry.title : 'Untitled',
+    content: entry.content,
+    relevance: relevanceValue,
+    metadata: asMetadata(entry.metadata),
+  };
 }
 
 function deriveTriggerRecommendation(
@@ -207,6 +249,10 @@ export interface IAGateway {
     request: GatewayTriggerEvaluateRequest,
     shopDomain: string,
   ): Promise<GatewayTriggerEvaluateResponse>;
+  searchEmbeddings(
+    request: GatewayVectorSearchRequest,
+    shopDomain: string,
+  ): Promise<GatewayVectorSearchResult[]>;
 }
 
 // ─── Local implementation (transitional — calls AIOrchestrationService) ──────
@@ -254,6 +300,16 @@ export class LocalIAGateway implements IAGateway {
   ): Promise<GatewayTriggerEvaluateResponse> {
     throw new IABackendError(
       'Trigger decisioning must run in the remote IA backend. Set IA_EXECUTION_MODE=remote.',
+      503,
+    );
+  }
+
+  async searchEmbeddings(
+    _request: GatewayVectorSearchRequest,
+    _shopDomain?: string,
+  ): Promise<GatewayVectorSearchResult[]> {
+    throw new IABackendError(
+      'Vector retrieval must run in the remote IA backend. Set IA_EXECUTION_MODE=remote.',
       503,
     );
   }
@@ -342,6 +398,25 @@ export class RemoteIAGateway implements IAGateway {
       );
 
       return normalizeTriggerResponse(result);
+    } catch (error) {
+      wrapGatewayError(error);
+    }
+  }
+
+  async searchEmbeddings(
+    request: GatewayVectorSearchRequest,
+    shopDomain: string,
+  ): Promise<GatewayVectorSearchResult[]> {
+    try {
+      const response = await iaClient.embeddings.search(
+        {
+          queryEmbedding: request.queryEmbedding,
+          options: request.options,
+        },
+        shopDomain,
+      );
+
+      return (response.results ?? []).map(normalizeEmbeddingSearchResult);
     } catch (error) {
       wrapGatewayError(error);
     }

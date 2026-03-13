@@ -11,6 +11,7 @@
 
 import prisma from '../db.server';
 import type { Prisma } from '@prisma/client';
+import { getIAGateway } from './ia-gateway.server';
 
 type EmbeddingRecordWithRelations = Prisma.EmbeddingRecordGetPayload<{
   include: {
@@ -189,6 +190,143 @@ function normalizeVector(vec: number[]): number[] {
 // VECTOR RETRIEVAL SERVICE
 // ============================================================================
 
+function getVectorExecutionMode(): 'local' | 'remote' {
+  return process.env.IA_EXECUTION_MODE === 'local' ? 'local' : 'remote';
+}
+
+function clampRelevance(value: number): number {
+  if (!Number.isFinite(value)) {
+    return 0;
+  }
+
+  return Math.max(0, Math.min(1, value));
+}
+
+function matchesDocumentType(result: SearchResult, filter?: RetrievalOptions['filter']): boolean {
+  if (!filter?.documentType) return true;
+  return result.documentType.toLowerCase() === filter.documentType.toLowerCase();
+}
+
+function matchesLocale(result: SearchResult, filter?: RetrievalOptions['filter']): boolean {
+  if (!filter?.locales || filter.locales.length === 0) return true;
+
+  const metadata = asMetadata(result.metadata);
+  const locale = typeof metadata.locale === 'string' ? metadata.locale : undefined;
+  return !!locale && filter.locales.includes(locale);
+}
+
+function applySearchFilters(
+  results: SearchResult[],
+  params: { limit: number; threshold: number; filter?: RetrievalOptions['filter'] },
+): SearchResult[] {
+  return results
+    .map((result) => ({
+      ...result,
+      relevance: clampRelevance(result.relevance),
+    }))
+    .filter((result) => matchesDocumentType(result, params.filter))
+    .filter((result) => matchesLocale(result, params.filter))
+    .filter((result) => result.relevance >= params.threshold)
+    .sort((a, b) => b.relevance - a.relevance)
+    .slice(0, params.limit);
+}
+
+async function resolveShopDomain(shopId: string): Promise<string | null> {
+  const shop = await prisma.shop.findUnique({
+    where: { id: shopId },
+    select: { domain: true },
+  });
+
+  return shop?.domain ?? null;
+}
+
+async function searchCatalogLocal(
+  queryEmbedding: number[],
+  params: { limit: number; threshold: number; filter?: RetrievalOptions['filter'] },
+): Promise<SearchResult[]> {
+  const records = (await prisma.embeddingRecord.findMany({
+    include: {
+      chunk: {
+        include: {
+          document: {
+            include: {
+              source: true,
+            },
+          },
+        },
+      },
+    },
+    where: params.filter?.shopId
+      ? {
+          chunk: {
+            document: {
+              source: {
+                shopId: params.filter.shopId,
+              },
+            },
+          },
+        }
+      : undefined,
+  })) as EmbeddingRecordWithRelations[];
+
+  const localResults = records.map((record) => {
+    const embedding = parseEmbeddingVector(record.embedding);
+    const similarity = cosineSimilarity(queryEmbedding, embedding);
+
+    return {
+      chunkId: record.chunkId,
+      documentType: resolveDocumentType(record),
+      title: resolveTitle(record),
+      content: record.chunk.content,
+      relevance: similarity,
+      metadata: asMetadata(record.chunk.metadata),
+    } satisfies SearchResult;
+  });
+
+  return applySearchFilters(localResults, params);
+}
+
+async function searchCatalogRemote(
+  queryEmbedding: number[],
+  params: { limit: number; threshold: number; filter?: RetrievalOptions['filter'] },
+): Promise<SearchResult[]> {
+  if (!params.filter?.shopId) {
+    // Remote retrieval requires tenant context for request routing.
+    console.warn('[VectorRetrieval] remote mode requires filter.shopId; returning empty result set.');
+    return [];
+  }
+
+  const shopDomain = await resolveShopDomain(params.filter.shopId);
+  if (!shopDomain) {
+    console.warn(`[VectorRetrieval] could not resolve shop domain for shopId=${params.filter.shopId}; returning empty result set.`);
+    return [];
+  }
+
+  const gateway = getIAGateway();
+  const remoteResults = await gateway.searchEmbeddings(
+    {
+      queryEmbedding,
+      options: {
+        limit: params.limit,
+        threshold: params.threshold,
+        filter: params.filter,
+      },
+    },
+    shopDomain,
+  );
+
+  const normalizedResults: SearchResult[] = remoteResults.map((result) => ({
+    chunkId: result.chunkId,
+    documentType: result.documentType,
+    title: result.title,
+    content: result.content,
+    relevance: result.relevance,
+    metadata: asMetadata(result.metadata),
+  }));
+
+  return applySearchFilters(normalizedResults, params);
+}
+
 /**
  * Search for relevant knowledge chunks using semantic similarity
  */
@@ -199,71 +337,11 @@ export async function searchCatalog(
   const { limit = 5, threshold = 0.5, filter } = options;
 
   try {
-    // Fetch all embedding records with their chunks
-    const records = (await prisma.embeddingRecord.findMany({
-      include: {
-        chunk: {
-          include: {
-            document: {
-              include: {
-                source: true,
-              },
-            },
-          },
-        },
-      },
-      where: filter?.shopId
-        ? {
-            chunk: {
-              document: {
-                source: {
-                  shopId: filter.shopId,
-                },
-              },
-            },
-          }
-        : undefined,
-    })) as EmbeddingRecordWithRelations[];
+    if (getVectorExecutionMode() === 'local') {
+      return searchCatalogLocal(queryEmbedding, { limit, threshold, filter });
+    }
 
-    // Calculate similarity scores for all records
-    const scoredResults = records
-      .map((record) => {
-        const embedding = parseEmbeddingVector(record.embedding);
-
-        const similarity = cosineSimilarity(queryEmbedding, embedding);
-
-        return {
-          record,
-          similarity,
-        };
-      })
-      // Filter by type if specified
-      .filter((result) => {
-        if (!filter?.documentType) return true;
-        return resolveDocumentType(result.record) === filter.documentType.toLowerCase();
-      })
-      // Filter by locale if specified
-      .filter((result) => {
-        if (!filter?.locales || filter.locales.length === 0) return true;
-        const chunkLocale = resolveLocale(result.record);
-        return !!chunkLocale && filter.locales.includes(chunkLocale);
-      })
-      // Filter by minimum threshold
-      .filter((result) => result.similarity >= threshold)
-      // Sort by relevance (descending)
-      .sort((a, b) => b.similarity - a.similarity)
-      // Limit results
-      .slice(0, limit);
-
-    // Format results
-    return scoredResults.map((result) => ({
-      chunkId: result.record.chunkId,
-      documentType: resolveDocumentType(result.record),
-      title: resolveTitle(result.record),
-      content: result.record.chunk.content,
-      relevance: Math.min(1, Math.max(0, result.similarity)), // Clamp to 0-1
-      metadata: asMetadata(result.record.chunk.metadata),
-    }));
+    return searchCatalogRemote(queryEmbedding, { limit, threshold, filter });
   } catch (error) {
     console.error('[VectorRetrieval] Search failed:', error);
     return [];

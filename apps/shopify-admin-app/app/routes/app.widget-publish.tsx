@@ -11,6 +11,7 @@ import {
   Page,
   Text,
 } from "@shopify/polaris";
+import type { Prisma } from "@prisma/client";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
 import { Form, useActionData, useLoaderData, useLocation, useNavigation } from "react-router";
 import { authenticate } from "../shopify.server";
@@ -170,7 +171,7 @@ export async function action({ request }: ActionFunctionArgs): Promise<WidgetPub
 
   await prisma.shop.update({
     where: { id: shop.id },
-    data: { metadata: updatedMeta },
+    data: { metadata: updatedMeta as Prisma.InputJsonValue },
   });
 
   return { ok: true };

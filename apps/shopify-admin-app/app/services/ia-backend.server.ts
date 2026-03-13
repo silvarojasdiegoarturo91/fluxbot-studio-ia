@@ -157,6 +157,34 @@ export interface RAGSearchResult {
   qualityMetadata?: RAGQualityMetadata;
 }
 
+export interface EmbeddingSearchRequest {
+  queryEmbedding: number[];
+  options?: {
+    limit?: number;
+    threshold?: number;
+    filter?: {
+      documentType?: string;
+      locales?: string[];
+      shopId?: string;
+      metadata?: Record<string, unknown>;
+    };
+  };
+}
+
+export interface EmbeddingSearchResult {
+  chunkId: string;
+  documentType?: string;
+  title?: string;
+  content: string;
+  relevance?: number;
+  score?: number;
+  metadata?: unknown;
+}
+
+export interface EmbeddingSearchResponse {
+  results: EmbeddingSearchResult[];
+}
+
 export interface IntentScore {
   purchaseIntent: number;
   abandonmentRisk: number;
@@ -390,6 +418,9 @@ export const iaClient = {
 
     generateBatch: (texts: string[], provider?: string, shopDomain?: string) =>
       makeRequest<{ embeddings: number[][] }>(`${API_V1}/embeddings/generate/batch`, 'POST', { texts, provider }, shopDomain),
+
+    search: (request: EmbeddingSearchRequest, shopDomain?: string) =>
+      makeRequest<EmbeddingSearchResponse>(`${API_V1}/embeddings/search`, 'POST', request, shopDomain),
   },
 
   intent: {
