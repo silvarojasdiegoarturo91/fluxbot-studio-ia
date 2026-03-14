@@ -462,85 +462,115 @@
   flex-direction: row-reverse;
 }
 
-/* === W4 — Consent banner === */
+/* === W4 — Consent overlay (inside chat window) === */
 
-.fluxbot-consent-banner {
+.fluxbot-consent-overlay {
   position: absolute;
-  bottom: 70px;
-  left: 0;
-  right: 0;
+  inset: 0;
   background: white;
   border-radius: var(--fluxbot-border-radius);
-  box-shadow: var(--fluxbot-shadow);
-  padding: 20px;
-  z-index: calc(var(--fluxbot-z-index) + 1);
-  animation: slideUp 0.3s ease;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-}
-
-.fluxbot-launcher--bottom-left .fluxbot-consent-banner {
-  left: 0;
-  right: auto;
-  min-width: 300px;
-}
-
-.fluxbot-consent-banner__title {
-  margin: 0 0 8px;
-  font-size: 15px;
-  font-weight: 600;
-  color: #1a1a1a;
-}
-
-.fluxbot-consent-banner__body {
-  margin: 0 0 10px;
-  font-size: 13px;
-  line-height: 1.5;
-  color: #555;
-}
-
-.fluxbot-consent-banner__link {
-  display: inline-block;
-  margin-bottom: 14px;
-  font-size: 12px;
-  color: var(--fluxbot-primary-color);
-  text-decoration: underline;
-}
-
-.fluxbot-consent-banner__actions {
   display: flex;
-  gap: 8px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 36px 28px 28px;
+  z-index: 10;
+  overflow-y: auto;
+  text-align: center;
+  animation: slideUp 0.25s ease;
 }
 
-.fluxbot-consent-banner__accept {
-  flex: 1;
-  padding: 9px 12px;
+.fluxbot-consent-overlay__icon-wrap {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--fluxbot-primary-color) 12%, white);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 22px;
+  flex-shrink: 0;
+  color: var(--fluxbot-primary-color);
+}
+
+.fluxbot-consent-overlay__title {
+  margin: 0 0 12px;
+  font-size: 19px;
+  font-weight: 700;
+  color: #111;
+  line-height: 1.3;
+}
+
+.fluxbot-consent-overlay__body {
+  margin: 0 0 8px;
+  font-size: 14px;
+  line-height: 1.65;
+  color: #555;
+  max-width: 280px;
+}
+
+.fluxbot-consent-overlay__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 30px;
+  color: var(--fluxbot-primary-color);
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.15s ease;
+}
+
+.fluxbot-consent-overlay__link:hover {
+  border-bottom-color: var(--fluxbot-primary-color);
+}
+
+.fluxbot-consent-overlay__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+.fluxbot-consent-overlay__accept {
+  width: 100%;
+  padding: 13px 16px;
   background: var(--fluxbot-primary-color);
   color: white;
   border: none;
-  border-radius: 20px;
-  font-size: 13px;
+  border-radius: 26px;
+  font-size: 15px;
   font-weight: 600;
   cursor: pointer;
-  transition: opacity 0.2s ease;
+  font-family: inherit;
+  transition: opacity 0.2s ease, transform 0.1s ease;
 }
 
-.fluxbot-consent-banner__accept:hover {
+.fluxbot-consent-overlay__accept:hover {
   opacity: 0.9;
 }
 
-.fluxbot-consent-banner__decline {
-  padding: 9px 12px;
-  background: transparent;
-  color: #888;
-  border: 1px solid #d0d0d0;
-  border-radius: 20px;
-  font-size: 13px;
-  cursor: pointer;
-  transition: border-color 0.2s ease;
+.fluxbot-consent-overlay__accept:active {
+  transform: scale(0.98);
 }
 
-.fluxbot-consent-banner__decline:hover {
-  border-color: #999;
+.fluxbot-consent-overlay__decline {
+  width: 100%;
+  padding: 10px 16px;
+  background: transparent;
+  color: #888;
+  border: none;
+  border-radius: 26px;
+  font-size: 13px;
+  cursor: pointer;
+  font-family: inherit;
+  text-decoration: underline;
+  transition: color 0.2s ease;
+}
+
+.fluxbot-consent-overlay__decline:hover {
+  color: #333;
 }
 
 /* === W3 — Handoff UI === */

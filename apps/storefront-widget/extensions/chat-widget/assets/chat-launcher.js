@@ -369,11 +369,6 @@
     closeBtn && closeBtn.addEventListener('click', closeChat);
     chatForm.addEventListener('submit', handleSubmit);
 
-    // W4 — Render consent banner if visitor has not consented yet
-    if (!hasConsent) {
-      renderConsentBanner();
-    }
-
     loadConversationState();
 
     // W1 — Behavioral tracking setup
@@ -449,17 +444,19 @@
   }
 
   function openChat() {
-    if (!hasConsent) { showConsentBanner(); return; }
-
     isOpen = true;
     chatWindow.hidden = false;
     launcherButton.setAttribute('aria-expanded', 'true');
     launcherButton.setAttribute('aria-label', i18n.closeChat);
     launcher.classList.add('fluxbot-launcher--open');
-    chatInput.focus();
 
-    if (!proactivePollTimer) {
-      proactivePollTimer = setInterval(pollProactiveMessages, 15000);
+    if (!hasConsent) {
+      showConsentOverlay();
+    } else {
+      chatInput.focus();
+      if (!proactivePollTimer) {
+        proactivePollTimer = setInterval(pollProactiveMessages, 15000);
+      }
     }
 
     trackEvent('chat_opened');
@@ -474,61 +471,96 @@
     trackEvent('chat_closed');
   }
 
-  // ─── W4 — Consent banner ──────────────────────────────────────────────────
+  // ─── W4 — Consent overlay (inside chat window) ───────────────────────────
   function renderConsentBanner() {
-    if (document.getElementById('fluxbot-consent-banner')) return;
+    if (document.getElementById('fluxbot-consent-overlay')) return;
 
     var privacyUrl  = sanitizeUrl(launcher.dataset.privacyUrl) || '#';
     var privacyText = sanitizeAttr(launcher.dataset.privacyText) || i18n.consentPrivacy;
 
-    var banner = document.createElement('div');
-    banner.id = 'fluxbot-consent-banner';
-    banner.className = 'fluxbot-consent-banner';
-    banner.setAttribute('role', 'dialog');
-    banner.setAttribute('aria-label', i18n.consentTitle);
+    var overlay = document.createElement('div');
+    overlay.id = 'fluxbot-consent-overlay';
+    overlay.className = 'fluxbot-consent-overlay';
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.setAttribute('aria-label', i18n.consentTitle);
+
+    // Shield icon
+    var iconWrap = document.createElement('div');
+    iconWrap.className = 'fluxbot-consent-overlay__icon-wrap';
+    iconWrap.setAttribute('aria-hidden', 'true');
+    var iconSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    iconSvg.setAttribute('width', '28');
+    iconSvg.setAttribute('height', '28');
+    iconSvg.setAttribute('viewBox', '0 0 24 24');
+    iconSvg.setAttribute('fill', 'none');
+    var iconPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    iconPath.setAttribute('d', 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z');
+    iconPath.setAttribute('stroke', 'currentColor');
+    iconPath.setAttribute('stroke-width', '2');
+    iconPath.setAttribute('stroke-linecap', 'round');
+    iconPath.setAttribute('stroke-linejoin', 'round');
+    iconSvg.appendChild(iconPath);
+    iconWrap.appendChild(iconSvg);
 
     var title = document.createElement('h3');
-    title.className = 'fluxbot-consent-banner__title';
+    title.className = 'fluxbot-consent-overlay__title';
     title.textContent = i18n.consentTitle;
 
     var body = document.createElement('p');
-    body.className = 'fluxbot-consent-banner__body';
+    body.className = 'fluxbot-consent-overlay__body';
     body.textContent = i18n.consentBody;
 
     var link = document.createElement('a');
     link.href = privacyUrl;
-    link.textContent = privacyText;
-    link.className = 'fluxbot-consent-banner__link';
+    link.className = 'fluxbot-consent-overlay__link';
     link.target = '_blank';
     link.rel = 'noopener noreferrer';
+    link.appendChild(document.createTextNode(privacyText));
+    // External link indicator (SVG, no user data)
+    var extSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    extSvg.setAttribute('width', '11');
+    extSvg.setAttribute('height', '11');
+    extSvg.setAttribute('viewBox', '0 0 24 24');
+    extSvg.setAttribute('fill', 'none');
+    extSvg.setAttribute('aria-hidden', 'true');
+    var extPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    extPath.setAttribute('d', 'M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3');
+    extPath.setAttribute('stroke', 'currentColor');
+    extPath.setAttribute('stroke-width', '2.2');
+    extPath.setAttribute('stroke-linecap', 'round');
+    extPath.setAttribute('stroke-linejoin', 'round');
+    extSvg.appendChild(extPath);
+    link.appendChild(extSvg);
 
     var actions = document.createElement('div');
-    actions.className = 'fluxbot-consent-banner__actions';
+    actions.className = 'fluxbot-consent-overlay__actions';
 
     var acceptBtn = document.createElement('button');
     acceptBtn.type = 'button';
-    acceptBtn.className = 'fluxbot-consent-banner__accept';
+    acceptBtn.className = 'fluxbot-consent-overlay__accept';
     acceptBtn.textContent = i18n.consentAccept;
     acceptBtn.addEventListener('click', function () { handleConsent(true); });
 
     var declineBtn = document.createElement('button');
     declineBtn.type = 'button';
-    declineBtn.className = 'fluxbot-consent-banner__decline';
+    declineBtn.className = 'fluxbot-consent-overlay__decline';
     declineBtn.textContent = i18n.consentDecline;
     declineBtn.addEventListener('click', function () { handleConsent(false); });
 
     actions.appendChild(acceptBtn);
     actions.appendChild(declineBtn);
-    banner.appendChild(title);
-    banner.appendChild(body);
-    banner.appendChild(link);
-    banner.appendChild(actions);
-    launcher.appendChild(banner);
+    overlay.appendChild(iconWrap);
+    overlay.appendChild(title);
+    overlay.appendChild(body);
+    overlay.appendChild(link);
+    overlay.appendChild(actions);
+    chatWindow.appendChild(overlay);
   }
 
-  function showConsentBanner() {
-    var b = document.getElementById('fluxbot-consent-banner');
-    if (b) { b.hidden = false; } else { renderConsentBanner(); }
+  function showConsentOverlay() {
+    var o = document.getElementById('fluxbot-consent-overlay');
+    if (o) { o.hidden = false; } else { renderConsentBanner(); }
   }
 
   function handleConsent(granted) {
@@ -555,11 +587,14 @@
       }).catch(function () {});
     }
 
-    var banner = document.getElementById('fluxbot-consent-banner');
-    if (banner) banner.remove();
+    var overlay = document.getElementById('fluxbot-consent-overlay');
+    if (overlay) overlay.remove();
 
-    if (!granted) { launcher.style.display = 'none'; return; }
-    openChat();
+    if (!granted) { closeChat(); launcher.style.display = 'none'; return; }
+    chatInput.focus();
+    if (!proactivePollTimer) {
+      proactivePollTimer = setInterval(pollProactiveMessages, 15000);
+    }
   }
 
   // ─── Message send ─────────────────────────────────────────────────────────
