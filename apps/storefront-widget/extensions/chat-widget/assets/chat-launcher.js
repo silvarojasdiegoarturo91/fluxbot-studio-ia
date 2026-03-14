@@ -1,415 +1,998 @@
 /**
  * FluxBot Chat Launcher
  * AI-powered chat widget for Shopify storefronts
+ *
+ * Features:
+ *  W1 — Session Identity (visitorId + sessionId) + full behavioral event tracking
+ *  W2 — Proactive message polling (15s active / 30s background)
+ *  W3 — Human handoff UI (triggered by requiresEscalation: true)
+ *  W4 — GDPR consent banner (first-visit capture, stored in localStorage)
+ *  W5 — Multilingual UI (10 languages via embedded i18n)
+ *  W6 — Security hardening (XSS-safe markdown, rate limiting, input sanitization)
  */
 
-(function() {
+(function () {
   'use strict';
-  
-  // Configuration
-  const API_ENDPOINT = '/apps/fluxbot/chat'; // App proxy endpoint
-  const CART_ENDPOINT = '/apps/fluxbot/cart/add';
-  
-  // State
-  let isOpen = false;
-  let conversationId = null;
-  let isTyping = false;
-  let retryCount = 0;
-  const MAX_RETRIES = 3;
-  
-  // Elements
-  let launcher, launcherButton, chatWindow, messagesContainer, chatForm, chatInput;
-  
-  // Initialize when DOM is ready
+
+  // ─── Endpoints ──────────────────────────────────────────────────────────────
+  var API_ENDPOINT      = '/apps/fluxbot/chat';
+  var CART_ENDPOINT     = '/apps/fluxbot/cart/add';
+  var EVENTS_ENDPOINT   = '/apps/fluxbot/events';
+  var MESSAGES_ENDPOINT = '/apps/fluxbot/messages/'; // + sessionId
+  var CONSENT_ENDPOINT  = '/apps/fluxbot/consent';
+  var HANDOFF_ENDPOINT  = '/apps/fluxbot/handoff';
+
+  // ─── W5 — i18n ──────────────────────────────────────────────────────────────
+  var I18N = {
+    en: {
+      openChat: 'Open chat', closeChat: 'Close chat',
+      inputPlaceholder: 'Type your message…', sendMessage: 'Send message',
+      addToCart: 'Add to cart', adding: 'Adding…',
+      addedToCart: 'Added to cart.', viewCart: 'View cart',
+      cartError: 'Sorry, I could not add this item to your cart right now.',
+      typing: 'Assistant is typing…',
+      errorRetry: 'Sorry, I had trouble processing that. Please try again.',
+      errorMax: 'I\'m experiencing technical difficulties. Please try again later or contact support.',
+      cartVariantError: 'I could not resolve the product variant for cart addition.',
+      consentTitle: 'Before we chat…',
+      consentBody: 'We use this chat to help you find products and answer questions. Your messages may be processed by AI. Do you agree?',
+      consentAccept: 'Accept & chat', consentDecline: 'Decline',
+      consentPrivacy: 'Privacy policy',
+      handoffConnecting: 'Connecting you to our team…',
+      handoffConfirm: 'A member of our team will be with you shortly.',
+      connectAgent: 'Connect to agent',
+      proactiveBadge: 'For you',
+      poweredBy: 'Powered by FluxBot',
+      rateLimitMsg: 'Please wait a moment before sending another message.',
+    },
+    es: {
+      openChat: 'Abrir chat', closeChat: 'Cerrar chat',
+      inputPlaceholder: 'Escribe tu mensaje…', sendMessage: 'Enviar mensaje',
+      addToCart: 'Añadir al carrito', adding: 'Añadiendo…',
+      addedToCart: 'Añadido al carrito.', viewCart: 'Ver carrito',
+      cartError: 'Lo siento, no pude añadir este artículo al carrito ahora mismo.',
+      typing: 'El asistente está escribiendo…',
+      errorRetry: 'Lo siento, tuve un problema al procesar eso. Por favor inténtalo de nuevo.',
+      errorMax: 'Estoy teniendo dificultades técnicas. Por favor intenta más tarde o contacta soporte.',
+      cartVariantError: 'No pude resolver la variante del producto para añadir al carrito.',
+      consentTitle: 'Antes de chatear…',
+      consentBody: 'Usamos este chat para ayudarte a encontrar productos y responder preguntas. Tus mensajes pueden ser procesados por IA. ¿Estás de acuerdo?',
+      consentAccept: 'Aceptar y chatear', consentDecline: 'Rechazar',
+      consentPrivacy: 'Política de privacidad',
+      handoffConnecting: 'Conectándote con nuestro equipo…',
+      handoffConfirm: 'Un miembro de nuestro equipo estará contigo en breve.',
+      connectAgent: 'Conectar con agente',
+      proactiveBadge: 'Para ti',
+      poweredBy: 'Desarrollado por FluxBot',
+      rateLimitMsg: 'Por favor espera un momento antes de enviar otro mensaje.',
+    },
+    fr: {
+      openChat: 'Ouvrir le chat', closeChat: 'Fermer le chat',
+      inputPlaceholder: 'Tapez votre message…', sendMessage: 'Envoyer',
+      addToCart: 'Ajouter au panier', adding: 'Ajout…',
+      addedToCart: 'Ajouté au panier.', viewCart: 'Voir le panier',
+      cartError: 'Désolé, je n\'ai pas pu ajouter cet article à votre panier.',
+      typing: 'L\'assistant écrit…',
+      errorRetry: 'Désolé, j\'ai eu du mal à traiter ça. Veuillez réessayer.',
+      errorMax: 'Je rencontre des difficultés techniques. Réessayez plus tard ou contactez le support.',
+      cartVariantError: 'Je n\'ai pas pu résoudre la variante du produit.',
+      consentTitle: 'Avant de chatter…',
+      consentBody: 'Nous utilisons ce chat pour vous aider à trouver des produits. Vos messages peuvent être traités par IA. Êtes-vous d\'accord ?',
+      consentAccept: 'Accepter et chatter', consentDecline: 'Refuser',
+      consentPrivacy: 'Politique de confidentialité',
+      handoffConnecting: 'Connexion à notre équipe…',
+      handoffConfirm: 'Un membre de notre équipe sera avec vous sous peu.',
+      connectAgent: 'Contacter un agent',
+      proactiveBadge: 'Pour vous',
+      poweredBy: 'Propulsé par FluxBot',
+      rateLimitMsg: 'Veuillez attendre avant d\'envoyer un autre message.',
+    },
+    de: {
+      openChat: 'Chat öffnen', closeChat: 'Chat schließen',
+      inputPlaceholder: 'Nachricht eingeben…', sendMessage: 'Senden',
+      addToCart: 'In den Warenkorb', adding: 'Wird hinzugefügt…',
+      addedToCart: 'Zum Warenkorb hinzugefügt.', viewCart: 'Warenkorb anzeigen',
+      cartError: 'Entschuldigung, ich konnte diesen Artikel nicht zum Warenkorb hinzufügen.',
+      typing: 'Der Assistent schreibt…',
+      errorRetry: 'Entschuldigung, beim Verarbeiten ist ein Fehler aufgetreten. Bitte erneut versuchen.',
+      errorMax: 'Ich habe technische Schwierigkeiten. Bitte versuchen Sie es später noch einmal.',
+      cartVariantError: 'Ich konnte die Produktvariante nicht auflösen.',
+      consentTitle: 'Bevor wir chatten…',
+      consentBody: 'Wir nutzen diesen Chat, um Ihnen bei der Produktsuche zu helfen. Ihre Nachrichten können von KI verarbeitet werden. Sind Sie einverstanden?',
+      consentAccept: 'Akzeptieren & chatten', consentDecline: 'Ablehnen',
+      consentPrivacy: 'Datenschutzrichtlinie',
+      handoffConnecting: 'Verbindung mit unserem Team wird hergestellt…',
+      handoffConfirm: 'Ein Teammitglied wird sich bald bei Ihnen melden.',
+      connectAgent: 'Mit Agent verbinden',
+      proactiveBadge: 'Für Sie',
+      poweredBy: 'Bereitgestellt von FluxBot',
+      rateLimitMsg: 'Bitte warten Sie einen Moment, bevor Sie eine weitere Nachricht senden.',
+    },
+    it: {
+      openChat: 'Apri chat', closeChat: 'Chiudi chat',
+      inputPlaceholder: 'Scrivi il tuo messaggio…', sendMessage: 'Invia',
+      addToCart: 'Aggiungi al carrello', adding: 'Aggiunta…',
+      addedToCart: 'Aggiunto al carrello.', viewCart: 'Vedi carrello',
+      cartError: 'Spiacente, non sono riuscito ad aggiungere questo articolo al carrello.',
+      typing: 'L\'assistente sta scrivendo…',
+      errorRetry: 'Spiacente, ho avuto problemi a elaborare la richiesta. Riprova.',
+      errorMax: 'Sto riscontrando difficoltà tecniche. Riprova più tardi o contatta il supporto.',
+      cartVariantError: 'Non sono riuscito a risolvere la variante del prodotto.',
+      consentTitle: 'Prima di chattare…',
+      consentBody: 'Usiamo questa chat per aiutarti a trovare prodotti. I tuoi messaggi potrebbero essere elaborati dall\'IA. Sei d\'accordo?',
+      consentAccept: 'Accetta e chatta', consentDecline: 'Rifiuta',
+      consentPrivacy: 'Informativa sulla privacy',
+      handoffConnecting: 'Connessione al nostro team…',
+      handoffConfirm: 'Un membro del nostro team sarà con te a breve.',
+      connectAgent: 'Connetti con agente',
+      proactiveBadge: 'Per te',
+      poweredBy: 'Powered by FluxBot',
+      rateLimitMsg: 'Attendi un momento prima di inviare un altro messaggio.',
+    },
+    pt: {
+      openChat: 'Abrir chat', closeChat: 'Fechar chat',
+      inputPlaceholder: 'Digite sua mensagem…', sendMessage: 'Enviar',
+      addToCart: 'Adicionar ao carrinho', adding: 'Adicionando…',
+      addedToCart: 'Adicionado ao carrinho.', viewCart: 'Ver carrinho',
+      cartError: 'Desculpe, não consegui adicionar este item ao carrinho agora.',
+      typing: 'O assistente está digitando…',
+      errorRetry: 'Desculpe, tive problemas para processar isso. Por favor, tente novamente.',
+      errorMax: 'Estou enfrentando dificuldades técnicas. Tente novamente mais tarde ou entre em contato com o suporte.',
+      cartVariantError: 'Não consegui resolver a variante do produto.',
+      consentTitle: 'Antes de conversar…',
+      consentBody: 'Usamos este chat para ajudá-lo a encontrar produtos. Suas mensagens podem ser processadas por IA. Você concorda?',
+      consentAccept: 'Aceitar e conversar', consentDecline: 'Recusar',
+      consentPrivacy: 'Política de privacidade',
+      handoffConnecting: 'Conectando você à nossa equipe…',
+      handoffConfirm: 'Um membro da nossa equipe estará com você em breve.',
+      connectAgent: 'Conectar com agente',
+      proactiveBadge: 'Para você',
+      poweredBy: 'Desenvolvido por FluxBot',
+      rateLimitMsg: 'Aguarde um momento antes de enviar outra mensagem.',
+    },
+    ja: {
+      openChat: 'チャットを開く', closeChat: 'チャットを閉じる',
+      inputPlaceholder: 'メッセージを入力…', sendMessage: '送信',
+      addToCart: 'カートに追加', adding: '追加中…',
+      addedToCart: 'カートに追加されました。', viewCart: 'カートを見る',
+      cartError: '申し訳ありません。このアイテムをカートに追加できませんでした。',
+      typing: 'アシスタントが入力中…',
+      errorRetry: '申し訳ありません。処理中に問題が発生しました。もう一度お試しください。',
+      errorMax: '技術的な問題が発生しています。後でもう一度お試しいただくか、サポートにお問い合わせください。',
+      cartVariantError: '商品バリアントを解決できませんでした。',
+      consentTitle: 'チャットを始める前に…',
+      consentBody: 'このチャットは商品検索や質問にお答えするために使用します。メッセージはAIによって処理される場合があります。同意しますか？',
+      consentAccept: '同意してチャット', consentDecline: '拒否',
+      consentPrivacy: 'プライバシーポリシー',
+      handoffConnecting: 'チームに接続中…',
+      handoffConfirm: 'チームのメンバーがすぐにご連絡します。',
+      connectAgent: 'エージェントに接続',
+      proactiveBadge: 'あなたへ',
+      poweredBy: 'FluxBot提供',
+      rateLimitMsg: '次のメッセージを送信する前にしばらくお待ちください。',
+    },
+    zh: {
+      openChat: '打开聊天', closeChat: '关闭聊天',
+      inputPlaceholder: '输入您的消息…', sendMessage: '发送',
+      addToCart: '加入购物车', adding: '添加中…',
+      addedToCart: '已加入购物车。', viewCart: '查看购物车',
+      cartError: '抱歉，暂时无法将此商品加入购物车。',
+      typing: '助手正在输入…',
+      errorRetry: '抱歉，处理时遇到问题，请重试。',
+      errorMax: '我遇到了技术问题，请稍后再试或联系支持。',
+      cartVariantError: '无法解析商品变体。',
+      consentTitle: '开始聊天前…',
+      consentBody: '我们使用此聊天帮助您查找产品并回答问题。您的消息可能由AI处理。您同意吗？',
+      consentAccept: '接受并聊天', consentDecline: '拒绝',
+      consentPrivacy: '隐私政策',
+      handoffConnecting: '正在连接我们的团队…',
+      handoffConfirm: '我们的团队成员将很快与您联系。',
+      connectAgent: '连接客服',
+      proactiveBadge: '为您推荐',
+      poweredBy: 'FluxBot 提供支持',
+      rateLimitMsg: '请稍等片刻再发送下一条消息。',
+    },
+    ar: {
+      openChat: 'فتح الدردشة', closeChat: 'إغلاق الدردشة',
+      inputPlaceholder: 'اكتب رسالتك…', sendMessage: 'إرسال',
+      addToCart: 'أضف إلى السلة', adding: 'جارٍ الإضافة…',
+      addedToCart: 'تمت الإضافة إلى السلة.', viewCart: 'عرض السلة',
+      cartError: 'عذراً، لم أتمكن من إضافة هذه العنصر إلى سلتك الآن.',
+      typing: 'المساعد يكتب…',
+      errorRetry: 'عذراً، واجهت مشكلة في المعالجة. يرجى المحاولة مرة أخرى.',
+      errorMax: 'أواجه صعوبات تقنية. يرجى المحاولة لاحقاً أو التواصل مع الدعم.',
+      cartVariantError: 'لم أتمكن من تحديد متغير المنتج.',
+      consentTitle: 'قبل الدردشة…',
+      consentBody: 'نستخدم هذه الدردشة لمساعدتك في العثور على المنتجات. قد تتم معالجة رسائلك بواسطة الذكاء الاصطناعي. هل توافق؟',
+      consentAccept: 'قبول والدردشة', consentDecline: 'رفض',
+      consentPrivacy: 'سياسة الخصوصية',
+      handoffConnecting: 'جارٍ الاتصال بفريقنا…',
+      handoffConfirm: 'سيتواصل معك أحد أعضاء فريقنا قريباً.',
+      connectAgent: 'الاتصال بوكيل',
+      proactiveBadge: 'لك',
+      poweredBy: 'مدعوم من FluxBot',
+      rateLimitMsg: 'يرجى الانتظار لحظة قبل إرسال رسالة أخرى.',
+    },
+    ru: {
+      openChat: 'Открыть чат', closeChat: 'Закрыть чат',
+      inputPlaceholder: 'Введите сообщение…', sendMessage: 'Отправить',
+      addToCart: 'Добавить в корзину', adding: 'Добавляю…',
+      addedToCart: 'Добавлено в корзину.', viewCart: 'Посмотреть корзину',
+      cartError: 'Извините, не удалось добавить товар в корзину.',
+      typing: 'Ассистент печатает…',
+      errorRetry: 'Извините, возникла ошибка. Пожалуйста, попробуйте ещё раз.',
+      errorMax: 'Возникли технические трудности. Попробуйте позже или обратитесь в поддержку.',
+      cartVariantError: 'Не удалось определить вариант товара.',
+      consentTitle: 'Перед началом чата…',
+      consentBody: 'Мы используем этот чат, чтобы помогать вам с покупками. Ваши сообщения могут обрабатываться ИИ. Вы согласны?',
+      consentAccept: 'Принять и чатиться', consentDecline: 'Отказаться',
+      consentPrivacy: 'Политика конфиденциальности',
+      handoffConnecting: 'Подключение к нашей команде…',
+      handoffConfirm: 'Сотрудник нашей команды свяжется с вами в ближайшее время.',
+      connectAgent: 'Связаться с агентом',
+      proactiveBadge: 'Для вас',
+      poweredBy: 'На базе FluxBot',
+      rateLimitMsg: 'Подождите перед отправкой следующего сообщения.',
+    },
+  };
+
+  function getI18n(locale) {
+    if (!locale) return I18N.en;
+    var lang = locale.toLowerCase().split('-')[0];
+    return I18N[lang] || I18N.en;
+  }
+
+  // ─── W1 — UUID generator (no external deps) ──────────────────────────────
+  function generateId() {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+      return crypto.randomUUID();
+    }
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+      var r = (Math.random() * 16) | 0;
+      var v = c === 'x' ? r : (r & 0x3) | 0x8;
+      return v.toString(16);
+    });
+  }
+
+  // ─── W6 — Safe storage (falls back to in-memory map on blocked storage) ──
+  var _memoryStore = {};
+
+  function safeGet(storage, key) {
+    try { return storage.getItem(key); } catch (e) { return _memoryStore[key] || null; }
+  }
+
+  function safeSet(storage, key, val) {
+    try { storage.setItem(key, val); } catch (e) { _memoryStore[key] = val; }
+  }
+
+  // ─── State ────────────────────────────────────────────────────────────────
+  var isOpen            = false;
+  var conversationId    = null;
+  var isTyping          = false;
+  var retryCount        = 0;
+  var visitorId         = null;
+  var sessionId         = null;
+  var hasConsent        = false;
+  var i18n              = I18N.en;
+  var isHandoffActive   = false;
+  var proactivePollTimer = null;
+  var dwellTimer        = null;
+  var scrollDepthReported = {};
+
+  // W6 — Rate limiting
+  var msgTimestamps  = [];
+  var MSG_RATE_LIMIT  = 20;
+  var MSG_RATE_WINDOW = 60000;
+  var SEND_DEBOUNCE_MS = 500;
+  var lastSendAt = 0;
+  var MAX_RETRIES = 3;
+
+  // ─── DOM elements ─────────────────────────────────────────────────────────
+  var launcher, launcherButton, chatWindow, messagesContainer, chatForm, chatInput;
+
+  // ─── Init ─────────────────────────────────────────────────────────────────
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
   } else {
     init();
   }
-  
+
   function init() {
     launcher = document.getElementById('fluxbot-chat-launcher');
     if (!launcher) return;
-    
-    // Check if launcher should be shown
-    if (launcher.dataset.showLauncher === 'false') {
+
+    // W6 — Sanitize data attributes before use
+    var showLauncher = sanitizeAttr(launcher.dataset.showLauncher);
+    if (showLauncher === 'false') {
       launcher.style.display = 'none';
       return;
     }
-    
-    // Get elements
-    launcherButton = launcher.querySelector('.fluxbot-launcher__button');
-    chatWindow = document.getElementById('fluxbot-chat-window');
+
+    // W5 — Locale
+    var locale = sanitizeAttr(launcher.dataset.locale) || 'en';
+    i18n = getI18n(locale);
+
+    // W1 — Identity: visitorId persists in localStorage, sessionId per tab
+    visitorId = safeGet(localStorage, 'fluxbot_visitor_id');
+    if (!visitorId) {
+      visitorId = generateId();
+      safeSet(localStorage, 'fluxbot_visitor_id', visitorId);
+    }
+    sessionId = safeGet(sessionStorage, 'fluxbot_session_id');
+    if (!sessionId) {
+      sessionId = generateId();
+      safeSet(sessionStorage, 'fluxbot_session_id', sessionId);
+    }
+
+    // W4 — Consent check
+    var storedConsent = safeGet(localStorage, 'fluxbot_consent');
+    if (storedConsent) {
+      try {
+        var parsed = JSON.parse(storedConsent);
+        hasConsent = parsed && parsed.granted === true;
+      } catch (e) { hasConsent = false; }
+    }
+
+    // DOM elements
+    launcherButton    = launcher.querySelector('.fluxbot-launcher__button');
+    chatWindow        = document.getElementById('fluxbot-chat-window');
     messagesContainer = document.getElementById('fluxbot-messages');
-    chatForm = document.getElementById('fluxbot-chat-form');
-    chatInput = document.getElementById('fluxbot-chat-input');
-    
+    chatForm          = document.getElementById('fluxbot-chat-form');
+    chatInput         = document.getElementById('fluxbot-chat-input');
+
+    if (!launcherButton || !chatWindow || !messagesContainer || !chatForm || !chatInput) return;
+
     // Apply primary color
-    const primaryColor = launcher.dataset.primaryColor;
-    if (primaryColor) {
+    var primaryColor = sanitizeAttr(launcher.dataset.primaryColor);
+    if (primaryColor && /^#[0-9a-fA-F]{3,8}$/.test(primaryColor)) {
       document.documentElement.style.setProperty('--fluxbot-primary-color', primaryColor);
     }
-    
+
+    // W5 — Localise static labels
+    chatInput.setAttribute('placeholder', i18n.inputPlaceholder);
+    chatInput.setAttribute('aria-label', i18n.inputPlaceholder);
+    launcherButton.setAttribute('aria-label', i18n.openChat);
+    var closeBtn = chatWindow.querySelector('.fluxbot-chat-window__close');
+    if (closeBtn) closeBtn.setAttribute('aria-label', i18n.closeChat);
+    var submitBtn = chatForm.querySelector('.fluxbot-chat-form__submit');
+    if (submitBtn) submitBtn.setAttribute('aria-label', i18n.sendMessage);
+    var branding = chatWindow.querySelector('.fluxbot-chat-window__branding');
+    if (branding) branding.textContent = i18n.poweredBy;
+
+    // W5 — RTL for Arabic
+    if (locale.toLowerCase().startsWith('ar')) {
+      launcher.setAttribute('dir', 'rtl');
+    }
+
     // Event listeners
     launcherButton.addEventListener('click', toggleChat);
-    chatWindow.querySelector('.fluxbot-chat-window__close').addEventListener('click', closeChat);
+    closeBtn && closeBtn.addEventListener('click', closeChat);
     chatForm.addEventListener('submit', handleSubmit);
-    
-    // Load conversation from session storage
+
+    // W4 — Render consent banner if visitor has not consented yet
+    if (!hasConsent) {
+      renderConsentBanner();
+    }
+
     loadConversationState();
-    
-    // Track page view
+
+    // W1 — Behavioral tracking setup
+    setupBehavioralTracking();
     trackEvent('page_view');
+
+    // W1 — Dwell time (every 30s while page visible)
+    dwellTimer = setInterval(function () {
+      if (document.visibilityState !== 'hidden') {
+        trackEvent('dwell_time', { dwellTimeSeconds: 30 });
+      }
+    }, 30000);
+
+    // W1 — Product view detection
+    detectProductView();
   }
-  
-  function toggleChat() {
-    if (isOpen) {
-      closeChat();
-    } else {
-      openChat();
+
+  // ─── W1 — Behavioral tracking ─────────────────────────────────────────────
+  function setupBehavioralTracking() {
+    var ticking = false;
+    window.addEventListener('scroll', function () {
+      if (!ticking) {
+        requestAnimationFrame(function () { reportScrollDepth(); ticking = false; });
+        ticking = true;
+      }
+    }, { passive: true });
+
+    document.addEventListener('mouseleave', function (e) {
+      if (e.clientY <= 0) trackEvent('exit_intent', { trigger: 'mouseleave_top' });
+    });
+
+    window.addEventListener('pagehide', function () {
+      trackEvent('exit_intent', { trigger: 'pagehide' });
+      if (conversationId) trackEvent('page_exit');
+    });
+
+    window.addEventListener('beforeunload', function () {
+      if (conversationId) trackEvent('page_exit');
+    });
+
+    document.addEventListener('visibilitychange', function () {
+      if (proactivePollTimer) {
+        clearInterval(proactivePollTimer);
+        var interval = document.visibilityState === 'hidden' ? 30000 : 15000;
+        proactivePollTimer = setInterval(pollProactiveMessages, interval);
+      }
+    });
+  }
+
+  function reportScrollDepth() {
+    var scrolled = window.scrollY + window.innerHeight;
+    var total = document.documentElement.scrollHeight;
+    if (total === 0) return;
+    var pct = Math.round((scrolled / total) * 100);
+    [25, 50, 75, 100].forEach(function (threshold) {
+      if (pct >= threshold && !scrollDepthReported[threshold]) {
+        scrollDepthReported[threshold] = true;
+        trackEvent('scroll_depth', { scrollDepthPercent: threshold });
+      }
+    });
+  }
+
+  function detectProductView() {
+    var match = window.location.pathname.match(/\/products\/([^/?#]+)/);
+    if (match) {
+      trackEvent('product_view', { productHandle: match[1], url: window.location.href });
     }
   }
-  
+
+  // ─── Chat open/close ──────────────────────────────────────────────────────
+  function toggleChat() {
+    if (isOpen) { closeChat(); } else { openChat(); }
+  }
+
   function openChat() {
+    if (!hasConsent) { showConsentBanner(); return; }
+
     isOpen = true;
     chatWindow.hidden = false;
     launcherButton.setAttribute('aria-expanded', 'true');
+    launcherButton.setAttribute('aria-label', i18n.closeChat);
     launcher.classList.add('fluxbot-launcher--open');
     chatInput.focus();
-    
+
+    if (!proactivePollTimer) {
+      proactivePollTimer = setInterval(pollProactiveMessages, 15000);
+    }
+
     trackEvent('chat_opened');
   }
-  
+
   function closeChat() {
     isOpen = false;
     chatWindow.hidden = true;
     launcherButton.setAttribute('aria-expanded', 'false');
+    launcherButton.setAttribute('aria-label', i18n.openChat);
     launcher.classList.remove('fluxbot-launcher--open');
-    
     trackEvent('chat_closed');
   }
-  
+
+  // ─── W4 — Consent banner ──────────────────────────────────────────────────
+  function renderConsentBanner() {
+    if (document.getElementById('fluxbot-consent-banner')) return;
+
+    var privacyUrl  = sanitizeUrl(launcher.dataset.privacyUrl) || '#';
+    var privacyText = sanitizeAttr(launcher.dataset.privacyText) || i18n.consentPrivacy;
+
+    var banner = document.createElement('div');
+    banner.id = 'fluxbot-consent-banner';
+    banner.className = 'fluxbot-consent-banner';
+    banner.setAttribute('role', 'dialog');
+    banner.setAttribute('aria-label', i18n.consentTitle);
+
+    var title = document.createElement('h3');
+    title.className = 'fluxbot-consent-banner__title';
+    title.textContent = i18n.consentTitle;
+
+    var body = document.createElement('p');
+    body.className = 'fluxbot-consent-banner__body';
+    body.textContent = i18n.consentBody;
+
+    var link = document.createElement('a');
+    link.href = privacyUrl;
+    link.textContent = privacyText;
+    link.className = 'fluxbot-consent-banner__link';
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+
+    var actions = document.createElement('div');
+    actions.className = 'fluxbot-consent-banner__actions';
+
+    var acceptBtn = document.createElement('button');
+    acceptBtn.type = 'button';
+    acceptBtn.className = 'fluxbot-consent-banner__accept';
+    acceptBtn.textContent = i18n.consentAccept;
+    acceptBtn.addEventListener('click', function () { handleConsent(true); });
+
+    var declineBtn = document.createElement('button');
+    declineBtn.type = 'button';
+    declineBtn.className = 'fluxbot-consent-banner__decline';
+    declineBtn.textContent = i18n.consentDecline;
+    declineBtn.addEventListener('click', function () { handleConsent(false); });
+
+    actions.appendChild(acceptBtn);
+    actions.appendChild(declineBtn);
+    banner.appendChild(title);
+    banner.appendChild(body);
+    banner.appendChild(link);
+    banner.appendChild(actions);
+    launcher.appendChild(banner);
+  }
+
+  function showConsentBanner() {
+    var b = document.getElementById('fluxbot-consent-banner');
+    if (b) { b.hidden = false; } else { renderConsentBanner(); }
+  }
+
+  function handleConsent(granted) {
+    hasConsent = granted;
+    safeSet(localStorage, 'fluxbot_consent',
+      JSON.stringify({ granted: granted, ts: new Date().toISOString(), version: '1.0' }));
+
+    var payload = {
+      granted: granted,
+      visitorId: visitorId,
+      customerId: sanitizeAttr(launcher.dataset.customerId) || undefined,
+      shop: sanitizeAttr(launcher.dataset.shop),
+      locale: sanitizeAttr(launcher.dataset.locale) || 'en',
+      consentVersion: '1.0',
+    };
+
+    if (navigator.sendBeacon) {
+      var blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+      navigator.sendBeacon(CONSENT_ENDPOINT, blob);
+    } else {
+      fetch(CONSENT_ENDPOINT, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload), keepalive: true,
+      }).catch(function () {});
+    }
+
+    var banner = document.getElementById('fluxbot-consent-banner');
+    if (banner) banner.remove();
+
+    if (!granted) { launcher.style.display = 'none'; return; }
+    openChat();
+  }
+
+  // ─── Message send ─────────────────────────────────────────────────────────
   async function handleSubmit(e) {
     e.preventDefault();
-    
-    const message = chatInput.value.trim();
+    var message = chatInput.value.trim();
     if (!message || isTyping) return;
-    
-    // Clear input
-    chatInput.value = '';
-    
-    // Add user message to UI
-    addMessage(message, 'user');
-    
-    // Show typing indicator
-    showTypingIndicator();
-    
-    try {
-      // Send message to backend
-      const response = await sendMessage(message);
-      
-      // Hide typing indicator
-      hideTypingIndicator();
-      
-      // Add assistant response
-      if (response.message) {
-        const mergedMetadata = response.metadata || {};
 
-        // Support both legacy metadata.products and newer actions payloads.
+    // W6 — Debounce
+    var now = Date.now();
+    if (now - lastSendAt < SEND_DEBOUNCE_MS) return;
+    lastSendAt = now;
+
+    // W6 — Rate limit
+    msgTimestamps = msgTimestamps.filter(function (t) { return now - t < MSG_RATE_WINDOW; });
+    if (msgTimestamps.length >= MSG_RATE_LIMIT) { addMessage(i18n.rateLimitMsg, 'assistant'); return; }
+    msgTimestamps.push(now);
+
+    chatInput.value = '';
+    addMessage(message, 'user');
+    showTypingIndicator();
+
+    try {
+      var response = await sendMessage(message);
+      hideTypingIndicator();
+
+      if (response.message) {
+        var mergedMetadata = response.metadata || {};
         if (Array.isArray(response.actions)) {
-          const actionProducts = response.actions
-            .filter(action => action && typeof action === 'object')
-            .flatMap(action => {
-              if (Array.isArray(action.products)) return action.products;
-              if (action.product && typeof action.product === 'object') return [action.product];
+          var actionProducts = response.actions
+            .filter(function (a) { return a && typeof a === 'object'; })
+            .flatMap(function (a) {
+              if (Array.isArray(a.products)) return a.products;
+              if (a.product && typeof a.product === 'object') return [a.product];
               return [];
             });
-
           if (actionProducts.length > 0) {
             mergedMetadata.products = Array.isArray(mergedMetadata.products)
-              ? [...mergedMetadata.products, ...actionProducts]
-              : actionProducts;
+              ? mergedMetadata.products.concat(actionProducts) : actionProducts;
           }
         }
-
         addMessage(response.message, 'assistant', mergedMetadata);
+
+        // W3 — Handoff detection
+        if (response.requiresEscalation === true && !isHandoffActive) {
+          showHandoffUI(response.handoff && response.handoff.reason);
+        }
       }
-      
-      // Update conversation ID
+
       if (response.conversationId) {
         conversationId = response.conversationId;
         saveConversationState();
       }
-      
-      // Reset retry count on success
       retryCount = 0;
-      
+
     } catch (error) {
-      console.error('Chat error:', error);
+      console.error('[FluxBot] Chat error:', error);
       hideTypingIndicator();
-      
-      // Show error message
-      if (retryCount < MAX_RETRIES) {
-        addMessage('Sorry, I had trouble processing that. Please try again.', 'assistant');
-        retryCount++;
-      } else {
-        addMessage('I\'m experiencing technical difficulties. Please try again later or contact support.', 'assistant');
-      }
+      if (retryCount < MAX_RETRIES) { addMessage(i18n.errorRetry, 'assistant'); retryCount++; }
+      else { addMessage(i18n.errorMax, 'assistant'); }
     }
   }
-  
+
   async function sendMessage(message) {
-    const payload = {
+    var payload = {
       message: message,
       conversationId: conversationId,
+      sessionId: sessionId,
+      visitorId: visitorId,
       context: {
-        shop: launcher.dataset.shop,
-        locale: launcher.dataset.locale,
-        customerId: launcher.dataset.customerId,
-        customerEmail: launcher.dataset.customerEmail,
+        shop: sanitizeAttr(launcher.dataset.shop),
+        locale: sanitizeAttr(launcher.dataset.locale),
+        customerId: sanitizeAttr(launcher.dataset.customerId) || undefined,
+        customerEmail: sanitizeAttr(launcher.dataset.customerEmail) || undefined,
         url: window.location.href,
         referrer: document.referrer,
-      }
-    };
-    
-    const response = await fetch(API_ENDPOINT, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
       },
+    };
+
+    var res = await fetch(API_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
       body: JSON.stringify(payload),
     });
-    
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
-    
-    return response.json();
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    return res.json();
   }
-  
-  function addMessage(content, role, metadata = {}) {
-    const messageEl = document.createElement('div');
-    messageEl.className = `fluxbot-message fluxbot-message--${role}`;
-    
-    const contentEl = document.createElement('div');
-    contentEl.className = 'fluxbot-message__content';
-    
-    // Parse markdown-style links
-    const formattedContent = content.replace(
-      /\[([^\]]+)\]\(([^\)]+)\)/g,
-      '<a href="$2" target="_blank" rel="noopener">$1</a>'
-    );
-    contentEl.innerHTML = formattedContent;
-    
-    messageEl.appendChild(contentEl);
-    
-    // Add product cards if present
-    if (metadata.products && Array.isArray(metadata.products)) {
-      const productsEl = createProductCards(metadata.products);
-      messageEl.appendChild(productsEl);
+
+  // ─── W6 — Safe markdown rendering (no innerHTML) ─────────────────────────
+  function renderMarkdown(text, container) {
+    var LINK_RE = /\[([^\]]{1,200})\]\((https?:\/\/[^)]{1,2000})\)/g;
+    var lastIndex = 0;
+    var match;
+    while ((match = LINK_RE.exec(text)) !== null) {
+      if (match.index > lastIndex) {
+        container.appendChild(document.createTextNode(text.slice(lastIndex, match.index)));
+      }
+      var anchor = document.createElement('a');
+      anchor.href = match[2];
+      anchor.textContent = match[1];
+      anchor.target = '_blank';
+      anchor.rel = 'noopener noreferrer';
+      container.appendChild(anchor);
+      lastIndex = LINK_RE.lastIndex;
     }
-    
+    if (lastIndex < text.length) {
+      container.appendChild(document.createTextNode(text.slice(lastIndex)));
+    }
+  }
+
+  function addMessage(content, role, metadata) {
+    metadata = metadata || {};
+    var messageEl = document.createElement('div');
+    messageEl.className = 'fluxbot-message fluxbot-message--' + role;
+    var contentEl = document.createElement('div');
+    contentEl.className = 'fluxbot-message__content';
+    renderMarkdown(content, contentEl);
+    messageEl.appendChild(contentEl);
+    if (metadata.products && Array.isArray(metadata.products)) {
+      messageEl.appendChild(createProductCards(metadata.products));
+    }
     messagesContainer.appendChild(messageEl);
     scrollToBottom();
-    
-    // Track message
-    trackEvent('message_sent', { role, length: content.length });
   }
-  
+
+  /** Add a pre-built DOM node as a message bubble */
+  function addMessageNode(node, role) {
+    var messageEl = document.createElement('div');
+    messageEl.className = 'fluxbot-message fluxbot-message--' + role;
+    var contentEl = document.createElement('div');
+    contentEl.className = 'fluxbot-message__content';
+    contentEl.appendChild(node);
+    messageEl.appendChild(contentEl);
+    messagesContainer.appendChild(messageEl);
+    scrollToBottom();
+  }
+
   function createProductCards(products) {
-    const container = document.createElement('div');
+    var container = document.createElement('div');
     container.className = 'fluxbot-product-cards';
-    
-    products.slice(0, 3).forEach(product => {
-      const card = document.createElement('div');
+
+    products.slice(0, 3).forEach(function (product) {
+      var card = document.createElement('div');
       card.className = 'fluxbot-product-card';
 
-      const productLink = document.createElement('a');
-      productLink.href = product.url || '#';
-      productLink.className = 'fluxbot-product-card__link';
-      productLink.target = '_blank';
-      productLink.rel = 'noopener';
-      
+      var link = document.createElement('a');
+      link.href = sanitizeUrl(product.url) || '#';
+      link.className = 'fluxbot-product-card__link';
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+
       if (product.image) {
-        const img = document.createElement('img');
-        img.src = product.image;
-        img.alt = product.title;
+        var img = document.createElement('img');
+        img.src = sanitizeUrl(product.image) || '';
+        img.alt = product.title ? String(product.title).slice(0, 200) : '';
         img.className = 'fluxbot-product-card__image';
-        productLink.appendChild(img);
+        img.loading = 'lazy';
+        link.appendChild(img);
       }
-      
-      const info = document.createElement('div');
+
+      var info = document.createElement('div');
       info.className = 'fluxbot-product-card__info';
-      
-      const title = document.createElement('a');
-      title.className = 'fluxbot-product-card__title';
-      title.textContent = product.title;
-      title.href = product.url || '#';
-      title.target = '_blank';
-      title.rel = 'noopener';
-      info.appendChild(title);
-      
+
+      var titleEl = document.createElement('a');
+      titleEl.className = 'fluxbot-product-card__title';
+      titleEl.textContent = product.title ? String(product.title).slice(0, 200) : '';
+      titleEl.href = sanitizeUrl(product.url) || '#';
+      titleEl.target = '_blank';
+      titleEl.rel = 'noopener noreferrer';
+      info.appendChild(titleEl);
+
       if (product.price) {
-        const price = document.createElement('div');
-        price.className = 'fluxbot-product-card__price';
-        price.textContent = product.price;
-        info.appendChild(price);
+        var priceEl = document.createElement('div');
+        priceEl.className = 'fluxbot-product-card__price';
+        priceEl.textContent = String(product.price).slice(0, 50);
+        info.appendChild(priceEl);
       }
 
-      const actions = document.createElement('div');
+      var actions = document.createElement('div');
       actions.className = 'fluxbot-product-card__actions';
-
-      const addButton = document.createElement('button');
-      addButton.type = 'button';
-      addButton.className = 'fluxbot-product-card__add';
-      addButton.textContent = 'Add to cart';
-      addButton.addEventListener('click', async () => {
-        await addProductToCart(product, addButton);
-      });
-
-      actions.appendChild(addButton);
+      var addBtn = document.createElement('button');
+      addBtn.type = 'button';
+      addBtn.className = 'fluxbot-product-card__add';
+      addBtn.textContent = i18n.addToCart;
+      addBtn.addEventListener('click', (function (p, btn) {
+        return function () { addProductToCart(p, btn); };
+      })(product, addBtn));
+      actions.appendChild(addBtn);
       info.appendChild(actions);
-      
-      productLink.appendChild(info);
-      card.appendChild(productLink);
+      link.appendChild(info);
+      card.appendChild(link);
       container.appendChild(card);
     });
-    
+
     return container;
   }
 
   async function addProductToCart(product, buttonEl) {
-    const variantId = product.variantId || product.variant_id || null;
-    const productRef = product.productId || product.product_id || product.handle || product.id || null;
+    var variantId  = product.variantId  || product.variant_id  || null;
+    var productRef = product.productId  || product.product_id  || product.handle || product.id || null;
 
-    if (!variantId && !productRef) {
-      addMessage('I could not resolve the product variant for cart addition.', 'assistant');
-      return;
-    }
+    if (!variantId && !productRef) { addMessage(i18n.cartVariantError, 'assistant'); return; }
 
-    const originalLabel = buttonEl.textContent;
     buttonEl.disabled = true;
-    buttonEl.textContent = 'Adding...';
+    buttonEl.textContent = i18n.adding;
 
     try {
-      const response = await fetch(CART_ENDPOINT, {
+      var res = await fetch(CART_ENDPOINT, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
         body: JSON.stringify({
-          variantId,
-          productRef,
-          quantity: 1,
-          commit: true,
-          conversationId,
+          variantId: variantId, productRef: productRef, quantity: 1,
+          commit: true, conversationId: conversationId,
+          sessionId: sessionId, visitorId: visitorId,
         }),
       });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      var payload = await res.json();
+      if (!payload || !payload.success) throw new Error((payload && payload.error) || 'Cart add failed');
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-
-      const payload = await response.json();
-      if (!payload?.success) {
-        throw new Error(payload?.error || 'Cart add failed');
-      }
-
-      const cartUrl = payload?.data?.cartUrl;
+      var cartUrl = payload.data && payload.data.cartUrl;
       if (cartUrl) {
-        addMessage(`Added to cart. [View cart](${cartUrl})`, 'assistant');
+        var span = document.createElement('span');
+        span.appendChild(document.createTextNode(i18n.addedToCart + ' '));
+        var cartLink = document.createElement('a');
+        cartLink.href = sanitizeUrl(cartUrl) || '#';
+        cartLink.textContent = i18n.viewCart;
+        cartLink.target = '_blank';
+        cartLink.rel = 'noopener noreferrer';
+        span.appendChild(cartLink);
+        addMessageNode(span, 'assistant');
       } else {
-        addMessage('Added to cart successfully.', 'assistant');
+        addMessage(i18n.addedToCart, 'assistant');
       }
 
-      trackEvent('add_to_cart', {
-        variantId,
-        productRef,
-      });
-    } catch (error) {
-      console.error('Add to cart failed:', error);
-      addMessage('Sorry, I could not add this item to your cart right now.', 'assistant');
+      trackEvent('add_to_cart', { variantId: variantId, productRef: productRef });
+    } catch (err) {
+      console.error('[FluxBot] Add to cart failed:', err);
+      addMessage(i18n.cartError, 'assistant');
     } finally {
       buttonEl.disabled = false;
-      buttonEl.textContent = originalLabel;
+      buttonEl.textContent = i18n.addToCart;
     }
   }
-  
+
+  // ─── W3 — Handoff UI ──────────────────────────────────────────────────────
+  function showHandoffUI(reason) {
+    isHandoffActive = true;
+    addMessage(i18n.handoffConnecting, 'assistant');
+
+    var handoffEl = document.createElement('div');
+    handoffEl.className = 'fluxbot-handoff';
+    var connectBtn = document.createElement('button');
+    connectBtn.type = 'button';
+    connectBtn.className = 'fluxbot-handoff__btn';
+    connectBtn.textContent = i18n.connectAgent;
+    connectBtn.addEventListener('click', function () { requestHandoff(reason || 'user_request'); });
+    handoffEl.appendChild(connectBtn);
+    messagesContainer.appendChild(handoffEl);
+    scrollToBottom();
+  }
+
+  async function requestHandoff(reason) {
+    var handoffEl = messagesContainer.querySelector('.fluxbot-handoff');
+    if (handoffEl) handoffEl.remove();
+
+    try {
+      await fetch(HANDOFF_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify({
+          conversationId: conversationId,
+          sessionId: sessionId,
+          visitorId: visitorId,
+          shop: sanitizeAttr(launcher.dataset.shop),
+          reason: reason || 'escalation',
+          customerId: sanitizeAttr(launcher.dataset.customerId) || undefined,
+        }),
+      });
+    } catch (e) { console.error('[FluxBot] Handoff request failed:', e); }
+
+    addMessage(i18n.handoffConfirm, 'assistant');
+
+    var supportUrl = sanitizeUrl(launcher.dataset.supportUrl);
+    if (supportUrl) {
+      var node = document.createElement('span');
+      var link = document.createElement('a');
+      link.href = supportUrl;
+      link.textContent = i18n.connectAgent;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      node.appendChild(link);
+      addMessageNode(node, 'assistant');
+    }
+
+    trackEvent('handoff_requested', { reason: reason });
+  }
+
+  // ─── W2 — Proactive message polling ──────────────────────────────────────
+  async function pollProactiveMessages() {
+    if (!hasConsent || !sessionId) return;
+    try {
+      var res = await fetch(MESSAGES_ENDPOINT + encodeURIComponent(sessionId), {
+        method: 'GET', headers: { 'Accept': 'application/json' },
+      });
+      if (!res.ok) return;
+      var data = await res.json();
+      if (!data || !Array.isArray(data.messages) || data.messages.length === 0) return;
+      data.messages.forEach(function (msg) {
+        if (!msg || !msg.id || !msg.renderedMessage) return;
+        renderProactiveMessage(msg);
+        markMessageDelivered(msg.id);
+      });
+    } catch (e) { /* non-critical */ }
+  }
+
+  function renderProactiveMessage(msg) {
+    var messageEl = document.createElement('div');
+    messageEl.className = 'fluxbot-message fluxbot-message--assistant fluxbot-message--proactive';
+    messageEl.dataset.messageId = msg.id;
+
+    var badge = document.createElement('span');
+    badge.className = 'fluxbot-proactive-badge';
+    badge.textContent = i18n.proactiveBadge;
+    messageEl.appendChild(badge);
+
+    var contentEl = document.createElement('div');
+    contentEl.className = 'fluxbot-message__content';
+    renderMarkdown(msg.renderedMessage, contentEl);
+    messageEl.appendChild(contentEl);
+
+    var dismissBtn = document.createElement('button');
+    dismissBtn.type = 'button';
+    dismissBtn.className = 'fluxbot-proactive-dismiss';
+    dismissBtn.setAttribute('aria-label', '×');
+    dismissBtn.textContent = '×';
+    dismissBtn.addEventListener('click', (function (id, el) {
+      return function () { patchMessageInteraction(id, 'DISMISSED'); el.remove(); };
+    })(msg.id, messageEl));
+    messageEl.appendChild(dismissBtn);
+
+    if (!isOpen) openChat();
+    messagesContainer.appendChild(messageEl);
+    scrollToBottom();
+    trackEvent('proactive_message_shown', { messageId: msg.id });
+  }
+
+  async function markMessageDelivered(messageId) {
+    try {
+      await fetch(MESSAGES_ENDPOINT + encodeURIComponent(sessionId), {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messageId: messageId, interaction: 'DELIVERED' }),
+      });
+    } catch (e) {}
+  }
+
+  async function patchMessageInteraction(messageId, interaction) {
+    try {
+      await fetch(MESSAGES_ENDPOINT + encodeURIComponent(sessionId), {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messageId: messageId, interaction: interaction }),
+      });
+    } catch (e) {}
+  }
+
+  // ─── Typing indicator ─────────────────────────────────────────────────────
   function showTypingIndicator() {
     isTyping = true;
-    
-    const typingEl = document.createElement('div');
+    var typingEl = document.createElement('div');
     typingEl.id = 'fluxbot-typing';
     typingEl.className = 'fluxbot-message fluxbot-message--assistant';
-    typingEl.innerHTML = `
-      <div class="fluxbot-message__content">
-        <div class="fluxbot-typing-indicator">
-          <span></span>
-          <span></span>
-          <span></span>
-        </div>
-      </div>
-    `;
-    
+    typingEl.setAttribute('aria-label', i18n.typing);
+    typingEl.innerHTML =
+      '<div class="fluxbot-message__content">' +
+        '<div class="fluxbot-typing-indicator" aria-hidden="true">' +
+          '<span></span><span></span><span></span>' +
+        '</div>' +
+      '</div>';
     messagesContainer.appendChild(typingEl);
     scrollToBottom();
   }
-  
+
   function hideTypingIndicator() {
     isTyping = false;
-    const typingEl = document.getElementById('fluxbot-typing');
-    if (typingEl) {
-      typingEl.remove();
-    }
+    var el = document.getElementById('fluxbot-typing');
+    if (el) el.remove();
   }
-  
+
   function scrollToBottom() {
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
   }
-  
+
+  // ─── Session persistence ──────────────────────────────────────────────────
   function loadConversationState() {
-    try {
-      const saved = sessionStorage.getItem('fluxbot_conversation_id');
-      if (saved) {
-        conversationId = saved;
-      }
-    } catch (e) {
-      // Session storage not available
-    }
+    var saved = safeGet(sessionStorage, 'fluxbot_conversation_id');
+    if (saved) conversationId = saved;
   }
-  
+
   function saveConversationState() {
-    try {
-      if (conversationId) {
-        sessionStorage.setItem('fluxbot_conversation_id', conversationId);
-      }
-    } catch (e) {
-      // Session storage not available
-    }
+    if (conversationId) safeSet(sessionStorage, 'fluxbot_conversation_id', conversationId);
   }
-  
-  function trackEvent(eventType, data = {}) {
-    // Send analytics event to backend
-    const payload = {
+
+  // ─── W1 — Analytics ───────────────────────────────────────────────────────
+  function trackEvent(eventType, data) {
+    // Never track if consent was explicitly declined
+    if (hasConsent === false && eventType !== 'page_view') return;
+
+    var payload = {
       event: eventType,
       conversationId: conversationId,
-      data: data,
+      sessionId: sessionId,
+      visitorId: visitorId,
+      data: data || {},
       timestamp: new Date().toISOString(),
     };
-    
-    // Use sendBeacon for reliability
+
     if (navigator.sendBeacon) {
-      const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
-      navigator.sendBeacon('/apps/fluxbot/events', blob);
+      var blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+      navigator.sendBeacon(EVENTS_ENDPOINT, blob);
     }
   }
-  
-  // Cleanup on unload
-  window.addEventListener('beforeunload', () => {
-    if (conversationId) {
-      trackEvent('page_exit');
-    }
-  });
+
+  // ─── W6 — Security helpers ────────────────────────────────────────────────
+  function sanitizeAttr(value) {
+    if (typeof value !== 'string') return '';
+    return value.replace(/[<>"'`\\]/g, '').slice(0, 512);
+  }
+
+  function sanitizeUrl(value) {
+    if (!value || typeof value !== 'string') return null;
+    var trimmed = value.trim();
+    if (/^(https?:\/\/|\/)/i.test(trimmed)) return trimmed;
+    return null;
+  }
+
 })();

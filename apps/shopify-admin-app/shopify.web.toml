@@ -4,7 +4,7 @@ api_version = "2026-01"
 webhooks_path = "/webhooks/app/uninstalled"
 
 [commands]
-predev = "npx prisma generate --schema ../../infra/prisma/schema.prisma"
-dev = "npx prisma migrate deploy --schema ../../infra/prisma/schema.prisma && npx react-router dev --host"
+predev = "../../node_modules/.bin/prisma generate --schema ../../infra/prisma/schema.prisma"
+dev = "../../node_modules/.bin/prisma migrate deploy --schema ../../infra/prisma/schema.prisma && ../../node_modules/.bin/react-router dev --host"
 build = "npm run build"
 start = "npm run start"
