@@ -1,6 +1,6 @@
 # Phase 2 Implementation Complete: Proactive Sales & Optimization
 
-> Canonical status source: [STATUS_MATRIX.md](./STATUS_MATRIX.md). This document is historical context.
+> Canonical status source: [STATUS_MATRIX.md](../STATUS_MATRIX.md). This document is historical context.
 
 **Date**: March 10, 2025  
 **Status**: 95% Complete (90% production-ready)  

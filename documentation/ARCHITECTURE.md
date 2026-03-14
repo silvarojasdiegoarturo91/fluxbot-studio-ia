@@ -2,7 +2,7 @@
 
 **Status:** ✅ **Restructuring Complete** — Production-ready workspace with clean build pipeline.
 
-> Canonical phase status lives in [STATUS_MATRIX.md](./STATUS_MATRIX.md). The roadmap checklist in this document is historical architecture context, not the current repo status source.
+> Canonical phase status lives in [STATUS_MATRIX.md](../STATUS_MATRIX.md). The roadmap checklist in this document is historical architecture context, not the current repo status source.
 
 **Last Updated:** 2025-03-08 | **API Version:** 2026-01 | **Build Status:** PASSING
 

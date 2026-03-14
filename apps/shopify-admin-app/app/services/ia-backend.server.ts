@@ -272,6 +272,24 @@ export interface LlmsTxtGenerateRequest {
   maxProducts?: number;
 }
 
+export interface ShopSyncRequest {
+  shop: {
+    id: string;
+    domain: string;
+    name?: string;
+  };
+}
+
+export interface ShopSyncResponse {
+  shop: {
+    id: string;
+    domain: string;
+    name?: string | null;
+  };
+  created: boolean;
+  syncedAt: string;
+}
+
 export class IABackendError extends Error {
   constructor(
     message: string,
@@ -474,5 +492,10 @@ export const iaClient = {
   llms: {
     generate: (request: LlmsTxtGenerateRequest, shopDomain?: string) =>
       makeTextRequest(`${API_V1}/llms-txt/generate`, 'POST', request, shopDomain),
+  },
+
+  shops: {
+    sync: (request: ShopSyncRequest, shopDomain?: string) =>
+      makeRequest<ShopSyncResponse>(`${API_V1}/shops/sync`, 'POST', request, shopDomain),
   },
 };

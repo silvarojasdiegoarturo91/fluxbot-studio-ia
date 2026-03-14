@@ -224,4 +224,4 @@ For test issues:
 1. Check this README
 2. Review test file comments
 3. Check vitest docs: https://vitest.dev
-4. Review Phase 0 implementation in `/docs/IMPLEMENTATION.md`
+4. Review Phase 0 implementation in `/documentation/IMPLEMENTATION.md`

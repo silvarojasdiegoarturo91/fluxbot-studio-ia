@@ -6,7 +6,7 @@ Los tests de Phase 1 requieren que la base de datos PostgreSQL esté configurada
 
 ### Setup Requerido
 
-1. **Instalar PostgreSQL** (ver `PHASE_1_SETUP.md` en root del proyecto)
+1. **Instalar PostgreSQL** (ver `documentation/PHASE_1_SETUP.md` en root del proyecto)
 
 2. **Configurar .env.local** con DATABASE_URL correcto
 

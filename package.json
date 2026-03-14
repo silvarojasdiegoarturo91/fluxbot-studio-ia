@@ -13,6 +13,8 @@
     "dev": "bash ./scripts/dev-fullstack.sh",
     "dev:frontend": "npm --workspace @fluxbot/shopify-admin-app run dev",
     "dev:fullstack": "bash ./scripts/dev-fullstack.sh",
+    "shops:sync:ia": "bash ./scripts/sync-ia-shops.sh",
+    "smoke:release": "bash ./scripts/smoke-release.sh",
     "build": "npm --workspace @fluxbot/shopify-admin-app run build",
     "typecheck": "npm --workspace @fluxbot/shopify-admin-app run typecheck",
     "lint": "npm --workspace @fluxbot/shopify-admin-app run lint",

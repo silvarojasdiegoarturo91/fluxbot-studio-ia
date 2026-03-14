@@ -1,6 +1,6 @@
 # Fase 2: Ventas Proactivas y Optimización - Plan de Implementación
 
-> Canonical status source: [STATUS_MATRIX.md](./STATUS_MATRIX.md). This document is historical context.
+> Canonical status source: [STATUS_MATRIX.md](../STATUS_MATRIX.md). This document is historical context.
 
 ## Estado Actual (Fase 1 Completada)
 

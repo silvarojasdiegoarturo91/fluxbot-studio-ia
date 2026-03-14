@@ -1,4 +1,5 @@
 import prisma from "../db.server";
+import { syncShopReferenceToIABackend } from "./shop-backend-sync.server";
 
 export interface ShopContext {
   domain: string;
@@ -69,7 +70,7 @@ export async function ensureShopRecord(context: ShopContext): Promise<{ id: stri
     updateData.isOnline = context.isOnline;
   }
 
-  return prisma.shop.upsert({
+  const shop = await prisma.shop.upsert({
     where: { domain: context.domain },
     create: {
       domain: context.domain,
@@ -81,6 +82,10 @@ export async function ensureShopRecord(context: ShopContext): Promise<{ id: stri
     update: updateData,
     select: { id: true, domain: true },
   });
+
+  await syncShopReferenceToIABackend(shop);
+
+  return shop;
 }
 
 export async function ensureShopForSession(session: unknown): Promise<{ id: string; domain: string } | null> {

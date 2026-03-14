@@ -4,9 +4,15 @@
 
 Este documento establece el plan operativo por fases para separar la aplicación en dos proyectos independientes.
 
-La especificación técnica de referencia para diseño, ownership y criterios de aceptación está en `REFACTORING_SEPARATION.md`.
+Ultima auditoria documental: 2026-03-14.
+
+La especificación técnica de referencia para diseño, ownership y criterios de aceptación está en `documentation/REFACTORING_SEPARATION.md`.
 
 Este documento se enfoca en seguimiento de ejecución y checklist por fase.
+
+El estado canónico por fase/feature vive en `STATUS_MATRIX.md`.
+
+Los documentos historicos/completados de fases anteriores estan centralizados en `documentation/`.
 
 - **fluxbot-studio-ia** (este repo): App Shopify Frontend
 - **fluxbot-studio-back-ia** (~/Documents/): Backend de IA
@@ -25,7 +31,10 @@ Este documento se enfoca en seguimiento de ejecución y checklist por fase.
 │   │   ├── providers.ts     # Gestión proveedores IA
 │   │   ├── rag.ts           # Búsqueda RAG
 │   │   ├── embeddings.ts    # Generación embeddings
+│   │   ├── intent.ts        # Detección de intención
 │   │   ├── triggers.ts      # Triggers proactivos
+│   │   ├── llms-txt.ts      # Generación/publicación llms.txt
+│   │   ├── shops.ts         # Sincronización de tenant Shop
 │   │   └── analytics.ts     # Métricas
 │   ├── middleware/
 │   │   ├── auth.ts          # Autenticación por shop
@@ -158,6 +167,8 @@ const response = await iaClient.chat.send({
 
 ### 4.2 Endpoints del Backend (✅ IMPLEMENTADOS)
 
+Listado operativo principal para la separación (no exhaustivo):
+
 | Método | Endpoint | Estado | Descripción |
 |--------|---------|--------|-------------|
 | GET | /health | ✅ | Health check |
@@ -171,11 +182,14 @@ const response = await iaClient.chat.send({
 | POST | /api/v1/rag/index | ✅ | Indexar documentos |
 | POST | /api/v1/embeddings/generate | ✅ | Generar embedding |
 | POST | /api/v1/embeddings/generate/batch | ✅ | Batch embeddings |
+| POST | /api/v1/embeddings/search | ✅ | Vector retrieval remoto |
+| POST | /api/v1/shops/sync | ✅ | Sincronizar referencia Shop frontend → backend |
 | GET | /api/v1/triggers | ✅ | Listar triggers |
 | POST | /api/v1/triggers | ✅ | Crear trigger |
 | POST | /api/v1/triggers/evaluate | ✅ | Evaluar triggers |
 | POST | /api/v1/intent/analyze | ✅ | Analizar intención |
 | GET | /api/v1/intent/session/:id | ✅ | Obtener señales de sesión |
+| POST | /api/v1/llms-txt/generate | ✅ | Generar llms.txt |
 | POST | /api/v1/analytics | ✅ | Registrar métricas |
 | GET | /api/v1/analytics | ✅ | Consultar métricas |
 
@@ -213,14 +227,16 @@ IA_BACKEND_API_KEY=...
 DATABASE_URL=postgresql://user:pass@localhost:5432/fluxbot_ia
 
 # API Keys IA
-OPENAI_API_KEY=skROPIC_API_KEY-...
-ANTH=sk-ant-...
+OPENAI_API_KEY=sk-...
+ANTHROPIC_API_KEY=sk-ant-...
 GEMINI_API_KEY=...
 
 # Vector Store (opcional)
 PINECONE_API_KEY=...
 
 # Seguridad
+IA_BACKEND_API_KEY=...
+BACKEND_API_KEY=...    # compat (opcional)
 MASTER_API_KEY=...
 PORT=3001
 ```
@@ -231,7 +247,7 @@ PORT=3001
 
 ### Backend
 - [x] Crear base de datos `fluxbot_ia`
-- [x] Configurar API keys de OpenAI/Anthropic/Gemini
+- [x] Configurar API keys de OpenAI/Anthropic/Gemini (pendiente operacional: key valida en entorno runtime)
 - [x] Ejecutar migraciones Prisma
 - [x] Implementar servicio de chat
 - [x] Implementar servicio de embeddings
@@ -244,7 +260,7 @@ PORT=3001
 - [x] Actualizar .env con IA_BACKEND_URL
 - [x] Eliminar servicios de IA migrados del flujo principal (mantener compatibilidad vía `IAGateway`)
 - [x] Actualizar tests
-- [x] Verificar que todo funciona
+- [x] Verificar regressiones (`npm run typecheck` + `npm test`)
 
 ### Integración
 - [x] Test de chat end-to-end
@@ -252,6 +268,8 @@ PORT=3001
 - [x] Test de triggers
 - [x] Métricas fluyen correctamente
 - [x] Tests de integración
+- [x] Sincronización inicial automática de Shop frontend -> backend (`/api/v1/shops/sync`)
+- [x] Smoke release único (`npm run smoke:release`)
 
 ### Evidencia de cierre (2026-03-11)
 - Flujo principal de chat desacoplado de servicio legado y validado por contrato de gateway (`apps/shopify-admin-app/app/routes/api.chat.ts`, `apps/shopify-admin-app/app/services/ia-gateway.server.ts`).
@@ -278,6 +296,12 @@ PORT=3001
 - Backend: Servidor/cloud separate
 - Bases de datos separadas
 - SSL/TLS obligatorio
+
+### Estado operativo actual (2026-03-14)
+- Separación arquitectónica: ✅ OK
+- Go-live operacional: ⚠️ NO-GO hasta resolver:
+  - `OPENAI_API_KEY` inválida en backend (chat falla en smoke).
+  - Knowledge index vacío para `llms.txt` (respuesta sin contenido útil).
 
 ---
 
@@ -320,7 +344,7 @@ interface ApiError {
 
 ### 8.3 Contratos por Endpoint
 
-#### POST /api/chat
+#### POST /api/v1/chat
 
 **Request:**
 ```typescript
@@ -355,15 +379,15 @@ interface ChatResponse {
 }
 ```
 
-#### POST /api/intent/analyze
+#### POST /api/v1/intent/analyze
 
 **Request:**
 ```typescript
 interface IntentAnalyzeRequest {
   sessionId: string;
   visitorId?: string;
-  signals?: BehaviorSignal[];
   context?: {
+    shopId: string;
     currentPage?: string;
     cartValue?: number;
     productViewCount?: number;
@@ -374,17 +398,37 @@ interface IntentAnalyzeRequest {
 **Response:**
 ```typescript
 interface IntentAnalyzeResponse {
-  dominantIntent: string;
-  confidence: number;
-  alternativeIntents: Array<{
-    intent: string;
+  analysis: {
+    sessionId: string;
+    scores: {
+      purchaseIntent: number;
+      abandonmentRisk: number;
+      needsHelp: number;
+      priceShopperRisk: number;
+      browseIntent: number;
+    };
+    dominantIntent: string;
     confidence: number;
-  }>;
-  recommendations: string[];
+    triggers: string[];
+    recommendations: string[];
+    lastAnalyzedAt: string;
+  };
+  signal: {
+    id: string;
+    shopId: string;
+    sessionId: string;
+    visitorId?: string | null;
+    signalType: string;
+    confidence: number;
+    triggerData: Record<string, unknown>;
+    actionTaken?: string | null;
+    outcome?: string | null;
+    createdAt: string;
+  } | null;
 }
 ```
 
-#### POST /api/triggers/evaluate
+#### POST /api/v1/triggers/evaluate
 
 **Request:**
 ```typescript
@@ -399,6 +443,7 @@ interface TriggersEvaluateRequest {
     cartValue?: number;
     productsViewed?: string[];
     exitIntent?: boolean;
+    lastActivityAt?: number;
   };
 }
 ```
@@ -409,20 +454,25 @@ interface TriggersEvaluateResponse {
   evaluations: Array<{
     triggerId: string;
     triggerName: string;
-    shouldTrigger: boolean;
+    decision: 'SEND' | 'WAIT_COOLDOWN' | 'CONDITION_NOT_MET' | 'SKIP';
+    reason: string;
     message?: string;
-    priority: number;
+    score?: number;
+    metadata?: Record<string, unknown>;
   }>;
   recommendation?: {
     triggerId: string;
+    action: string;
     message: string;
-  };
+  } | null;
 }
 ```
 
 ---
 
 ## FASE 9: Guía de Desarrollo por Servicio
+
+Esta sección es historica (referencia de migración ya ejecutada). No define estado canónico.
 
 ### 9.1 Migración de ai-orchestration.server.ts
 
@@ -431,7 +481,7 @@ interface TriggersEvaluateResponse {
 **Pasos:**
 1. Copiar archivo a `src/services/orchestration.ts` del backend
 2. Eliminar imports de Prisma del frontend
-3. Crear endpoint POST /api/chat
+3. Crear endpoint POST /api/v1/chat
 4. Actualizar el cliente iaClient
 5. Actualizar api.chat.ts para usar iaClient.chat.send()
 
@@ -447,7 +497,7 @@ interface TriggersEvaluateResponse {
 
 **Pasos:**
 1. Copiar archivo a `src/services/intent-detection.ts` del backend
-2. Crear endpoint POST /api/intent/analyze
+2. Crear endpoint POST /api/v1/intent/analyze
 3. Actualizar cliente iaClient
 4. Actualizar api.intent.analyze.ts
 
@@ -457,7 +507,7 @@ interface TriggersEvaluateResponse {
 
 **Pasos:**
 1. Copiar archivo a `src/services/embeddings.ts` del backend
-2. Crear endpoint POST /api/embeddings/generate
+2. Crear endpoint POST /api/v1/embeddings/generate
 3. Actualizar cliente iaClient
 4. Actualizar servicios que usan embeddings
 
@@ -467,22 +517,23 @@ interface TriggersEvaluateResponse {
 
 **Pasos:**
 1. Copiar archivo a `src/services/vector-retrieval.ts` del backend
-2. Crear endpoint POST /api/rag/search
+2. Crear endpoint POST /api/v1/rag/search
 3. Integrar con embeddings del mismo backend
 
 ---
 
-## FASE 10: Tabla de Rutas a Migrar
+## FASE 10: Tabla de Rutas Migradas (estado actual)
 
 ### Rutas del Frontend que usan servicios IA
 
 | Ruta | Servicio actual | Backend endpoint | Estado |
 |------|----------------|------------------|--------|
-| api.chat.ts | ai-orchestration | /api/chat | PENDIENTE |
-| api.intent.analyze.ts | intent-detection | /api/intent/analyze | PENDIENTE |
-| api.triggers.evaluate.ts | trigger-evaluation | /api/triggers/evaluate | PENDIENTE |
-| api.llms-txt.ts | llms-txt | /api/llms-txt/generate | PENDIENTE |
-| api.stats.messages.tsx | analytics (parcial) | /api/analytics | PENDIENTE |
+| api.chat.ts | ai-orchestration via `IAGateway` | /api/v1/chat | COMPLETADO |
+| api.intent.analyze.ts | intent-detection via `IAGateway` | /api/v1/intent/analyze | COMPLETADO |
+| api.triggers.evaluate.ts | trigger-evaluation via `IAGateway` | /api/v1/triggers/evaluate | COMPLETADO |
+| api.llms-txt.ts | llms-txt via `LlmsTxtService` -> `iaClient.llms.generate` | /api/v1/llms-txt/generate | COMPLETADO |
+| shop-backend-sync.server.ts | tenant bootstrap frontend -> backend | /api/v1/shops/sync | COMPLETADO |
+| api.stats.messages.tsx | analytics/proactive runtime frontend | N/A | FRONTEND (NO MIGRADO A IA) |
 
 ---
 
@@ -526,4 +577,12 @@ npm test
 # Backend
 cd ~/Documents/fluxbot-studio-back-ia
 npm test
+
+# Sincronización inicial Shop -> backend IA
+cd /home/diegos/Documents/fluxbot-studio-ia
+npm run shops:sync:ia
+
+# Smoke release único (arranca ambos servicios y valida rutas clave)
+cd /home/diegos/Documents/fluxbot-studio-ia
+npm run smoke:release
 ```

@@ -205,8 +205,8 @@ npm --workspace @fluxbot/shopify-admin-app run dev
 
 | File | Purpose | Run with |
 | --- | --- | --- |
-| `/ARCHITECTURE.md` | Full system design | Read in editor |
-| `/QUICK_START.md` | Setup instructions | Read in editor |
+| `/documentation/ARCHITECTURE.md` | Full system design | Read in editor |
+| `/documentation/QUICK_START.md` | Setup instructions | Read in editor |
 | `app/routes/app._index.tsx` | Dashboard entry point | Part of npm run dev |
 | `infra/prisma/schema.prisma` | Database schema | npm run prisma:studio |
 | `.env.example` | Configuration template | cp → edit → .env.local |

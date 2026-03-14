@@ -1,6 +1,6 @@
 # Fase 2: Progreso de Implementación
 
-> Canonical status source: [STATUS_MATRIX.md](./STATUS_MATRIX.md). This document is historical context.
+> Canonical status source: [STATUS_MATRIX.md](../STATUS_MATRIX.md). This document is historical context.
 
 ## ✅ Completado - Event Tracking System (P1.1 + P1.2)
 

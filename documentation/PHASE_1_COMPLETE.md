@@ -2,7 +2,7 @@
 
 > ⚠️ **SUPERSEDED** — Este documento es histórico y puede contener referencias a modelos (`KnowledgeChunk`, `EmbeddingRecord`, `AIProviderConfig`) que ya no existen en este repositorio (fueron movidos a `fluxbot-studio-back-ia`).
 >
-> **Fuente canónica de estado:** [STATUS_MATRIX.md](./STATUS_MATRIX.md)
+> **Fuente canónica de estado:** [STATUS_MATRIX.md](../STATUS_MATRIX.md)
 
 **Status:** ✅ All 10 Core Tasks Completed | 🟢 Ready for functionality testing
 

@@ -6,6 +6,8 @@ La fuente de verdad del estado del producto y de cada fase es `STATUS_MATRIX.md`
 
 Este README ya no mantiene checklists de fase para evitar desalineaciones.
 
+La documentacion historica/completada fue centralizada en `documentation/`.
+
 ### Resumen rápido
 - ✅ Base estable de app Shopify embebida + widget storefront
 - ✅ Fase 1 cerrada en este repo: gateway IA remoto por defecto + order lookup verificado
@@ -57,6 +59,8 @@ npm run dev              # Inicia Shopify CLI + tunnel
 npm run build            # Build de producción
 npm run typecheck        # Validación TypeScript
 npm run lint             # ESLint
+npm run shops:sync:ia    # Sincroniza referencias Shop frontend -> backend IA
+npm run smoke:release    # Levanta release local y valida health, llms, intent, triggers y chat
 ```
 
 ### Testing
@@ -266,8 +270,8 @@ npm run build
 
 ## 📚 Documentación Adicional
 
-- **[QUICK_START.md](./QUICK_START.md)** - Setup en 10 minutos
-- **[ARCHITECTURE.md](./ARCHITECTURE.md)** - Arquitectura completa
+- **[documentation/QUICK_START.md](./documentation/QUICK_START.md)** - Setup en 10 minutos
+- **[documentation/ARCHITECTURE.md](./documentation/ARCHITECTURE.md)** - Arquitectura completa
 - **[STATUS_MATRIX.md](./STATUS_MATRIX.md)** - Estado actual detallado
 - **[.github/copilot-instructions.md](./.github/copilot-instructions.md)** - Reglas arquitectónicas
 - **[AGENTS.md](./AGENTS.md)** - Guías para asistentes IA
@@ -289,7 +293,7 @@ Privado - Todos los derechos reservados
 ## 📚 HISTORICAL & MIGRATION DOCS
 
 ### Phase 1 Complete
-👉 **[PHASE_1_COMPLETE.md](./PHASE_1_COMPLETE.md)** (15 KB)
+👉 **[documentation/PHASE_1_COMPLETE.md](./documentation/PHASE_1_COMPLETE.md)** (15 KB)
 - MVP feature list
 - Implementation checklist
 - Database schema overview
@@ -301,7 +305,7 @@ Privado - Todos los derechos reservados
 **Read if:** You want the Phase 1 delivery report
 
 ### Implementation Guide (Old)
-👉 **[IMPLEMENTATION.md](./IMPLEMENTATION.md)** (11 KB)
+👉 **[documentation/IMPLEMENTATION.md](./documentation/IMPLEMENTATION.md)** (11 KB)
 - Task breakdown for Phase 1
 - Feature ownership matrix
 - Database entity descriptions
@@ -312,7 +316,7 @@ Privado - Todos los derechos reservados
 **Read if:** You need detailed background on Phase 1 choices
 
 ### Migration Notes
-👉 **[MIGRATION.md](./MIGRATION.md)** (8 KB)
+👉 **[documentation/MIGRATION.md](./documentation/MIGRATION.md)** (8 KB)
 - Notes on project evolution
 - Schema updates applied
 - Service refactoring decisions
@@ -328,15 +332,15 @@ Privado - Todos los derechos reservados
 ### Project Root Configuration
 ```
 /
-├── QUICK_START.md                  ← START HERE (setup)
-├── ARCHITECTURE.md                 ← Full guide
+├── documentation/QUICK_START.md                  ← START HERE (setup)
+├── documentation/ARCHITECTURE.md                 ← Full guide
 ├── STATUS_MATRIX.md               ← Status report
-├── RELEASE_NOTES.md                ← What's new
+├── documentation/RELEASE_NOTES.md                ← What's new
 ├── RESTRUCTURING_SUMMARY.md        ← What changed
 ├── AGENTS.md                       ← Engineering rules
-├── PHASE_1_COMPLETE.md             ← Phase 1 summary
-├── IMPLEMENTATION.md               ← Phase 1 details (historical)
-├── MIGRATION.md                    ← Evolution notes (historical)
+├── documentation/PHASE_1_COMPLETE.md             ← Phase 1 summary
+├── documentation/IMPLEMENTATION.md               ← Phase 1 details (historical)
+├── documentation/MIGRATION.md                    ← Evolution notes (historical)
 ├── .github/
 │   └── copilot-instructions.md     ← Copilot rules
 └── apps/                           ← Start doing work here
@@ -356,26 +360,26 @@ Privado - Todos los derechos reservados
 ## 📋 RECOMMENDED READING ORDER
 
 ### For Getting Started (30 minutes)
-1. **QUICK_START.md** (10 min) — Get database + env running
-2. **RELEASE_NOTES.md** (5 min) — Understand what you have
-3. **ARCHITECTURE.md** (15 min, skim) — Reference as needed
+1. **documentation/QUICK_START.md** (10 min) — Get database + env running
+2. **documentation/RELEASE_NOTES.md** (5 min) — Understand what you have
+3. **documentation/ARCHITECTURE.md** (15 min, skim) — Reference as needed
 
 ### For Deep Dive (2 hours)
-1. **ARCHITECTURE.md** (30 min) — Full system design
+1. **documentation/ARCHITECTURE.md** (30 min) — Full system design
 2. **STATUS_MATRIX.md** (20 min) — Status & metrics
 3. **RESTRUCTURING_SUMMARY.md** (20 min) — What changed
-4. **PHASE_1_COMPLETE.md** (20 min) — Phase 1 achievements
+4. **documentation/PHASE_1_COMPLETE.md** (20 min) — Phase 1 achievements
 5. **AGENTS.md** (30 min) — Engineering guidelines
 
 ### For Code Contributions (1 hour)
 1. **AGENTS.md** (30 min) — Read quality standards
-2. **ARCHITECTURE.md** (quick reference, 15 min)
+2. **documentation/ARCHITECTURE.md** (quick reference, 15 min)
 3. **RESTRUCTURING_SUMMARY.md** (15 min) — Know the structure
 
 ### For Infrastructure/Ops (1 hour)
-1. **QUICK_START.md** (10 min) — Setup instructions
+1. **documentation/QUICK_START.md** (10 min) — Setup instructions
 2. **STATUS_MATRIX.md** (20 min) — Deployment readiness
-3. **ARCHITECTURE.md** section on "Deployment Readiness" (15 min)
+3. **documentation/ARCHITECTURE.md** section on "Deployment Readiness" (15 min)
 4. **infra/docker/** folder (15 min) — Docker setup
 
 ---
@@ -386,13 +390,13 @@ Privado - Todos los derechos reservados
 
 | Question | Document | Section |
 | --- | --- | --- |
-| ...start the project? | QUICK_START.md | Steps 1-4 |
-| ...understand the architecture? | ARCHITECTURE.md | Sections 2-3 |
-| ...set up PostgreSQL? | QUICK_START.md | Step 1 |
-| ...configure environment? | QUICK_START.md | Step 2 |
-| ...run migrations? | QUICK_START.md | Step 3 |
-| ...add a new service? | ARCHITECTURE.md | Modules section |
-| ...understand the database? | ARCHITECTURE.md | Section 9 |
+| ...start the project? | documentation/QUICK_START.md | Steps 1-4 |
+| ...understand the architecture? | documentation/ARCHITECTURE.md | Sections 2-3 |
+| ...set up PostgreSQL? | documentation/QUICK_START.md | Step 1 |
+| ...configure environment? | documentation/QUICK_START.md | Step 2 |
+| ...run migrations? | documentation/QUICK_START.md | Step 3 |
+| ...add a new service? | documentation/ARCHITECTURE.md | Modules section |
+| ...understand the database? | documentation/ARCHITECTURE.md | Section 9 |
 | ...deploy to production? | STATUS_MATRIX.md | Deployment section |
 | ...write code that follows rules? | AGENTS.md | All sections |
 | ...see what changed? | RESTRUCTURING_SUMMARY.md | All sections |
@@ -402,14 +406,14 @@ Privado - Todos los derechos reservados
 
 | Topic | Document |
 | --- | --- |
-| AI/LLM integration | ARCHITECTURE.md (AI/ML Stack) |
-| Shopify integration | ARCHITECTURE.md (Shopify Integration) |
-| Database design | ARCHITECTURE.md + schema.prisma |
-| Security & compliance | ARCHITECTURE.md + AGENTS.md |
-| Services architecture | ARCHITECTURE.md (Modules) |
+| AI/LLM integration | documentation/ARCHITECTURE.md (AI/ML Stack) |
+| Shopify integration | documentation/ARCHITECTURE.md (Shopify Integration) |
+| Database design | documentation/ARCHITECTURE.md + schema.prisma |
+| Security & compliance | documentation/ARCHITECTURE.md + AGENTS.md |
+| Services architecture | documentation/ARCHITECTURE.md (Modules) |
 | Workspace structure | RESTRUCTURING_SUMMARY.md |
 | Build & deployment | STATUS_MATRIX.md |
-| Phase planning | PHASE_1_COMPLETE.md |
+| Phase planning | documentation/PHASE_1_COMPLETE.md |
 | Code quality standards | AGENTS.md |
 
 ---
@@ -418,29 +422,29 @@ Privado - Todos los derechos reservados
 
 | Document | Size | Time | Focus |
 | --- | --- | --- | --- |
-| QUICK_START.md | 7 KB | 10 min | Setup & first run |
-| ARCHITECTURE.md | 16 KB | 20-30 min | Full system design |
+| documentation/QUICK_START.md | 7 KB | 10 min | Setup & first run |
+| documentation/ARCHITECTURE.md | 16 KB | 20-30 min | Full system design |
 | RESTRUCTURING_SUMMARY.md | 13 KB | 15 min | What changed |
 | STATUS_MATRIX.md | 14 KB | 10-15 min | Status snapshot |
-| RELEASE_NOTES.md | 8 KB | 5-10 min | Overview |
+| documentation/RELEASE_NOTES.md | 8 KB | 5-10 min | Overview |
 | AGENTS.md | 18 KB | 30 min | Engineering rules |
-| PHASE_1_COMPLETE.md | 15 KB | 15 min | MVP delivery |
-| IMPLEMENTATION.md | 11 KB | 15 min | Phase 1 details |
-| MIGRATION.md | 8 KB | 10 min | Evolution notes |
+| documentation/PHASE_1_COMPLETE.md | 15 KB | 15 min | MVP delivery |
+| documentation/IMPLEMENTATION.md | 11 KB | 15 min | Phase 1 details |
+| documentation/MIGRATION.md | 8 KB | 10 min | Evolution notes |
 | **TOTAL** | **~110 KB** | **2-3 hours** | Full coverage |
 
 ---
 
 ## ✅ CHECKLIST: What Each Doc Covers
 
-### QUICK_START.md
+### documentation/QUICK_START.md
 - ✅ PostgreSQL setup
 - ✅ Environment configuration
 - ✅ Database migrations
 - ✅ Starting dev server
 - ✅ Verification steps
 
-### ARCHITECTURE.md
+### documentation/ARCHITECTURE.md
 - ✅ Project vision
 - ✅ Monorepo structure
 - ✅ Technology stack
@@ -465,7 +469,7 @@ Privado - Todos los derechos reservados
 - ✅ Deployment readiness
 - ✅ Quality metrics
 
-### RELEASE_NOTES.md
+### documentation/RELEASE_NOTES.md
 - ✅ Quick start commands
 - ✅ File structure reference
 - ✅ Common tasks
@@ -485,26 +489,26 @@ Privado - Todos los derechos reservados
 
 ### Services Layer
 - **Code location:** `/services/*/src/*.service.ts`
-- **Design doc:** ARCHITECTURE.md (Module section)
+- **Design doc:** documentation/ARCHITECTURE.md (Module section)
 - **Example:** Services for AI, ingestion, sync, analytics
 - **Next steps:** Ver `STATUS_MATRIX.md` para ownership actual y trabajo incremental
 
 ### Database
 - **Schema location:** `/infra/prisma/schema.prisma`
-- **Design doc:** ARCHITECTURE.md (Database section)
-- **Status:** PHASE_1_COMPLETE.md
-- **Setup:** QUICK_START.md
+- **Design doc:** documentation/ARCHITECTURE.md (Database section)
+- **Status:** documentation/PHASE_1_COMPLETE.md
+- **Setup:** documentation/QUICK_START.md
 
 ### Frontend
 - **Code location:** `/apps/shopify-admin-app/app/routes/`
-- **Design doc:** ARCHITECTURE.md (Delivery Layer)
+- **Design doc:** documentation/ARCHITECTURE.md (Delivery Layer)
 - **Status:** 8 dashboard pages ready
 - **Next steps:** Ver `STATUS_MATRIX.md` para follow-up actual del frontend/runtime
 
 ### Compliance
 - **Framework location:** `/packages/compliance/`
 - **Rules:** AGENTS.md (Security section)
-- **Guidelines:** ARCHITECTURE.md (Security & Compliance)
+- **Guidelines:** documentation/ARCHITECTURE.md (Security & Compliance)
 
 ---
 
@@ -512,16 +516,16 @@ Privado - Todos los derechos reservados
 
 ### "I just arrived here"
 ```
-1. Read QUICK_START.md (10 min)
+1. Read documentation/QUICK_START.md (10 min)
 2. Run PostgreSQL + npm run dev
-3. Read ARCHITECTURE.md overview
+3. Read documentation/ARCHITECTURE.md overview
 4. Explore admin dashboard
 5. Read rest of docs as needed
 ```
 
 ### "I'm assigned a task"
 ```
-1. Find relevant section in ARCHITECTURE.md
+1. Find relevant section in documentation/ARCHITECTURE.md
 2. Check AGENTS.md for code standards
 3. Look at related service in /services/
 4. Implement following rules
@@ -531,17 +535,17 @@ Privado - Todos los derechos reservados
 ### "There's a problem"
 ```
 1. Check STATUS_MATRIX.md (known limitations)
-2. Check ARCHITECTURE.md troubleshooting
-3. Check QUICK_START.md troubleshooting
+2. Check documentation/ARCHITECTURE.md troubleshooting
+3. Check documentation/QUICK_START.md troubleshooting
 4. Check relevant service code
 5. File an issue with details
 ```
 
 ### "I want to add a feature"
 ```
-1. Check PHASE_1_COMPLETE.md (what's done)
+1. Check documentation/PHASE_1_COMPLETE.md (what's done)
 2. Check STATUS_MATRIX.md (what's next)
-3. Read ARCHITECTURE.md (relevant section)
+3. Read documentation/ARCHITECTURE.md (relevant section)
 4. Follow AGENTS.md standards
 5. Implement in appropriate layer (routes, services, etc)
 ```
@@ -554,13 +558,13 @@ Privado - Todos los derechos reservados
 → Re-read the relevant section with fresh eyes
 
 ### Code Questions
-→ Check AGENTS.md + ARCHITECTURE.md + service examples
+→ Check AGENTS.md + documentation/ARCHITECTURE.md + service examples
 
 ### Architecture Questions
-→ Read ARCHITECTURE.md fully
+→ Read documentation/ARCHITECTURE.md fully
 
 ### Setup Problems
-→ Check QUICK_START.md troubleshooting section
+→ Check documentation/QUICK_START.md troubleshooting section
 
 ### Breaking Changes
 → Check RESTRUCTURING_SUMMARY.md breaking changes
@@ -583,9 +587,9 @@ All documentation is:
 
 ## 🚀 YOU'RE READY!
 
-Pick a document above and get started. Most people begin with **QUICK_START.md** for setup, then read slowly through **ARCHITECTURE.md** to understand the system.
+Pick a document above and get started. Most people begin with **documentation/QUICK_START.md** for setup, then read slowly through **documentation/ARCHITECTURE.md** to understand the system.
 
-**Next:** 👉 [QUICK_START.md](./QUICK_START.md)
+**Next:** 👉 [documentation/QUICK_START.md](./documentation/QUICK_START.md)
 
 ---
 

@@ -1,6 +1,6 @@
 # Implementation Status Matrix (Canonical)
 
-Last updated: 2026-03-13
+Last updated: 2026-03-14
 
 This is the only source of truth for implementation status in `fluxbot-studio-ia`.
 
@@ -17,6 +17,10 @@ Validation snapshot (2026-03-13):
 - `npm run typecheck` ✅
 - `npm test` ✅ (`52/52` files, `965/965` tests, including Phase 0 `68/68`)
 - `fluxbot-studio-back-ia`: `npm run build` ✅ and `npm test` ✅ (`3/3` files, `29/29` tests)
+
+Documentation audit snapshot (2026-03-14):
+- `SEPARATION_PLAN.md` audited and aligned to versioned contracts (`/api/v1/*`) and current migration status.
+- `documentation/REFACTORING_SEPARATION.md` confirmed as the active technical separation specification path.
 
 ## Ownership Model
 
@@ -51,7 +55,7 @@ Backend repo (`fluxbot-studio-back-ia`) owns:
 | Phase 2 | Proactive messaging orchestration split (decisioning back, dispatch front) | Shared | Decisioning remote-only, dispatch frontend | DONE | `apps/shopify-admin-app/app/services/proactive-messaging.server.ts`, `apps/shopify-admin-app/app/services/ia-gateway.server.ts`, `apps/shopify-admin-app/app/services/delivery.server.ts`, `apps/shopify-admin-app/app/services/omnichannel-bridge.server.ts`, `apps/shopify-admin-app/test/unit/proactive-messaging.test.ts` | Keep delivery retries and cooldown-side effects in frontend until cross-process persistence is needed |
 | Phase 2 | Advanced reranking and IA recommendation quality pipeline | Backend IA | Remote-only via gateway with quality params contract | DONE | `apps/shopify-admin-app/app/services/rag-builder.server.ts`, `apps/shopify-admin-app/app/services/ia-backend.client.ts`, `apps/shopify-admin-app/app/routes/api.rag.quality.ts`, `apps/shopify-admin-app/test/integration/rag-remote-gateway.test.ts`, `apps/shopify-admin-app/test/integration/rag-quality-route.test.ts` | Backend implements quality params (`minScore`, `rerankStrategy`, `topK`, `qualityMetadata`) against the versioned `/api/v1/rag/search` contract |
 | Phase 3 | Omnichannel delivery and callback operations (WhatsApp/Instagram/SMS/Email) | Frontend | Frontend | DONE | `apps/shopify-admin-app/app/services/delivery.server.ts`, `apps/shopify-admin-app/app/services/omnichannel-bridge.server.ts`, `apps/shopify-admin-app/app/routes/api.omnichannel.delivery-callback.ts` | Add provider-specific onboarding and merchant controls |
-| Phase 3 | `llms.txt` publishing surface aligned to separated backend | Shared (backend generates, frontend publishes) | Backend generation + frontend publication only | DONE | `apps/shopify-admin-app/app/services/llms-txt.server.ts`, `apps/shopify-admin-app/app/routes/api.llms-txt.ts`, `apps/shopify-admin-app/app/routes/llms[.]txt.ts`, `apps/shopify-admin-app/test/integration/llms-routes.test.ts`, `REFACTORING_SEPARATION.md` | Keep publishing routes stable and version the backend generator contract |
+| Phase 3 | `llms.txt` publishing surface aligned to separated backend | Shared (backend generates, frontend publishes) | Backend generation + frontend publication only | DONE | `apps/shopify-admin-app/app/services/llms-txt.server.ts`, `apps/shopify-admin-app/app/routes/api.llms-txt.ts`, `apps/shopify-admin-app/app/routes/llms[.]txt.ts`, `apps/shopify-admin-app/test/integration/llms-routes.test.ts`, `documentation/REFACTORING_SEPARATION.md` | Keep publishing routes stable and version the backend generator contract |
 | Phase 3 | Marketing automations and advanced multilingual decisioning | Shared (frontend campaign surfaces, backend audience decisioning) | Frontend campaign CRUD/dispatch + multilingual template resolution + automatic campaign dispatch hook from remote trigger decisioning | DONE | `infra/prisma/schema.prisma`, `apps/shopify-admin-app/app/services/campaign.server.ts`, `apps/shopify-admin-app/app/routes/api.campaigns.ts`, `apps/shopify-admin-app/app/routes/api.campaigns.$id.ts`, `apps/shopify-admin-app/app/routes/api.campaigns.$id.dispatch.ts`, `apps/shopify-admin-app/app/routes/app.campaigns.tsx`, `apps/shopify-admin-app/app/services/proactive-messaging.server.ts`, `apps/shopify-admin-app/test/unit/campaign-service.test.ts`, `apps/shopify-admin-app/test/integration/campaigns-routes.test.ts`, `apps/shopify-admin-app/test/unit/proactive-messaging.test.ts` | Backend IA should continue emitting `campaignId`/campaign metadata in trigger recommendation payloads to maximize campaign-level dispatch coverage |
 | Phase 4 | Enterprise compliance, governance and regional controls | Frontend | Frontend | DONE | `apps/shopify-admin-app/app/routes/api.compliance.enterprise.ts`, `apps/shopify-admin-app/app/routes/app.privacy.tsx`, `apps/shopify-admin-app/app/services/enterprise-compliance.server.ts`, `apps/shopify-admin-app/app/jobs/scheduler.server.ts`, `apps/shopify-admin-app/test/integration/enterprise-compliance.test.ts`, `infra/prisma/schema.prisma` | Expand enterprise connectors (SIEM/export pipelines, legal hold workflows, and regional deployment controls) |
 | Phase 5 | Enterprise connector hardening (SIEM export pipeline, legal hold workflow, regional deployment controls) | Frontend | Frontend | DONE | `apps/shopify-admin-app/app/services/enterprise-compliance.server.ts`, `apps/shopify-admin-app/app/routes/api.compliance.enterprise.ts`, `apps/shopify-admin-app/app/routes/app.privacy.tsx`, `apps/shopify-admin-app/test/integration/enterprise-compliance.test.ts`, `apps/shopify-admin-app/test/integration/enterprise-compliance-route.test.ts` | Integrate external SIEM adapters (Datadog/Splunk), persist legal holds/deployment policies in DB, and add legal-hold scoped retention exclusions per data class |
@@ -61,18 +65,18 @@ Backend repo (`fluxbot-studio-back-ia`) owns:
 
 ## Documentation Alignment
 
-Aligned on 2026-03-11:
+Aligned on 2026-03-14:
 - `README.md` now points to this matrix for repo status
 - `apps/shopify-admin-app/README.md` now uses this matrix instead of keeping its own V2/V3 checklist
-- `PROJECT_STATUS.md`, `ARCHITECTURE.md` and `SEPARATION_PLAN.md` are now explicitly marked as historical or non-canonical for phase tracking
+- `documentation/PROJECT_STATUS.md`, `documentation/ARCHITECTURE.md` and `SEPARATION_PLAN.md` are now explicitly marked as historical or non-canonical for phase tracking
 - Historical `PHASE_*.md` documents must remain implementation diaries only
 
 Phase coverage reference:
 - Phase 0: `apps/shopify-admin-app/test/README.md` and `apps/shopify-admin-app/test/phase0/` provide regression evidence only; status remains canonical here.
-- Phase 1: `PHASE_1_COMPLETE.md`, `PHASE_1_SETUP.md` and `apps/shopify-admin-app/test/phase1/README.md` are historical/setup references only.
-- Phase 2: `PHASE_2_PLAN.md`, `PHASE_2_PROGRESS.md`, `PHASE_2_PROGRESS_FINAL.md`, `PHASE_2_STATUS.md` and `PHASE_2_SUMMARY.md` are non-canonical and must defer to this matrix.
-- Phase 3: `PHASE_3_PROGRESS.md` is non-canonical and must defer to this matrix.
-- Phase 4: `PHASE_4_PLAN.md` is a planning artifact only and must not define live status.
+- Phase 1: `documentation/PHASE_1_COMPLETE.md`, `documentation/PHASE_1_SETUP.md` and `apps/shopify-admin-app/test/phase1/README.md` are historical/setup references only.
+- Phase 2: `documentation/PHASE_2_PLAN.md`, `documentation/PHASE_2_PROGRESS.md`, `documentation/PHASE_2_PROGRESS_FINAL.md`, `documentation/PHASE_2_STATUS.md` and `documentation/PHASE_2_SUMMARY.md` are non-canonical and must defer to this matrix.
+- Phase 3: `documentation/PHASE_3_PROGRESS.md` is non-canonical and must defer to this matrix.
+- Phase 4: `documentation/PHASE_4_PLAN.md` is a planning artifact only and must not define live status.
 - Phase 5: no standalone `PHASE_5_*.md` document exists today; Phase 5 status is maintained only in this matrix until one is created.
 - Phase 6: closure checklist tracked in `SEPARATION_PLAN.md` (non-canonical for runtime status; canonical state remains this matrix).
 - Phase 7: widget publication operations are implemented in `app.widget-publish.tsx` and verified by `widget-publish-route.test.ts`.
@@ -81,17 +85,19 @@ Phase coverage reference:
 The files below are non-canonical and must not maintain independent phase state:
 - `README.md`
 - `apps/shopify-admin-app/README.md`
-- `PROJECT_STATUS.md`
-- `ARCHITECTURE.md`
+- `documentation/README.md`
+- `documentation/PROJECT_STATUS.md`
+- `documentation/ARCHITECTURE.md`
+- `documentation/REFACTORING_SEPARATION.md`
 - `SEPARATION_PLAN.md`
-- `PHASE_1_COMPLETE.md`
-- `PHASE_1_SETUP.md`
-- `PHASE_2_PLAN.md`
-- `PHASE_2_PROGRESS.md`
-- `PHASE_2_PROGRESS_FINAL.md`
-- `PHASE_2_STATUS.md`
-- `PHASE_2_SUMMARY.md`
-- `PHASE_3_PROGRESS.md`
-- `PHASE_4_PLAN.md`
-- `PHASE_6_*` documents if created later
+- `documentation/PHASE_1_COMPLETE.md`
+- `documentation/PHASE_1_SETUP.md`
+- `documentation/PHASE_2_PLAN.md`
+- `documentation/PHASE_2_PROGRESS.md`
+- `documentation/PHASE_2_PROGRESS_FINAL.md`
+- `documentation/PHASE_2_STATUS.md`
+- `documentation/PHASE_2_SUMMARY.md`
+- `documentation/PHASE_3_PROGRESS.md`
+- `documentation/PHASE_4_PLAN.md`
+- `documentation/PHASE_6_*` documents if created later
 - Other `PHASE_*.md` documents

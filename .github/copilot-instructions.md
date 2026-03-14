@@ -793,3 +793,12 @@ La primera entrega debe ser un documento de arquitectura inicial que responda:
 - qué epics y stories forman el roadmap
 
 Solo después de eso puedes empezar a generar los archivos del proyecto.
+
+# Estrategia de actualización de repositorio
+A medida que avances, debes mantener la base de código organizada. Prioriza:
+- refactorizaciones incrementales
+- modularización progresiva
+- limpieza de deuda técnica en cada paso
+- mantener tests verdes en todo momento
+- documentar claramente cada cambio significativo.
+Commitear cada rango de modificaciones por grupo de tareas relacionadas, secuencialmente, y con mensajes claros. Para poder seguir un trazo de evolución del código a lo largo del tiempo.

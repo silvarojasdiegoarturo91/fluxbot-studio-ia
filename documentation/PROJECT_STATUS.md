@@ -1,6 +1,6 @@
 # Project Status — Historical Snapshot (March 8, 2025)
 
-> Canonical current status lives in [STATUS_MATRIX.md](./STATUS_MATRIX.md). Repo-local state on 2026-03-11: Phases 2, 3, 4, 5 and 6 are `DONE` in this repository.
+> Canonical current status lives in [STATUS_MATRIX.md](../STATUS_MATRIX.md). Repo-local state on 2026-03-11: Phases 2, 3, 4, 5 and 6 are `DONE` in this repository.
 
 **Overall Progress:** Historical Phase 1 handoff snapshot, superseded by `STATUS_MATRIX.md`
 

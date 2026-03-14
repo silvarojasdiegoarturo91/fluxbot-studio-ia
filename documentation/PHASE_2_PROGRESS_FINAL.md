@@ -1,6 +1,6 @@
 # Phase 2 Implementation Status - Updated
 
-> Canonical status source: [STATUS_MATRIX.md](./STATUS_MATRIX.md). This document is historical context.
+> Canonical status source: [STATUS_MATRIX.md](../STATUS_MATRIX.md). This document is historical context.
 
 ## Overall Progress: 44% Complete (4/9 priorities)
 

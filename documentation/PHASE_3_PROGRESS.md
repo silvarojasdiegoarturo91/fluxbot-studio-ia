@@ -1,6 +1,6 @@
 # Phase 3 Implementation Status - Omnichannel & Operations
 
-> Canonical status source: [STATUS_MATRIX.md](./STATUS_MATRIX.md). This document is historical context.
+> Canonical status source: [STATUS_MATRIX.md](../STATUS_MATRIX.md). This document is historical context.
 
 ## Overall Progress: 100% Complete ✅
 

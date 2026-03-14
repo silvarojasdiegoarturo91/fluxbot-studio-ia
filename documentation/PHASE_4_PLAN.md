@@ -1,6 +1,6 @@
 # Phase 4: MVP Completion + Production Readiness
 
-> Canonical status source: [STATUS_MATRIX.md](./STATUS_MATRIX.md). This document is historical context.
+> Canonical status source: [STATUS_MATRIX.md](../STATUS_MATRIX.md). This document is historical context.
 
 **Status:** Planning Phase (commencing immediately)  
 **Objective:** Complete remaining MVP gaps and prepare for production deployment  

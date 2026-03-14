@@ -1,6 +1,6 @@
 # Phase 1 Setup Guide
 
-> Canonical status source: [STATUS_MATRIX.md](./STATUS_MATRIX.md). This document is historical context.
+> Canonical status source: [STATUS_MATRIX.md](../STATUS_MATRIX.md). This document is historical context.
 
 ## Prerequisites Checklist
 

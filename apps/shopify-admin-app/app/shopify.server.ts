@@ -7,6 +7,7 @@ import {
 import { DeliveryMethod } from "@shopify/shopify-api";
 import { PrismaSessionStorage } from "@shopify/shopify-app-session-storage-prisma";
 import prisma from "./db.server";
+import { ensureShopForSession } from "./services/shop-context.server";
 
 const shopify = shopifyApp({
   apiKey: process.env.SHOPIFY_API_KEY,
@@ -68,6 +69,7 @@ const shopify = shopifyApp({
   },
   hooks: {
     afterAuth: async ({ session }) => {
+      await ensureShopForSession(session);
       await shopify.registerWebhooks({ session });
     },
   },

@@ -1,6 +1,6 @@
 # Phase 2 Implementation Status (Historical Notes)
 
-> Canonical status source: [STATUS_MATRIX.md](./STATUS_MATRIX.md). This document is historical context.
+> Canonical status source: [STATUS_MATRIX.md](../STATUS_MATRIX.md). This document is historical context.
 >
 > Current repo-local status on 2026-03-11: Phase 2 and Phase 3 are `DONE` in this repository.
 
