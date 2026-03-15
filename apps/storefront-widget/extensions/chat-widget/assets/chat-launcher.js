@@ -455,6 +455,27 @@
       launcherAvatarStyle = config.avatarStyle;
     }
 
+    // Apply primary color from admin config
+    if (typeof config.primaryColor === 'string' && /^#[0-9a-fA-F]{6}$/.test(config.primaryColor)) {
+      document.documentElement.style.setProperty('--fluxbot-primary-color', config.primaryColor);
+    }
+
+    // Apply launcher position from admin config
+    if (config.launcherPosition === 'bottom-left' || config.launcherPosition === 'bottom-right') {
+      if (launcher) {
+        launcher.classList.remove('fluxbot-launcher--bottom-right', 'fluxbot-launcher--bottom-left');
+        launcher.classList.add('fluxbot-launcher--' + config.launcherPosition);
+      }
+    }
+
+    // Apply welcome message from admin config (update first bot bubble if present)
+    if (typeof config.welcomeMessage === 'string' && config.welcomeMessage.trim() && messagesContainer) {
+      var firstBubble = messagesContainer.querySelector('.fluxbot-message--assistant .fluxbot-message__content');
+      if (firstBubble) {
+        firstBubble.textContent = config.welcomeMessage.trim();
+      }
+    }
+
     applyLauncherPresentation();
   }
 
