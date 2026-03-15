@@ -21,6 +21,9 @@
   var MESSAGES_ENDPOINT = '/apps/fluxbot/messages/'; // + sessionId
   var CONSENT_ENDPOINT  = '/apps/fluxbot/consent';
   var HANDOFF_ENDPOINT  = '/apps/fluxbot/handoff';
+  var CONFIG_ENDPOINT   = '/apps/fluxbot/widget-config';
+  // Avoid ngrok browser warning interstitials on same-origin proxy requests.
+  var PROXY_BYPASS_HEADER = 'ngrok-skip-browser-warning';
 
   // ─── W5 — i18n ──────────────────────────────────────────────────────────────
   var I18N = {
@@ -278,6 +281,8 @@
   var proactivePollTimer = null;
   var dwellTimer        = null;
   var scrollDepthReported = {};
+  var launcherLabelText = '';
+  var launcherAvatarStyle = 'assistant';
 
   // W6 — Rate limiting
   var msgTimestamps  = [];
@@ -351,13 +356,15 @@
     // W5 — Localise static labels
     chatInput.setAttribute('placeholder', i18n.inputPlaceholder);
     chatInput.setAttribute('aria-label', i18n.inputPlaceholder);
-    launcherButton.setAttribute('aria-label', i18n.openChat);
     var closeBtn = chatWindow.querySelector('.fluxbot-chat-window__close');
     if (closeBtn) closeBtn.setAttribute('aria-label', i18n.closeChat);
     var submitBtn = chatForm.querySelector('.fluxbot-chat-form__submit');
     if (submitBtn) submitBtn.setAttribute('aria-label', i18n.sendMessage);
     var branding = chatWindow.querySelector('.fluxbot-chat-window__branding');
     if (branding) branding.textContent = i18n.poweredBy;
+
+    applyLauncherPresentation();
+    loadRemoteWidgetConfig();
 
     // W5 — RTL for Arabic
     if (locale.toLowerCase().startsWith('ar')) {
@@ -384,6 +391,87 @@
 
     // W1 — Product view detection
     detectProductView();
+  }
+
+  function getLauncherIconMarkup(style) {
+    if (style === 'spark') {
+      return '<path d="M12 3L13.9 8.1L19 10L13.9 11.9L12 17L10.1 11.9L5 10L10.1 8.1L12 3Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>' +
+        '<path d="M19 4V7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>' +
+        '<path d="M20.5 5.5H17.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>';
+    }
+
+    if (style === 'store') {
+      return '<path d="M4 10H20V20H4V10Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>' +
+        '<path d="M3 10L5 5H19L21 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>' +
+        '<path d="M9 20V14H15V20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>';
+    }
+
+    return '<path d="M21 11.5C21.0034 12.8199 20.6951 14.1219 20.1 15.3C19.3944 16.7118 18.3098 17.8992 16.9674 18.7293C15.6251 19.5594 14.0782 19.9994 12.5 20C11.1801 20.0035 9.87812 19.6951 8.7 19.1L3 21L4.9 15.3C4.30493 14.1219 3.99656 12.8199 4 11.5C4.00061 9.92179 4.44061 8.37488 5.27072 7.03258C6.10083 5.69028 7.28825 4.6056 8.7 3.90003C9.87812 3.30496 11.1801 2.99659 12.5 3.00003H13C15.0843 3.11502 17.053 3.99479 18.5291 5.47089C20.0052 6.94699 20.885 8.91568 21 11V11.5Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>';
+  }
+
+  function updateLauncherButtonA11y() {
+    if (!launcherButton) return;
+
+    if (isOpen) {
+      launcherButton.setAttribute('aria-label', i18n.closeChat);
+      return;
+    }
+
+    launcherButton.setAttribute(
+      'aria-label',
+      launcherLabelText ? i18n.openChat + ': ' + launcherLabelText : i18n.openChat
+    );
+  }
+
+  function applyLauncherPresentation() {
+    if (!launcher || !launcherButton) return;
+
+    var chatIcon = launcherButton.querySelector('.fluxbot-launcher__icon--chat');
+    if (chatIcon) {
+      chatIcon.innerHTML = getLauncherIconMarkup(launcherAvatarStyle);
+    }
+
+    var label = launcher.querySelector('.fluxbot-launcher__label');
+    if (label) {
+      if (launcherLabelText) {
+        label.textContent = launcherLabelText;
+        label.hidden = false;
+      } else {
+        label.textContent = '';
+        label.hidden = true;
+      }
+    }
+
+    updateLauncherButtonA11y();
+  }
+
+  function applyRemoteWidgetConfig(config) {
+    if (!config || typeof config !== 'object') return;
+
+    var nextLabel = sanitizeAttr(config.launcherLabel);
+    launcherLabelText = nextLabel ? nextLabel.slice(0, 64) : '';
+
+    if (config.avatarStyle === 'assistant' || config.avatarStyle === 'spark' || config.avatarStyle === 'store') {
+      launcherAvatarStyle = config.avatarStyle;
+    }
+
+    applyLauncherPresentation();
+  }
+
+  function loadRemoteWidgetConfig() {
+    fetch(CONFIG_ENDPOINT, {
+      method: 'GET',
+      headers: buildProxyHeaders(),
+    })
+      .then(function (res) {
+        if (!res.ok) return null;
+        return res.json();
+      })
+      .then(function (payload) {
+        if (!payload || payload.success !== true || !payload.widgetBranding) return;
+        applyRemoteWidgetConfig(payload.widgetBranding);
+      })
+      .catch(function () {});
   }
 
   // ─── W1 — Behavioral tracking ─────────────────────────────────────────────
@@ -447,8 +535,8 @@
     isOpen = true;
     chatWindow.hidden = false;
     launcherButton.setAttribute('aria-expanded', 'true');
-    launcherButton.setAttribute('aria-label', i18n.closeChat);
     launcher.classList.add('fluxbot-launcher--open');
+    updateLauncherButtonA11y();
 
     if (!hasConsent) {
       showConsentOverlay();
@@ -466,8 +554,8 @@
     isOpen = false;
     chatWindow.hidden = true;
     launcherButton.setAttribute('aria-expanded', 'false');
-    launcherButton.setAttribute('aria-label', i18n.openChat);
     launcher.classList.remove('fluxbot-launcher--open');
+    updateLauncherButtonA11y();
     trackEvent('chat_closed');
   }
 
@@ -563,13 +651,23 @@
     if (o) { o.hidden = false; } else { renderConsentBanner(); }
   }
 
+  function buildProxyHeaders(contentType) {
+    var headers = {
+      Accept: 'application/json',
+    };
+    headers[PROXY_BYPASS_HEADER] = 'true';
+
+    if (contentType) {
+      headers['Content-Type'] = contentType;
+    }
+
+    return headers;
+  }
+
   function buildJsonRequestOptions(method, payload, keepalive) {
     return {
       method: method,
-      headers: {
-        'Content-Type': 'text/plain;charset=UTF-8',
-        'Accept': 'application/json',
-      },
+      headers: buildProxyHeaders('text/plain;charset=UTF-8'),
       body: JSON.stringify(payload),
       keepalive: !!keepalive,
     };
@@ -895,7 +993,7 @@
     if (!hasConsent || !sessionId) return;
     try {
       var res = await fetch(MESSAGES_ENDPOINT + encodeURIComponent(sessionId), {
-        method: 'GET', headers: { 'Accept': 'application/json' },
+        method: 'GET', headers: buildProxyHeaders(),
       });
       if (!res.ok) return;
       var data = await res.json();

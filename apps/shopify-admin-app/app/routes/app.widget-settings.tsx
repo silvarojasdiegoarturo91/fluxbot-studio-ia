@@ -5,6 +5,7 @@ import {
   Button,
   Card,
   FormLayout,
+  InlineStack,
   Layout,
   Page,
   Select,
@@ -160,13 +161,34 @@ export default function WidgetSettingsPage() {
                   />
                   <input type="hidden" name="launcherPosition" value={launcherPosition} />
 
-                  <TextField
-                    label={isEs ? "Color principal" : "Primary color"}
-                    value={primaryColor}
-                    onChange={setPrimaryColor}
-                    autoComplete="off"
-                    helpText={isEs ? "Formato HEX, por ejemplo #008060" : "HEX format, for example #008060"}
-                  />
+                  <BlockStack gap="100">
+                    <Text as="span" variant="bodyMd" fontWeight="medium">
+                      {isEs ? "Color principal" : "Primary color"}
+                    </Text>
+                    <InlineStack gap="200" blockAlign="center">
+                      <input
+                        type="color"
+                        value={/^#[0-9a-fA-F]{6}$/.test(primaryColor) ? primaryColor : "#008060"}
+                        onChange={(e) => setPrimaryColor(e.target.value)}
+                        style={{
+                          width: 44,
+                          height: 36,
+                          padding: "2px",
+                          border: "1px solid #8c9196",
+                          borderRadius: "6px",
+                          cursor: "pointer",
+                        }}
+                      />
+                      <TextField
+                        label=""
+                        labelHidden
+                        value={primaryColor}
+                        onChange={setPrimaryColor}
+                        autoComplete="off"
+                        placeholder="#008060"
+                      />
+                    </InlineStack>
+                  </BlockStack>
                   <input type="hidden" name="primaryColor" value={primaryColor} />
 
                   <TextField

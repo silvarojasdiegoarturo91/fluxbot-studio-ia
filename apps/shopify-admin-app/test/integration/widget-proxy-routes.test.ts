@@ -306,4 +306,65 @@ describe("widget proxy routes", () => {
       }),
     });
   });
+
+  it("returns launcherLabel and avatarStyle from admin setup metadata", async () => {
+    mockShopFindUnique.mockResolvedValue({
+      metadata: {
+        adminSetup: {
+          widgetBranding: {
+            launcherLabel: "Compra ahora",
+            avatarStyle: "spark",
+          },
+        },
+      },
+    });
+
+    const { loader } = await import("../../app/routes/apps.fluxbot.widget-config");
+    const response = await loader({
+      request: makeProxyRequest({
+        path: "/apps/fluxbot/widget-config",
+        query: { shop: "store.myshopify.com", timestamp: "1710400005" },
+      }),
+      params: {},
+      context: {},
+    } as never);
+
+    const data = await response.json();
+
+    expect(mockShopFindUnique).toHaveBeenCalledWith({
+      where: { domain: "store.myshopify.com" },
+      select: { metadata: true },
+    });
+    expect(data).toEqual({
+      success: true,
+      widgetBranding: {
+        launcherLabel: "Compra ahora",
+        avatarStyle: "spark",
+      },
+    });
+  });
+
+  it("falls back to safe launcher defaults when branding metadata is missing", async () => {
+    mockShopFindUnique.mockResolvedValue({ metadata: {} });
+
+    const { loader } = await import("../../app/routes/apps.fluxbot.widget-config");
+    const response = await loader({
+      request: makeProxyRequest({
+        path: "/apps/fluxbot/widget-config",
+        query: { shop: "store.myshopify.com", timestamp: "1710400006" },
+      }),
+      params: {},
+      context: {},
+    } as never);
+
+    const data = await response.json();
+
+    expect(data).toEqual({
+      success: true,
+      widgetBranding: {
+        launcherLabel: "",
+        avatarStyle: "assistant",
+      },
+    });
+  });
 });

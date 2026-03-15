@@ -5,7 +5,6 @@ import {
   BlockStack,
   Text,
   ProgressBar,
-  Badge,
   Button,
   InlineStack,
   Select,
@@ -403,13 +402,75 @@ const ONBOARDING_STYLES = `
 }
 
 .onb-preview-modal {
-  width: min(100%, 340px);
-  height: 100%;
+  position: absolute;
+  bottom: 84px;
+  width: min(340px, calc(100% - 28px));
+  height: min(520px, calc(100% - 96px));
   border-radius: 14px;
   border: 1px solid #d0d5da;
   background: #f0f2f4;
   box-shadow: 0 14px 28px rgba(7, 10, 18, 0.35);
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.onb-preview-modal-left {
+  left: 14px;
+}
+
+.onb-preview-modal-right {
+  right: 14px;
+}
+
+.onb-runtime-launcher {
+  position: absolute;
+  bottom: 14px;
+  z-index: 2;
+}
+
+.onb-runtime-launcher-left {
+  left: 14px;
+}
+
+.onb-runtime-launcher-right {
+  right: 14px;
+}
+
+.onb-runtime-launcher-button {
+  width: 58px;
+  height: 58px;
+  border-radius: 999px;
+  border: none;
+  color: #ffffff;
+  cursor: pointer;
+  box-shadow: 0 10px 20px rgba(5, 7, 12, 0.42);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  padding: 0;
+}
+
+.onb-runtime-launcher-button:hover {
+  transform: scale(1.04);
+  box-shadow: 0 12px 24px rgba(5, 7, 12, 0.52);
+}
+
+.onb-runtime-launcher-button:active {
+  transform: scale(0.95);
+}
+
+.onb-runtime-launcher-button:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 2px;
+}
+
+.onb-runtime-launcher-icon {
+  font-size: 0.84rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  line-height: 1;
 }
 
 .onb-preview-caption {
@@ -516,6 +577,23 @@ const ONBOARDING_STYLES = `
   gap: 10px;
 }
 
+.onb-widget-preview-launcher {
+  min-height: 50px;
+  justify-content: space-between;
+}
+
+.onb-widget-preview-launcher.onb-launcher-right {
+  flex-direction: row-reverse;
+}
+
+.onb-widget-preview-launcher .onb-widget-copy {
+  flex: 1;
+}
+
+.onb-widget-preview-launcher.onb-launcher-right .onb-widget-copy {
+  text-align: right;
+}
+
 .onb-widget-dot {
   width: 18px;
   height: 18px;
@@ -550,6 +628,25 @@ const ONBOARDING_STYLES = `
   border-bottom: 1px solid #d8dde2;
   background: #e6eaed;
   flex-shrink: 0;
+}
+
+.onb-mock-chat-close {
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #ffffff;
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.onb-mock-chat-close:hover {
+  background: rgba(255, 255, 255, 0.18);
 }
 
 .onb-mock-chat-title {
@@ -1087,6 +1184,7 @@ export default function OnboardingPage() {
     config.widgetBranding.avatarStyle,
   );
   const [launcherLabel, setLauncherLabel] = useState(config.widgetBranding.launcherLabel);
+  const [isPreviewChatOpen, setIsPreviewChatOpen] = useState(false);
   const intentInputRef = useRef<HTMLInputElement>(null);
 
   const setIntent = (intent: OnboardingIntent) => {
@@ -1129,6 +1227,12 @@ export default function OnboardingPage() {
       setStepDirection("neutral");
     }
     previousStepRef.current = step;
+  }, [step]);
+
+  useEffect(() => {
+    if (step === 5) {
+      setIsPreviewChatOpen(false);
+    }
   }, [step]);
 
   const handleStepClick = (targetStep: number) => {
@@ -1357,6 +1461,12 @@ export default function OnboardingPage() {
     answerOrders === "true" ? (adminLanguage === "es" ? "Seguir pedido" : "Track order") : null,
   ].filter((value): value is string => Boolean(value));
 
+  const normalizedPrimaryColor = /^#[0-9a-fA-F]{6}$/.test(primaryColor) ? primaryColor : "#008060";
+
+  const previewLauncherLabel = launcherLabel.trim() || (adminLanguage === "es" ? "Asistente" : "Assistant");
+
+  const previewLauncherAvatar = avatarStyle === "spark" ? "*" : avatarStyle === "store" ? "ST" : "AI";
+
   const stepFrameClass = stepDirection === "forward"
     ? "onb-step-frame onb-step-frame-forward"
     : stepDirection === "backward"
@@ -1364,76 +1474,122 @@ export default function OnboardingPage() {
       : "onb-step-frame onb-step-frame-neutral";
 
   const renderMockChatPreview = () => {
-    const previewTitle = adminLanguage === "es" ? "Preview conversacional" : "Conversational preview";
+    const previewTitle = botName.trim() || (adminLanguage === "es" ? "Asistente AI" : "AI Assistant");
     const previewSubtitle = adminLanguage === "es"
       ? `En linea · ${previewGoalTag}`
       : `Online · ${previewGoalTag}`;
+
+    const previewLauncherAriaLabel = isPreviewChatOpen
+      ? adminLanguage === "es" ? "Cerrar chat" : "Close chat"
+      : `${adminLanguage === "es" ? "Abrir chat" : "Open chat"} · ${previewLauncherLabel}`;
 
     return (
       <div className="onb-preview-card">
         <p className="onb-preview-kicker">{adminLanguage === "es" ? "Vista previa" : "Live preview"}</p>
 
         <div className="onb-preview-stage">
-          <div className="onb-preview-modal">
-            <div className="onb-mock-chat">
-              <div className="onb-mock-chat-head">
-                <div>
-                  <p className="onb-mock-chat-title">{previewTitle}</p>
-                  <p className="onb-mock-chat-subtitle">{previewSubtitle}</p>
-                </div>
-                <Badge tone="success">
-                  {adminLanguage === "es" ? "Simulacion" : "Simulation"}
-                </Badge>
-              </div>
-
-              <div className="onb-mock-chat-body">
-                <p className="onb-chat-day-divider">{adminLanguage === "es" ? "Hoy" : "Today"}</p>
-                {step === 2 ? (
-                  <div className="onb-chat-row onb-chat-row-bot">
-                    <p className="onb-chat-bubble onb-chat-bubble-bot">{welcomeMessage}</p>
+          {isPreviewChatOpen ? (
+            <div
+              className={`onb-preview-modal ${
+                launcherPosition === "bottom-left" ? "onb-preview-modal-left" : "onb-preview-modal-right"
+              }`}
+            >
+              <div className="onb-mock-chat">
+                <div
+                  className="onb-mock-chat-head"
+                  style={{ backgroundColor: normalizedPrimaryColor, borderBottomColor: normalizedPrimaryColor }}
+                >
+                  <div>
+                    <p className="onb-mock-chat-title" style={{ color: "#ffffff" }}>{previewTitle}</p>
+                    <p className="onb-mock-chat-subtitle" style={{ color: "rgba(255,255,255,0.9)" }}>{previewSubtitle}</p>
                   </div>
-                ) : (
-                  <>
-                    <div className="onb-chat-row onb-chat-row-user">
-                      <p className="onb-chat-bubble onb-chat-bubble-user">{previewUserMessage}</p>
-                    </div>
+                  <button
+                    type="button"
+                    className="onb-mock-chat-close"
+                    aria-label={adminLanguage === "es" ? "Cerrar chat" : "Close chat"}
+                    onClick={() => setIsPreviewChatOpen(false)}
+                  >
+                    ×
+                  </button>
+                </div>
 
+                <div className="onb-mock-chat-body">
+                  <p className="onb-chat-day-divider">{adminLanguage === "es" ? "Hoy" : "Today"}</p>
+                  {step === 2 ? (
                     <div className="onb-chat-row onb-chat-row-bot">
-                      <p className="onb-chat-bubble onb-chat-bubble-bot">{previewAssistantMessage}</p>
+                      <p className="onb-chat-bubble onb-chat-bubble-bot">{welcomeMessage}</p>
                     </div>
-
-                    {answerProducts === "true" ? (
-                      <div className="onb-mock-product">
-                        <p className="onb-mock-product-title">{adminLanguage === "es" ? "Flux Shell Lite" : "Flux Shell Lite"}</p>
-                        <p className="onb-mock-product-meta">
-                          {adminLanguage === "es" ? "Ligera · Transpirable · EUR 79" : "Lightweight · Breathable · EUR 79"}
-                        </p>
-                        <p className="onb-mock-product-cta">
-                          {recommendProducts === "true"
-                            ? adminLanguage === "es" ? "CTA: Ver comparativa" : "CTA: View comparison"
-                            : adminLanguage === "es" ? "CTA: Ver producto" : "CTA: View product"}
+                  ) : (
+                    <>
+                      <div className="onb-chat-row onb-chat-row-user">
+                        <p
+                          className="onb-chat-bubble onb-chat-bubble-user"
+                          style={{ backgroundColor: normalizedPrimaryColor, borderColor: normalizedPrimaryColor, color: "#ffffff" }}
+                        >
+                          {previewUserMessage}
                         </p>
                       </div>
-                    ) : null}
 
-                    {previewQuickReplies.length > 0 ? (
-                      <div className="onb-quick-replies">
-                        {previewQuickReplies.map((reply) => (
-                          <span key={reply} className="onb-quick-reply">{reply}</span>
-                        ))}
+                      <div className="onb-chat-row onb-chat-row-bot">
+                        <p className="onb-chat-bubble onb-chat-bubble-bot">{previewAssistantMessage}</p>
                       </div>
-                    ) : null}
-                  </>
-                )}
-              </div>
 
-              <div className="onb-chat-composer">
-                <span>{adminLanguage === "es" ? "Escribe tu mensaje" : "Type your message"}</span>
-                <span className="onb-chat-send">➤</span>
+                      {answerProducts === "true" ? (
+                        <div className="onb-mock-product">
+                          <p className="onb-mock-product-title">{adminLanguage === "es" ? "Flux Shell Lite" : "Flux Shell Lite"}</p>
+                          <p className="onb-mock-product-meta">
+                            {adminLanguage === "es" ? "Ligera · Transpirable · EUR 79" : "Lightweight · Breathable · EUR 79"}
+                          </p>
+                          <p className="onb-mock-product-cta" style={{ color: normalizedPrimaryColor }}>
+                            {recommendProducts === "true"
+                              ? adminLanguage === "es" ? "CTA: Ver comparativa" : "CTA: View comparison"
+                              : adminLanguage === "es" ? "CTA: Ver producto" : "CTA: View product"}
+                          </p>
+                        </div>
+                      ) : null}
+
+                      {previewQuickReplies.length > 0 ? (
+                        <div className="onb-quick-replies">
+                          {previewQuickReplies.map((reply) => (
+                            <span key={reply} className="onb-quick-reply">{reply}</span>
+                          ))}
+                        </div>
+                      ) : null}
+                    </>
+                  )}
+                </div>
+
+                <div className="onb-chat-composer">
+                  <span>{adminLanguage === "es" ? "Escribe tu mensaje" : "Type your message"}</span>
+                  <span className="onb-chat-send" style={{ backgroundColor: normalizedPrimaryColor }}>➤</span>
+                </div>
               </div>
             </div>
+          ) : null}
+
+          <div
+            className={`onb-runtime-launcher ${
+              launcherPosition === "bottom-left" ? "onb-runtime-launcher-left" : "onb-runtime-launcher-right"
+            }`}
+          >
+            <button
+              type="button"
+              className="onb-runtime-launcher-button"
+              style={{ backgroundColor: normalizedPrimaryColor }}
+              onClick={() => setIsPreviewChatOpen((current) => !current)}
+              aria-expanded={isPreviewChatOpen}
+              aria-label={previewLauncherAriaLabel}
+            >
+              <span className="onb-runtime-launcher-icon">{isPreviewChatOpen ? "×" : previewLauncherAvatar}</span>
+            </button>
           </div>
         </div>
+
+        <p className="onb-preview-caption">
+          {isPreviewChatOpen
+            ? (adminLanguage === "es" ? "Pulsa X para cerrar el chat." : "Press X to close the chat.")
+            : (adminLanguage === "es" ? "Pulsa el globo para abrir la conversacion." : "Press the bubble to open the conversation.")}
+        </p>
       </div>
     );
   };
@@ -1658,12 +1814,34 @@ export default function OnboardingPage() {
               : "Make the widget feel native to your brand with a clean visual baseline."}
           </p>
           <FormLayout>
-            <TextField
-              label={adminLanguage === "es" ? "Color principal" : "Primary color"}
-              value={primaryColor}
-              onChange={setPrimaryColor}
-              autoComplete="off"
-            />
+            <BlockStack gap="100">
+              <Text as="span" variant="bodyMd" fontWeight="medium">
+                {adminLanguage === "es" ? "Color principal" : "Primary color"}
+              </Text>
+              <InlineStack gap="200" blockAlign="center">
+                <input
+                  type="color"
+                  value={/^#[0-9a-fA-F]{6}$/.test(primaryColor) ? primaryColor : "#008060"}
+                  onChange={(e) => setPrimaryColor(e.target.value)}
+                  style={{
+                    width: 44,
+                    height: 36,
+                    padding: "2px",
+                    border: "1px solid #8c9196",
+                    borderRadius: "6px",
+                    cursor: "pointer",
+                  }}
+                />
+                <TextField
+                  label=""
+                  labelHidden
+                  value={primaryColor}
+                  onChange={setPrimaryColor}
+                  autoComplete="off"
+                  placeholder="#008060"
+                />
+              </InlineStack>
+            </BlockStack>
 
             <Select
               label={adminLanguage === "es" ? "Posicion del launcher" : "Launcher position"}
@@ -1700,12 +1878,16 @@ export default function OnboardingPage() {
             />
           </FormLayout>
 
-          <div className="onb-widget-preview">
+          <div
+            className={`onb-widget-preview onb-widget-preview-launcher ${
+              launcherPosition === "bottom-left" ? "onb-launcher-left" : "onb-launcher-right"
+            }`}
+          >
             <div className="onb-widget-dot" style={{ backgroundColor: primaryColor || "#0f766e" }} />
             <p className="onb-widget-copy">
               {adminLanguage === "es"
-                ? `Preview: \"${launcherLabel || "Asistente"}\" listo en ${launcherPosition}.`
-                : `Preview: \"${launcherLabel || "Assistant"}\" ready on ${launcherPosition}.`}
+                ? `Preview: \"${launcherLabel || "Asistente"}\" listo en ${launcherPosition === "bottom-left" ? "inferior izquierda" : "inferior derecha"}.`
+                : `Preview: \"${launcherLabel || "Assistant"}\" ready on ${launcherPosition === "bottom-left" ? "bottom left" : "bottom right"}.`}
             </p>
           </div>
         </BlockStack>
