@@ -54,9 +54,26 @@ function extractWidgetBranding(metadata: unknown) {
       ? widgetBranding.launcherLabel.trim().slice(0, 64)
       : "";
 
+  const primaryColor =
+    typeof widgetBranding.primaryColor === "string" &&
+    /^#[0-9a-fA-F]{6}$/.test(widgetBranding.primaryColor.trim())
+      ? widgetBranding.primaryColor.trim()
+      : "#008060";
+
+  const launcherPosition =
+    widgetBranding.launcherPosition === "bottom-left" ? "bottom-left" : "bottom-right";
+
+  const welcomeMessage =
+    typeof adminSetup.welcomeMessage === "string"
+      ? adminSetup.welcomeMessage.trim().slice(0, 280)
+      : "";
+
   return {
     avatarStyle,
     launcherLabel,
+    primaryColor,
+    launcherPosition,
+    welcomeMessage,
   };
 }
 

@@ -311,9 +311,12 @@ describe("widget proxy routes", () => {
     mockShopFindUnique.mockResolvedValue({
       metadata: {
         adminSetup: {
+          welcomeMessage: "¡Hola! ¿En qué puedo ayudarte?",
           widgetBranding: {
             launcherLabel: "Compra ahora",
             avatarStyle: "spark",
+            primaryColor: "#008060",
+            launcherPosition: "bottom-right",
           },
         },
       },
@@ -340,6 +343,9 @@ describe("widget proxy routes", () => {
       widgetBranding: {
         launcherLabel: "Compra ahora",
         avatarStyle: "spark",
+        primaryColor: "#008060",
+        launcherPosition: "bottom-right",
+        welcomeMessage: "¡Hola! ¿En qué puedo ayudarte?",
       },
     });
   });
@@ -364,6 +370,9 @@ describe("widget proxy routes", () => {
       widgetBranding: {
         launcherLabel: "",
         avatarStyle: "assistant",
+        primaryColor: "#008060",
+        launcherPosition: "bottom-right",
+        welcomeMessage: "",
       },
     });
   });
