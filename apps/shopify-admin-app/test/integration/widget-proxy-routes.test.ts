@@ -41,18 +41,33 @@ const mockRecordInteraction = ProactiveMessagingService.recordInteraction as Ret
 const mockHandoffEnabled = HandoffService.isEnabled as ReturnType<typeof vi.fn>;
 const mockCreateHandoff = HandoffService.create as ReturnType<typeof vi.fn>;
 
-function signProxyUrl(path: string, query: Record<string, string> = {}) {
+function signProxyUrl(
+  path: string,
+  query: Record<string, string> = {},
+  signatureParam: "hmac" | "signature" = "hmac",
+) {
   const params = new URLSearchParams(query);
-  const message = [...params.entries()]
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([key, value]) => `${key}=${value}`)
-    .join("&");
+  const grouped = new Map<string, string[]>();
 
-  const hmac = createHmac("sha256", process.env.SHOPIFY_API_SECRET || "")
+  for (const [key, value] of params.entries()) {
+    const values = grouped.get(key);
+    if (values) {
+      values.push(value);
+    } else {
+      grouped.set(key, [value]);
+    }
+  }
+
+  const message = [...grouped.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([key, values]) => `${key}=${values.join(",")}`)
+    .join("");
+
+  const digest = createHmac("sha256", process.env.SHOPIFY_API_SECRET || "")
     .update(message)
     .digest("hex");
 
-  params.set("hmac", hmac);
+  params.set(signatureParam, digest);
   return `http://localhost${path}?${params.toString()}`;
 }
 
@@ -60,6 +75,7 @@ function makeProxyRequest(options: {
   method?: string;
   path: string;
   query?: Record<string, string>;
+  signatureParam?: "hmac" | "signature";
   body?: unknown;
   headers?: Record<string, string>;
 }) {
@@ -74,7 +90,10 @@ function makeProxyRequest(options: {
     init.body = JSON.stringify(options.body);
   }
 
-  return new Request(signProxyUrl(options.path, options.query), init);
+  return new Request(
+    signProxyUrl(options.path, options.query, options.signatureParam),
+    init,
+  );
 }
 
 function makeMessage(overrides: Record<string, unknown> = {}) {
@@ -133,6 +152,30 @@ describe("widget proxy routes", () => {
     expect(data).toMatchObject({ success: true });
     expect(data.messages).toHaveLength(1);
     expect(data.messages[0].id).toBe("msg-web-chat-queued");
+  });
+
+  it("accepts Shopify signature param for proxy verification", async () => {
+    mockGetSessionMessages.mockResolvedValue([
+      makeMessage({ id: "msg-signature", channel: "WEB_CHAT", status: "QUEUED" }),
+    ]);
+
+    const { loader } = await import("../../app/routes/apps.fluxbot.messages.$sessionId");
+    const response = await loader({
+      request: makeProxyRequest({
+        path: "/apps/fluxbot/messages/sess-1",
+        query: { shop: "store.myshopify.com", timestamp: "1710400000" },
+        signatureParam: "signature",
+      }),
+      params: { sessionId: "sess-1" },
+      context: {},
+    } as never);
+
+    const data = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(data).toMatchObject({ success: true });
+    expect(data.messages).toHaveLength(1);
+    expect(data.messages[0].id).toBe("msg-signature");
   });
 
   it("marks proactive messages as delivered when widget acknowledges delivery", async () => {

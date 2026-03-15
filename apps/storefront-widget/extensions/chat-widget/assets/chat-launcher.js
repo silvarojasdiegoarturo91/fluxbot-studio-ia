@@ -563,6 +563,18 @@
     if (o) { o.hidden = false; } else { renderConsentBanner(); }
   }
 
+  function buildJsonRequestOptions(method, payload, keepalive) {
+    return {
+      method: method,
+      headers: {
+        'Content-Type': 'text/plain;charset=UTF-8',
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify(payload),
+      keepalive: !!keepalive,
+    };
+  }
+
   function handleConsent(granted) {
     hasConsent = granted;
     safeSet(localStorage, 'fluxbot_consent',
@@ -578,13 +590,10 @@
     };
 
     if (navigator.sendBeacon) {
-      var blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+      var blob = new Blob([JSON.stringify(payload)], { type: 'text/plain;charset=UTF-8' });
       navigator.sendBeacon(CONSENT_ENDPOINT, blob);
     } else {
-      fetch(CONSENT_ENDPOINT, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload), keepalive: true,
-      }).catch(function () {});
+      fetch(CONSENT_ENDPOINT, buildJsonRequestOptions('POST', payload, true)).catch(function () {});
     }
 
     var overlay = document.getElementById('fluxbot-consent-overlay');
@@ -674,11 +683,7 @@
       },
     };
 
-    var res = await fetch(API_ENDPOINT, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-      body: JSON.stringify(payload),
-    });
+    var res = await fetch(API_ENDPOINT, buildJsonRequestOptions('POST', payload));
     if (!res.ok) throw new Error('HTTP ' + res.status);
     return res.json();
   }
@@ -802,15 +807,11 @@
     buttonEl.textContent = i18n.adding;
 
     try {
-      var res = await fetch(CART_ENDPOINT, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-        body: JSON.stringify({
-          variantId: variantId, productRef: productRef, quantity: 1,
-          commit: true, conversationId: conversationId,
-          sessionId: sessionId, visitorId: visitorId,
-        }),
-      });
+      var res = await fetch(CART_ENDPOINT, buildJsonRequestOptions('POST', {
+        variantId: variantId, productRef: productRef, quantity: 1,
+        commit: true, conversationId: conversationId,
+        sessionId: sessionId, visitorId: visitorId,
+      }));
       if (!res.ok) throw new Error('HTTP ' + res.status);
       var payload = await res.json();
       if (!payload || !payload.success) throw new Error((payload && payload.error) || 'Cart add failed');
@@ -862,18 +863,14 @@
     if (handoffEl) handoffEl.remove();
 
     try {
-      await fetch(HANDOFF_ENDPOINT, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-        body: JSON.stringify({
-          conversationId: conversationId,
-          sessionId: sessionId,
-          visitorId: visitorId,
-          shop: sanitizeAttr(launcher.dataset.shop),
-          reason: reason || 'escalation',
-          customerId: sanitizeAttr(launcher.dataset.customerId) || undefined,
-        }),
-      });
+      await fetch(HANDOFF_ENDPOINT, buildJsonRequestOptions('POST', {
+        conversationId: conversationId,
+        sessionId: sessionId,
+        visitorId: visitorId,
+        shop: sanitizeAttr(launcher.dataset.shop),
+        reason: reason || 'escalation',
+        customerId: sanitizeAttr(launcher.dataset.customerId) || undefined,
+      }));
     } catch (e) { console.error('[FluxBot] Handoff request failed:', e); }
 
     addMessage(i18n.handoffConfirm, 'assistant');
@@ -944,19 +941,19 @@
 
   async function markMessageDelivered(messageId) {
     try {
-      await fetch(MESSAGES_ENDPOINT + encodeURIComponent(sessionId), {
-        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messageId: messageId, interaction: 'DELIVERED' }),
-      });
+      await fetch(
+        MESSAGES_ENDPOINT + encodeURIComponent(sessionId),
+        buildJsonRequestOptions('PATCH', { messageId: messageId, interaction: 'DELIVERED' })
+      );
     } catch (e) {}
   }
 
   async function patchMessageInteraction(messageId, interaction) {
     try {
-      await fetch(MESSAGES_ENDPOINT + encodeURIComponent(sessionId), {
-        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messageId: messageId, interaction: interaction }),
-      });
+      await fetch(
+        MESSAGES_ENDPOINT + encodeURIComponent(sessionId),
+        buildJsonRequestOptions('PATCH', { messageId: messageId, interaction: interaction })
+      );
     } catch (e) {}
   }
 
@@ -1012,7 +1009,7 @@
     };
 
     if (navigator.sendBeacon) {
-      var blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+      var blob = new Blob([JSON.stringify(payload)], { type: 'text/plain;charset=UTF-8' });
       navigator.sendBeacon(EVENTS_ENDPOINT, blob);
     }
   }

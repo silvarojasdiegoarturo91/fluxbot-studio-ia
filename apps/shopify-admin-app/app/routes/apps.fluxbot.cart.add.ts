@@ -6,56 +6,44 @@
  */
 
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
-import { createHmac, timingSafeEqual } from "crypto";
 import { CommerceActionsService } from "../services/commerce-actions.server";
+import { verifyShopifyProxyRequest } from "../services/shopify-proxy-auth.server";
+
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, POST, PATCH, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Accept, X-Shopify-Shop-Domain",
+};
 
 function json(data: unknown, init?: ResponseInit) {
   return new Response(JSON.stringify(data), {
     status: 200,
     ...init,
-    headers: { "Content-Type": "application/json", ...init?.headers },
+    headers: { "Content-Type": "application/json", ...CORS_HEADERS, ...init?.headers },
   });
 }
 
-function verifyShopifyProxy(request: Request): boolean {
-  const url = new URL(request.url);
-  const hmac = url.searchParams.get("hmac");
-  if (!hmac) return false;
-
-  const params = new URLSearchParams(url.searchParams);
-  params.delete("hmac");
-
-  const message = [...params.entries()]
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([k, v]) => `${k}=${v}`)
-    .join("&");
-
-  const secret = process.env.SHOPIFY_API_SECRET || "";
-  const expected = createHmac("sha256", secret).update(message).digest("hex");
-
-  try {
-    return timingSafeEqual(
-      Buffer.from(hmac, "hex"),
-      Buffer.from(expected, "hex"),
-    );
-  } catch {
-    return false;
-  }
+function preflight() {
+  return new Response(null, { status: 204, headers: CORS_HEADERS });
 }
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  if (!verifyShopifyProxy(request)) {
+  if (!verifyShopifyProxyRequest(request)) {
     return json({ error: "Unauthorized" }, { status: 401 });
   }
   return json({ ok: true });
 }
 
 export async function action({ request }: ActionFunctionArgs) {
+  if (request.method === "OPTIONS") {
+    return preflight();
+  }
+
   if (request.method !== "POST") {
     return json({ error: "Method not allowed" }, { status: 405 });
   }
 
-  if (!verifyShopifyProxy(request)) {
+  if (!verifyShopifyProxyRequest(request)) {
     return json({ error: "Unauthorized" }, { status: 401 });
   }
 

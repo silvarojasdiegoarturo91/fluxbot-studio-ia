@@ -7,12 +7,18 @@
  */
 
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
-import { createHmac, timingSafeEqual } from "crypto";
 import { Prisma } from "@prisma/client";
 import prisma from "../db.server";
 import { getIAGateway } from "../services/ia-gateway.server";
+import { verifyShopifyProxyRequest } from "../services/shopify-proxy-auth.server";
 
 // ── helpers ──────────────────────────────────────────────────────────────────
+
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, POST, PATCH, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Accept, X-Shopify-Shop-Domain",
+};
 
 function json(data: unknown, init?: ResponseInit) {
   return new Response(JSON.stringify(data), {
@@ -21,46 +27,20 @@ function json(data: unknown, init?: ResponseInit) {
     headers: {
       "Content-Type": "application/json",
       "X-Content-Type-Options": "nosniff",
+      ...CORS_HEADERS,
       ...init?.headers,
     },
   });
 }
 
-/**
- * Verify the Shopify App Proxy HMAC signature.
- * https://shopify.dev/docs/apps/online-store/app-proxies#calculate-a-proxy-signature
- */
-function verifyShopifyProxy(request: Request): boolean {
-  const url = new URL(request.url);
-  const hmac = url.searchParams.get("hmac");
-  if (!hmac) return false;
-
-  const params = new URLSearchParams(url.searchParams);
-  params.delete("hmac");
-
-  // Sort lexicographically and join
-  const message = [...params.entries()]
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([k, v]) => `${k}=${v}`)
-    .join("&");
-
-  const secret = process.env.SHOPIFY_API_SECRET || "";
-  const expected = createHmac("sha256", secret).update(message).digest("hex");
-
-  try {
-    return timingSafeEqual(
-      Buffer.from(hmac, "hex"),
-      Buffer.from(expected, "hex"),
-    );
-  } catch {
-    return false;
-  }
+function preflight() {
+  return new Response(null, { status: 204, headers: CORS_HEADERS });
 }
 
 // ── loader (GET — not used, but needs a response) ────────────────────────────
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  if (!verifyShopifyProxy(request)) {
+  if (!verifyShopifyProxyRequest(request, { allowUnsignedInDevelopment: true })) {
     return json({ error: "Unauthorized" }, { status: 401 });
   }
   return json({ ok: true });
@@ -69,26 +49,19 @@ export async function loader({ request }: LoaderFunctionArgs) {
 // ── action (POST — chat message from storefront widget) ──────────────────────
 
 export async function action({ request }: ActionFunctionArgs) {
+  if (request.method === "OPTIONS") {
+    return preflight();
+  }
+
   if (request.method !== "POST") {
     return json({ error: "Method not allowed" }, { status: 405 });
   }
 
-  if (!verifyShopifyProxy(request)) {
+  if (!verifyShopifyProxyRequest(request, { allowUnsignedInDevelopment: true })) {
     return json({ error: "Unauthorized" }, { status: 401 });
   }
 
   try {
-    const url = new URL(request.url);
-    // Shopify injects the shop domain as a query param on proxied requests
-    const shopDomain =
-      url.searchParams.get("shop") ||
-      request.headers.get("X-Shopify-Shop-Domain") ||
-      "";
-
-    if (!shopDomain) {
-      return json({ success: false, error: "Missing shop identifier" }, { status: 400 });
-    }
-
     const body = await request.json();
     const {
       message,
@@ -99,6 +72,21 @@ export async function action({ request }: ActionFunctionArgs) {
       locale = "en",
       context = {},
     } = body as Record<string, any>;
+
+    const url = new URL(request.url);
+    // Shopify injects the shop domain as a query param on proxied requests
+    const shopDomain =
+      url.searchParams.get("shop") ||
+      request.headers.get("X-Shopify-Shop-Domain") ||
+      context.shop ||
+      context.shopDomain ||
+      (typeof body.shop === "string" ? body.shop : "") ||
+      (typeof body.shopDomain === "string" ? body.shopDomain : "") ||
+      "";
+
+    if (!shopDomain) {
+      return json({ success: false, error: "Missing shop identifier" }, { status: 400 });
+    }
 
     if (!message?.trim()) {
       return json({ success: false, error: "Message is required" }, { status: 400 });

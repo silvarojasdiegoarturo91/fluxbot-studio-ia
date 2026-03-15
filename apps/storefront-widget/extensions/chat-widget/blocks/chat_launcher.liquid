@@ -3,7 +3,21 @@
   This block renders the chat widget launcher button and modal
 {% endcomment %}
 
-{{ 'chat-launcher.css' | asset_url | stylesheet_tag }}
+{% assign widget_revision = '20260314-cors-fix-2' %}
+{% capture fluxbot_css_url %}{{ 'chat-launcher.css' | asset_url }}{% endcapture %}
+{% capture fluxbot_js_url %}{{ 'chat-launcher.js' | asset_url }}{% endcapture %}
+{% if fluxbot_css_url contains '?' %}
+  {% assign fluxbot_css_url = fluxbot_css_url | append: '&rev=' | append: widget_revision %}
+{% else %}
+  {% assign fluxbot_css_url = fluxbot_css_url | append: '?rev=' | append: widget_revision %}
+{% endif %}
+{% if fluxbot_js_url contains '?' %}
+  {% assign fluxbot_js_url = fluxbot_js_url | append: '&rev=' | append: widget_revision %}
+{% else %}
+  {% assign fluxbot_js_url = fluxbot_js_url | append: '?rev=' | append: widget_revision %}
+{% endif %}
+
+<link href="{{ fluxbot_css_url }}" rel="stylesheet" type="text/css" media="all">
 
 <div 
   id="fluxbot-chat-launcher" 
@@ -98,7 +112,7 @@
   </div>
 </div>
 
-<script src="{{ 'chat-launcher.js' | asset_url }}" defer></script>
+<script src="{{ fluxbot_js_url }}" defer></script>
 
 {% schema %}
 {
