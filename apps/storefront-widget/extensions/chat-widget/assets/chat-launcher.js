@@ -455,14 +455,18 @@
       launcherAvatarStyle = config.avatarStyle;
     }
 
-    // Apply primary color from admin config
+    // Apply primary color from admin config, but do not override theme-configured data-primary-color
     if (typeof config.primaryColor === 'string' && /^#[0-9a-fA-F]{6}$/.test(config.primaryColor)) {
-      document.documentElement.style.setProperty('--fluxbot-primary-color', config.primaryColor);
+      var themePrimaryColor = launcher && launcher.getAttribute('data-primary-color');
+      if (!themePrimaryColor) {
+        document.documentElement.style.setProperty('--fluxbot-primary-color', config.primaryColor);
+      }
     }
 
-    // Apply launcher position from admin config
+    // Apply launcher position from admin config, but do not override theme-configured launcher_position
     if (config.launcherPosition === 'bottom-left' || config.launcherPosition === 'bottom-right') {
-      if (launcher) {
+      var themeLauncherPosition = launcher && launcher.getAttribute('data-launcher-position');
+      if (!themeLauncherPosition && launcher) {
         launcher.classList.remove('fluxbot-launcher--bottom-right', 'fluxbot-launcher--bottom-left');
         launcher.classList.add('fluxbot-launcher--' + config.launcherPosition);
       }

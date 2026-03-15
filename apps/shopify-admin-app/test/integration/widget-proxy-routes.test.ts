@@ -307,20 +307,22 @@ describe("widget proxy routes", () => {
     });
   });
 
-  it("returns launcherLabel and avatarStyle from admin setup metadata", async () => {
-    mockShopFindUnique.mockResolvedValue({
-      metadata: {
-        adminSetup: {
-          welcomeMessage: "¡Hola! ¿En qué puedo ayudarte?",
-          widgetBranding: {
-            launcherLabel: "Compra ahora",
-            avatarStyle: "spark",
-            primaryColor: "#008060",
-            launcherPosition: "bottom-right",
+  it(
+    "returns widget branding (launcherLabel, avatarStyle, primaryColor, launcherPosition, welcomeMessage) from admin setup metadata",
+    async () => {
+      mockShopFindUnique.mockResolvedValue({
+        metadata: {
+          adminSetup: {
+            welcomeMessage: "¡Hola! ¿En qué puedo ayudarte?",
+            widgetBranding: {
+              launcherLabel: "Compra ahora",
+              avatarStyle: "spark",
+              primaryColor: "#008060",
+              launcherPosition: "bottom-right",
+            },
           },
         },
-      },
-    });
+      });
 
     const { loader } = await import("../../app/routes/apps.fluxbot.widget-config");
     const response = await loader({
