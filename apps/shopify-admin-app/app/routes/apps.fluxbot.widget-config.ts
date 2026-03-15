@@ -58,10 +58,13 @@ function extractWidgetBranding(metadata: unknown) {
     typeof widgetBranding.primaryColor === "string" &&
     /^#[0-9a-fA-F]{6}$/.test(widgetBranding.primaryColor.trim())
       ? widgetBranding.primaryColor.trim()
-      : "#008060";
+      : null;
 
   const launcherPosition =
-    widgetBranding.launcherPosition === "bottom-left" ? "bottom-left" : "bottom-right";
+    widgetBranding.launcherPosition === "bottom-left" ||
+    widgetBranding.launcherPosition === "bottom-right"
+      ? (widgetBranding.launcherPosition as "bottom-left" | "bottom-right")
+      : null;
 
   const welcomeMessage =
     typeof adminSetup.welcomeMessage === "string"
