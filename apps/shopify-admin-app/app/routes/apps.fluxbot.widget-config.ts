@@ -68,12 +68,29 @@ function extractWidgetBranding(metadata: unknown) {
       ? adminSetup.welcomeMessage.trim().slice(0, 280)
       : "";
 
+  const botName =
+    typeof adminSetup.botName === "string"
+      ? adminSetup.botName.trim().slice(0, 64)
+      : "";
+
+  const botGoal =
+    adminSetup.botGoal === "SALES" ||
+    adminSetup.botGoal === "SUPPORT" ||
+    adminSetup.botGoal === "SALES_SUPPORT"
+      ? adminSetup.botGoal
+      : "SALES_SUPPORT";
+
+  const adminLanguage = adminSetup.adminLanguage === "en" ? "en" : "es";
+
   return {
     avatarStyle,
     launcherLabel,
     primaryColor,
     launcherPosition,
     welcomeMessage,
+    botName,
+    botGoal,
+    adminLanguage,
   };
 }
 

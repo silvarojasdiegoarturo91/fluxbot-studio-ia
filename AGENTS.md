@@ -49,6 +49,11 @@ GEMINI_API_KEY=...
 DATABASE_URL=postgresql://.../fluxbot_ia
 ```
 
+### Credenciales para Testing
+
+Si necesitas hacer pruebas en la tienda de desarrollo de Shopify:
+- **Contraseña de la tienda**: `sialte`
+
 ---
 
 ## Propósito del archivo
@@ -59,6 +64,9 @@ Está redactado para que sea compatible con:
 - Codex / agentes de desarrollo orientados a tareas
 - Gemini / asistentes de generación de código
 - Otros LLM usados dentro del IDE o pipeline de desarrollo
+
+### Instrucciones específicas por módulo
+- **Configuración del Widget** (`.github/copilot-widget-config.md`) - Cómo mantener sincronizada la configuración del chatbot entre el admin y el storefront
 
 ---
 

@@ -15,7 +15,7 @@ import {
 } from "@shopify/polaris";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
 import { Form, redirect, useActionData, useLoaderData, useNavigation } from "react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import {
   type AdminLanguage,
   type BotGoal,
@@ -216,7 +216,7 @@ const ONBOARDING_STYLES = `
 
 .onb-content-stage {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(320px, 0.48fr);
+  grid-template-columns: minmax(0, 1fr) minmax(420px, 0.62fr);
   gap: 14px;
   align-items: start;
 }
@@ -371,7 +371,7 @@ const ONBOARDING_STYLES = `
   box-shadow: 0 10px 18px rgba(70, 48, 24, 0.08);
   display: flex;
   flex-direction: column;
-  height: 560px;
+  height: 680px;
 }
 
 .onb-preview-kicker {
@@ -399,6 +399,379 @@ const ONBOARDING_STYLES = `
     radial-gradient(circle at 68% 0%, rgba(240, 180, 54, 0.36) 0%, transparent 42%),
     radial-gradient(circle at 100% 100%, rgba(95, 103, 255, 0.52) 0%, transparent 44%),
     linear-gradient(160deg, #232730 0%, #1a1c22 100%);
+}
+
+.onb-preview-stage .onb-preview-launcher.fluxbot-launcher,
+.onb-widget-preview .fluxbot-launcher {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.onb-widget-preview .fluxbot-launcher {
+  position: static;
+  z-index: auto;
+}
+
+.onb-preview-stage .fluxbot-launcher--bottom-right,
+.onb-widget-preview .fluxbot-launcher--bottom-right {
+  flex-direction: row-reverse;
+}
+
+.onb-preview-stage .fluxbot-launcher__label,
+.onb-widget-preview .fluxbot-launcher__label {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  max-width: min(220px, calc(100vw - 120px));
+  padding: 0 14px;
+  border-radius: 999px;
+  background: rgba(17, 24, 39, 0.92);
+  color: #ffffff;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: opacity 0.2s ease, transform 0.2s ease, max-width 0.2s ease, padding 0.2s ease;
+}
+
+.onb-preview-stage .fluxbot-launcher--open .fluxbot-launcher__label,
+.onb-widget-preview .fluxbot-launcher--open .fluxbot-launcher__label {
+  opacity: 0;
+  transform: translateY(6px);
+  max-width: 0;
+  padding-left: 0;
+  padding-right: 0;
+  pointer-events: none;
+}
+
+.onb-preview-stage .fluxbot-launcher__button,
+.onb-widget-preview .fluxbot-launcher__button {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  border: none;
+  background-color: var(--fluxbot-primary-color);
+  color: #ffffff;
+  cursor: pointer;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  padding: 0;
+}
+
+.onb-preview-stage .fluxbot-launcher__button:hover,
+.onb-widget-preview .fluxbot-launcher__button:hover {
+  transform: scale(1.05);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.2);
+}
+
+.onb-preview-stage .fluxbot-launcher__button:active,
+.onb-widget-preview .fluxbot-launcher__button:active {
+  transform: scale(0.95);
+}
+
+.onb-preview-stage .fluxbot-launcher__button:focus-visible,
+.onb-widget-preview .fluxbot-launcher__button:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 2px;
+}
+
+.onb-preview-stage .fluxbot-launcher__icon,
+.onb-widget-preview .fluxbot-launcher__icon {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.onb-preview-stage .fluxbot-launcher__icon--close,
+.onb-widget-preview .fluxbot-launcher__icon--close {
+  position: absolute;
+  opacity: 0;
+  transform: rotate(-90deg);
+}
+
+.onb-preview-stage .fluxbot-launcher--open .fluxbot-launcher__icon--chat,
+.onb-widget-preview .fluxbot-launcher--open .fluxbot-launcher__icon--chat {
+  opacity: 0;
+  transform: rotate(90deg);
+}
+
+.onb-preview-stage .fluxbot-launcher--open .fluxbot-launcher__icon--close,
+.onb-widget-preview .fluxbot-launcher--open .fluxbot-launcher__icon--close {
+  opacity: 1;
+  transform: rotate(0deg);
+}
+
+.onb-preview-stage .onb-preview-launcher {
+  position: absolute;
+  bottom: 14px;
+  z-index: 2;
+}
+
+.onb-preview-launcher.fluxbot-launcher--bottom-left {
+  left: 14px;
+}
+
+.onb-preview-launcher.fluxbot-launcher--bottom-right {
+  right: 14px;
+}
+
+.onb-preview-stage .fluxbot-chat-window {
+  position: absolute;
+  bottom: 84px;
+  width: min(420px, calc(100% - 28px));
+  height: 600px;
+  max-height: calc(100% - 96px);
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  z-index: 2;
+  animation: slideUp 0.3s ease;
+}
+
+.onb-preview-stage .fluxbot-chat-window[hidden] {
+  display: none !important;
+}
+
+.onb-preview-stage .onb-preview-chat-window-left {
+  left: 14px;
+}
+
+.onb-preview-stage .onb-preview-chat-window-right {
+  right: 14px;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.onb-preview-stage .fluxbot-chat-window__header {
+  background: var(--fluxbot-primary-color);
+  color: #ffffff;
+  padding: 16px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.onb-preview-stage .fluxbot-chat-window__title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.onb-preview-stage .fluxbot-chat-window__subtitle {
+  margin: 4px 0 0;
+  font-size: 13px;
+  opacity: 0.9;
+  line-height: 1.2;
+}
+
+.onb-preview-stage .fluxbot-chat-window__close {
+  background: transparent;
+  border: none;
+  color: #ffffff;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s ease;
+}
+
+.onb-preview-stage .fluxbot-chat-window__close:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.onb-preview-stage .fluxbot-chat-window__messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: #f7f8fa;
+}
+
+.onb-preview-stage .fluxbot-message {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 85%;
+}
+
+.onb-preview-stage .fluxbot-message--user {
+  align-self: flex-end;
+}
+
+.onb-preview-stage .fluxbot-message--assistant {
+  align-self: flex-start;
+}
+
+.onb-preview-stage .fluxbot-message__content {
+  padding: 12px 16px;
+  border-radius: 12px;
+  line-height: 1.5;
+  font-size: 14px;
+}
+
+.onb-preview-stage .fluxbot-message--user .fluxbot-message__content {
+  background: var(--fluxbot-primary-color);
+  color: #ffffff;
+  border-bottom-right-radius: 4px;
+}
+
+.onb-preview-stage .fluxbot-message--assistant .fluxbot-message__content {
+  background: #ffffff;
+  color: #1a1a1a;
+  border-bottom-left-radius: 4px;
+}
+
+.onb-preview-stage .fluxbot-product-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.onb-preview-stage .fluxbot-product-card {
+  padding: 12px;
+  background: #ffffff;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.onb-preview-stage .fluxbot-product-card__link {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+  text-decoration: none;
+  color: inherit;
+}
+
+.onb-preview-stage .fluxbot-product-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.onb-preview-stage .fluxbot-product-card__info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.onb-preview-stage .fluxbot-product-card__title {
+  font-size: 13px;
+  font-weight: 500;
+  color: #1a1a1a;
+  line-height: 1.4;
+}
+
+.onb-preview-stage .fluxbot-product-card__price {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--fluxbot-primary-color);
+}
+
+.onb-preview-stage .fluxbot-product-card__actions {
+  margin-top: 8px;
+}
+
+.onb-preview-stage .fluxbot-product-card__add {
+  border: 1px solid var(--fluxbot-primary-color);
+  color: var(--fluxbot-primary-color);
+  background: transparent;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.onb-preview-stage .fluxbot-product-card__add:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.onb-preview-stage .fluxbot-chat-window__input {
+  padding: 16px 20px;
+  border-top: 1px solid #e0e0e0;
+  background: #ffffff;
+}
+
+.onb-preview-stage .fluxbot-chat-form {
+  display: flex;
+  gap: 8px;
+}
+
+.onb-preview-stage .fluxbot-chat-form__input {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 14px;
+  border: 1px solid #d0d0d0;
+  border-radius: 20px;
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.2s ease;
+  background: #ffffff;
+}
+
+.onb-preview-stage .fluxbot-chat-form__input:focus {
+  border-color: var(--fluxbot-primary-color);
+}
+
+.onb-preview-stage .fluxbot-chat-form__submit {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  background: var(--fluxbot-primary-color);
+  color: #ffffff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+.onb-preview-stage .fluxbot-chat-form__submit:hover {
+  transform: scale(1.05);
+}
+
+.onb-preview-stage .fluxbot-chat-form__submit:active {
+  transform: scale(0.95);
+}
+
+.onb-preview-stage .fluxbot-chat-window__footer {
+  padding: 8px 12px;
+  text-align: center;
+  border-top: 1px solid #e0e0e0;
+  background: #f7f8fa;
+}
+
+.onb-preview-stage .fluxbot-chat-window__branding {
+  font-size: 11px;
+  color: #999999;
+  text-decoration: none;
 }
 
 .onb-preview-modal {
@@ -580,6 +953,10 @@ const ONBOARDING_STYLES = `
 .onb-widget-preview-launcher {
   min-height: 50px;
   justify-content: space-between;
+}
+
+.onb-widget-preview-launcher .fluxbot-launcher {
+  flex-shrink: 0;
 }
 
 .onb-widget-preview-launcher.onb-launcher-right {
@@ -1155,6 +1532,133 @@ function HiddenOnboardingInputs(props: {
   );
 }
 
+function PreviewLauncherChatIcon(props: {
+  avatarStyle: "assistant" | "spark" | "store";
+}) {
+  if (props.avatarStyle === "spark") {
+    return (
+      <svg
+        className="fluxbot-launcher__icon fluxbot-launcher__icon--chat"
+        width="24"
+        height="24"
+        viewBox="0 0 24 24"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        aria-hidden="true"
+      >
+        <path
+          d="M12 3L13.9 8.1L19 10L13.9 11.9L12 17L10.1 11.9L5 10L10.1 8.1L12 3Z"
+          stroke="currentColor"
+          strokeWidth={2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path d="M19 4V7" stroke="currentColor" strokeWidth={2} strokeLinecap="round" />
+        <path d="M20.5 5.5H17.5" stroke="currentColor" strokeWidth={2} strokeLinecap="round" />
+      </svg>
+    );
+  }
+
+  if (props.avatarStyle === "store") {
+    return (
+      <svg
+        className="fluxbot-launcher__icon fluxbot-launcher__icon--chat"
+        width="24"
+        height="24"
+        viewBox="0 0 24 24"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        aria-hidden="true"
+      >
+        <path
+          d="M4 10H20V20H4V10Z"
+          stroke="currentColor"
+          strokeWidth={2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M3 10L5 5H19L21 10"
+          stroke="currentColor"
+          strokeWidth={2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M9 20V14H15V20"
+          stroke="currentColor"
+          strokeWidth={2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    );
+  }
+
+  return (
+    <svg
+      className="fluxbot-launcher__icon fluxbot-launcher__icon--chat"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      <path
+        d="M21 11.5C21.0034 12.8199 20.6951 14.1219 20.1 15.3C19.3944 16.7118 18.3098 17.8992 16.9674 18.7293C15.6251 19.5594 14.0782 19.9994 12.5 20C11.1801 20.0035 9.87812 19.6951 8.7 19.1L3 21L4.9 15.3C4.30493 14.1219 3.99656 12.8199 4 11.5C4.00061 9.92179 4.44061 8.37488 5.27072 7.03258C6.10083 5.69028 7.28825 4.6056 8.7 3.90003C9.87812 3.30496 11.1801 2.99659 12.5 3.00003H13C15.0843 3.11502 17.053 3.99479 18.5291 5.47089C20.0052 6.94699 20.885 8.91568 21 11V11.5Z"
+        stroke="currentColor"
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function PreviewCloseIcon(props: { className?: string; size?: number }) {
+  return (
+    <svg
+      className={props.className}
+      width={props.size ?? 24}
+      height={props.size ?? 24}
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      <path
+        d="M18 6L6 18M6 6L18 18"
+        stroke="currentColor"
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function PreviewSendIcon() {
+  return (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      <path
+        d="M22 2L11 13M22 2L15 22L11 13M22 2L2 9L11 13"
+        stroke="currentColor"
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 export default function OnboardingPage() {
   const { step, totalSteps, config, copy } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
@@ -1184,7 +1688,7 @@ export default function OnboardingPage() {
     config.widgetBranding.avatarStyle,
   );
   const [launcherLabel, setLauncherLabel] = useState(config.widgetBranding.launcherLabel);
-  const [isPreviewChatOpen, setIsPreviewChatOpen] = useState(false);
+  const [isPreviewChatOpen, setIsPreviewChatOpen] = useState(true);
   const intentInputRef = useRef<HTMLInputElement>(null);
 
   const setIntent = (intent: OnboardingIntent) => {
@@ -1231,7 +1735,7 @@ export default function OnboardingPage() {
 
   useEffect(() => {
     if (step === 5) {
-      setIsPreviewChatOpen(false);
+      setIsPreviewChatOpen(true);
     }
   }, [step]);
 
@@ -1454,18 +1958,13 @@ export default function OnboardingPage() {
       ? adminLanguage === "es" ? "Modo soporte" : "Support mode"
       : adminLanguage === "es" ? "Ventas + soporte" : "Sales + support";
 
-  const previewQuickReplies = [
-    answerProducts === "true" ? (adminLanguage === "es" ? "Ver alternativas" : "Show alternatives") : null,
-    recommendProducts === "true" ? (adminLanguage === "es" ? "Comparar tallas" : "Compare sizing") : null,
-    answerPolicies === "true" ? (adminLanguage === "es" ? "Politica de cambios" : "Exchange policy") : null,
-    answerOrders === "true" ? (adminLanguage === "es" ? "Seguir pedido" : "Track order") : null,
-  ].filter((value): value is string => Boolean(value));
-
   const normalizedPrimaryColor = /^#[0-9a-fA-F]{6}$/.test(primaryColor) ? primaryColor : "#008060";
+  const previewThemeStyle = useMemo(
+    () => ({ ["--fluxbot-primary-color" as string]: normalizedPrimaryColor } as CSSProperties),
+    [normalizedPrimaryColor],
+  );
 
   const previewLauncherLabel = launcherLabel.trim() || (adminLanguage === "es" ? "Asistente" : "Assistant");
-
-  const previewLauncherAvatar = avatarStyle === "spark" ? "*" : avatarStyle === "store" ? "ST" : "AI";
 
   const stepFrameClass = stepDirection === "forward"
     ? "onb-step-frame onb-step-frame-forward"
@@ -1478,110 +1977,125 @@ export default function OnboardingPage() {
     const previewSubtitle = adminLanguage === "es"
       ? `En linea · ${previewGoalTag}`
       : `Online · ${previewGoalTag}`;
+    const previewOpenLabel = adminLanguage === "es" ? "Abrir chat" : "Open chat";
+    const previewCloseLabel = adminLanguage === "es" ? "Cerrar chat" : "Close chat";
+    const previewFooterLabel = adminLanguage === "es" ? "Desarrollado por FluxBot" : "Powered by FluxBot";
+    const previewProductButtonLabel = adminLanguage === "es" ? "Anadir al carrito" : "Add to cart";
+    const previewLauncherClassName = `fluxbot-launcher fluxbot-launcher--${launcherPosition}${
+      isPreviewChatOpen ? " fluxbot-launcher--open" : ""
+    }`;
+    const previewChatWindowClassName = `fluxbot-chat-window ${
+      launcherPosition === "bottom-left" ? "onb-preview-chat-window-left" : "onb-preview-chat-window-right"
+    }`;
 
     const previewLauncherAriaLabel = isPreviewChatOpen
-      ? adminLanguage === "es" ? "Cerrar chat" : "Close chat"
-      : `${adminLanguage === "es" ? "Abrir chat" : "Open chat"} · ${previewLauncherLabel}`;
+      ? previewCloseLabel
+      : `${previewOpenLabel}: ${previewLauncherLabel}`;
 
     return (
       <div className="onb-preview-card">
         <p className="onb-preview-kicker">{adminLanguage === "es" ? "Vista previa" : "Live preview"}</p>
 
-        <div className="onb-preview-stage">
-          {isPreviewChatOpen ? (
-            <div
-              className={`onb-preview-modal ${
-                launcherPosition === "bottom-left" ? "onb-preview-modal-left" : "onb-preview-modal-right"
-              }`}
-            >
-              <div className="onb-mock-chat">
-                <div
-                  className="onb-mock-chat-head"
-                  style={{ backgroundColor: normalizedPrimaryColor, borderBottomColor: normalizedPrimaryColor }}
+        <div className="onb-preview-stage" style={previewThemeStyle}>
+          <div
+            id="fluxbot-preview-chat-window"
+            className={previewChatWindowClassName}
+            role="dialog"
+            aria-modal="true"
+            aria-label={adminLanguage === "es" ? "Ventana de chat" : "Chat window"}
+            hidden={!isPreviewChatOpen}
+            style={{ display: isPreviewChatOpen ? "flex" : "none" }}
+          >
+              <div className="fluxbot-chat-window__header">
+                <div className="fluxbot-chat-window__header-content">
+                  <h2 className="fluxbot-chat-window__title">{previewTitle}</h2>
+                  <p className="fluxbot-chat-window__subtitle">{previewSubtitle}</p>
+                </div>
+                <button
+                  type="button"
+                  className="fluxbot-chat-window__close"
+                  aria-label={previewCloseLabel}
+                  onClick={() => setIsPreviewChatOpen(false)}
                 >
-                  <div>
-                    <p className="onb-mock-chat-title" style={{ color: "#ffffff" }}>{previewTitle}</p>
-                    <p className="onb-mock-chat-subtitle" style={{ color: "rgba(255,255,255,0.9)" }}>{previewSubtitle}</p>
+                  <PreviewCloseIcon size={20} />
+                </button>
+              </div>
+
+              <div className="fluxbot-chat-window__messages">
+                {step === 2 ? (
+                  <div className="fluxbot-message fluxbot-message--assistant">
+                    <div className="fluxbot-message__content">{welcomeMessage}</div>
                   </div>
+                ) : (
+                  <>
+                    <div className="fluxbot-message fluxbot-message--user">
+                      <div className="fluxbot-message__content">{previewUserMessage}</div>
+                    </div>
+
+                    <div className="fluxbot-message fluxbot-message--assistant">
+                      <div className="fluxbot-message__content">{previewAssistantMessage}</div>
+                    </div>
+
+                    {answerProducts === "true" ? (
+                      <div className="fluxbot-product-cards">
+                        <div className="fluxbot-product-card">
+                          <div className="fluxbot-product-card__link">
+                            <div className="fluxbot-product-card__info">
+                              <div className="fluxbot-product-card__title">Flux Shell Lite</div>
+                              <div className="fluxbot-product-card__price">EUR 79</div>
+                              <div className="fluxbot-product-card__actions">
+                                <button type="button" className="fluxbot-product-card__add">
+                                  {previewProductButtonLabel}
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ) : null}
+                  </>
+                )}
+              </div>
+
+              <div className="fluxbot-chat-window__input">
+                <form className="fluxbot-chat-form" onSubmit={(event) => event.preventDefault()}>
+                  <input
+                    type="text"
+                    className="fluxbot-chat-form__input"
+                    placeholder={adminLanguage === "es" ? "Escribe tu mensaje..." : "Type your message..."}
+                    aria-label={adminLanguage === "es" ? "Escribe tu mensaje" : "Type your message"}
+                    readOnly
+                  />
                   <button
                     type="button"
-                    className="onb-mock-chat-close"
-                    aria-label={adminLanguage === "es" ? "Cerrar chat" : "Close chat"}
-                    onClick={() => setIsPreviewChatOpen(false)}
+                    className="fluxbot-chat-form__submit"
+                    aria-label={adminLanguage === "es" ? "Enviar mensaje" : "Send message"}
                   >
-                    ×
+                    <PreviewSendIcon />
                   </button>
-                </div>
+                </form>
+              </div>
 
-                <div className="onb-mock-chat-body">
-                  <p className="onb-chat-day-divider">{adminLanguage === "es" ? "Hoy" : "Today"}</p>
-                  {step === 2 ? (
-                    <div className="onb-chat-row onb-chat-row-bot">
-                      <p className="onb-chat-bubble onb-chat-bubble-bot">{welcomeMessage}</p>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="onb-chat-row onb-chat-row-user">
-                        <p
-                          className="onb-chat-bubble onb-chat-bubble-user"
-                          style={{ backgroundColor: normalizedPrimaryColor, borderColor: normalizedPrimaryColor, color: "#ffffff" }}
-                        >
-                          {previewUserMessage}
-                        </p>
-                      </div>
-
-                      <div className="onb-chat-row onb-chat-row-bot">
-                        <p className="onb-chat-bubble onb-chat-bubble-bot">{previewAssistantMessage}</p>
-                      </div>
-
-                      {answerProducts === "true" ? (
-                        <div className="onb-mock-product">
-                          <p className="onb-mock-product-title">{adminLanguage === "es" ? "Flux Shell Lite" : "Flux Shell Lite"}</p>
-                          <p className="onb-mock-product-meta">
-                            {adminLanguage === "es" ? "Ligera · Transpirable · EUR 79" : "Lightweight · Breathable · EUR 79"}
-                          </p>
-                          <p className="onb-mock-product-cta" style={{ color: normalizedPrimaryColor }}>
-                            {recommendProducts === "true"
-                              ? adminLanguage === "es" ? "CTA: Ver comparativa" : "CTA: View comparison"
-                              : adminLanguage === "es" ? "CTA: Ver producto" : "CTA: View product"}
-                          </p>
-                        </div>
-                      ) : null}
-
-                      {previewQuickReplies.length > 0 ? (
-                        <div className="onb-quick-replies">
-                          {previewQuickReplies.map((reply) => (
-                            <span key={reply} className="onb-quick-reply">{reply}</span>
-                          ))}
-                        </div>
-                      ) : null}
-                    </>
-                  )}
-                </div>
-
-                <div className="onb-chat-composer">
-                  <span>{adminLanguage === "es" ? "Escribe tu mensaje" : "Type your message"}</span>
-                  <span className="onb-chat-send" style={{ backgroundColor: normalizedPrimaryColor }}>➤</span>
-                </div>
+              <div className="fluxbot-chat-window__footer">
+                <span className="fluxbot-chat-window__branding">{previewFooterLabel}</span>
               </div>
             </div>
-          ) : null}
 
-          <div
-            className={`onb-runtime-launcher ${
-              launcherPosition === "bottom-left" ? "onb-runtime-launcher-left" : "onb-runtime-launcher-right"
-            }`}
-          >
+          <div className={`onb-preview-launcher ${previewLauncherClassName}`}>
             <button
               type="button"
-              className="onb-runtime-launcher-button"
-              style={{ backgroundColor: normalizedPrimaryColor }}
+              className="fluxbot-launcher__button"
               onClick={() => setIsPreviewChatOpen((current) => !current)}
               aria-expanded={isPreviewChatOpen}
               aria-label={previewLauncherAriaLabel}
+              aria-controls="fluxbot-preview-chat-window"
             >
-              <span className="onb-runtime-launcher-icon">{isPreviewChatOpen ? "×" : previewLauncherAvatar}</span>
+              <PreviewLauncherChatIcon avatarStyle={avatarStyle} />
+              <PreviewCloseIcon className="fluxbot-launcher__icon fluxbot-launcher__icon--close" />
             </button>
+            <span className="fluxbot-launcher__label" hidden={!previewLauncherLabel} aria-hidden="true">
+              {previewLauncherLabel}
+            </span>
           </div>
         </div>
 
@@ -1882,12 +2396,25 @@ export default function OnboardingPage() {
             className={`onb-widget-preview onb-widget-preview-launcher ${
               launcherPosition === "bottom-left" ? "onb-launcher-left" : "onb-launcher-right"
             }`}
+            style={previewThemeStyle}
           >
-            <div className="onb-widget-dot" style={{ backgroundColor: primaryColor || "#0f766e" }} />
+            <div className={`fluxbot-launcher fluxbot-launcher--${launcherPosition}`}>
+              <button
+                type="button"
+                className="fluxbot-launcher__button"
+                aria-label={`${adminLanguage === "es" ? "Abrir chat" : "Open chat"}: ${previewLauncherLabel}`}
+              >
+                <PreviewLauncherChatIcon avatarStyle={avatarStyle} />
+                <PreviewCloseIcon className="fluxbot-launcher__icon fluxbot-launcher__icon--close" />
+              </button>
+              <span className="fluxbot-launcher__label" hidden={!previewLauncherLabel} aria-hidden="true">
+                {previewLauncherLabel}
+              </span>
+            </div>
             <p className="onb-widget-copy">
               {adminLanguage === "es"
-                ? `Preview: \"${launcherLabel || "Asistente"}\" listo en ${launcherPosition === "bottom-left" ? "inferior izquierda" : "inferior derecha"}.`
-                : `Preview: \"${launcherLabel || "Assistant"}\" ready on ${launcherPosition === "bottom-left" ? "bottom left" : "bottom right"}.`}
+                ? `Launcher \"${previewLauncherLabel}\" listo en ${launcherPosition === "bottom-left" ? "inferior izquierda" : "inferior derecha"}.`
+                : `Launcher \"${previewLauncherLabel}\" ready on ${launcherPosition === "bottom-left" ? "bottom left" : "bottom right"}.`}
             </p>
           </div>
         </BlockStack>

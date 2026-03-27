@@ -20,9 +20,22 @@
     "lint": "npm --workspace @fluxbot/shopify-admin-app run lint",
     "prisma:generate": "npm --workspace @fluxbot/shopify-admin-app run prisma:generate",
     "prisma:migrate:dev": "npm --workspace @fluxbot/shopify-admin-app run prisma:migrate:dev",
-    "prisma:migrate:deploy": "npm --workspace @fluxbot/shopify-admin-app run prisma:migrate:deploy"
+    "prisma:migrate:deploy": "npm --workspace @fluxbot/shopify-admin-app run prisma:migrate:deploy",
+    "openspec:status": "openspec status",
+    "openspec:report:html": "openspec report --format html --output reports/openspec-report.html",
+    "openspec:report:md": "openspec report --format markdown --output reports/openspec-report.md",
+    "openspec:report:json": "openspec report --format json --output reports/openspec-report.json",
+    "openspec:validate": "openspec validate",
+    "openspec:phases": "openspec roadmap",
+    "openspec:trace": "openspec trace --bidirectional",
+    "openspec:risks": "openspec risks",
+    "openspec:metrics": "openspec metrics",
+    "openspec:watch": "openspec watch"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0"
+  },
+  "devDependencies": {
+    "openspec": "^0.0.0"
   }
 }

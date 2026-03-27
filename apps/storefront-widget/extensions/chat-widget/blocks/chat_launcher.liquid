@@ -1,6 +1,11 @@
 {% comment %}
   AI Chat Launcher Block
-  This block renders the chat widget launcher button and modal
+  
+  IMPORTANT: This block now uses admin config as the single source of truth.
+  The settings below are fallback values only - they will be overridden by
+  the configuration set in the Shopify Admin App (onboarding / widget settings).
+  
+  To modify the widget appearance, use the FluxBot app admin panel.
 {% endcomment %}
 
 <link href="{{ 'chat-launcher.css' | asset_url }}" rel="stylesheet" type="text/css" media="all">

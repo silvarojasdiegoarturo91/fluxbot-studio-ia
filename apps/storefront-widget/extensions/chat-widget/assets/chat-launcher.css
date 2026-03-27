@@ -129,6 +129,11 @@
   animation: slideUp 0.3s ease;
 }
 
+/* Hide chat window when hidden attribute is set */
+.fluxbot-chat-window[hidden] {
+  display: none !important;
+}
+
 .fluxbot-launcher--bottom-right .fluxbot-chat-window {
   right: 20px;
 }

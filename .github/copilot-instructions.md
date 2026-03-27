@@ -51,6 +51,11 @@ GEMINI_API_KEY=...
 DATABASE_URL=postgresql://.../fluxbot_ia
 ```
 
+### Credenciales para Testing
+
+Si necesitas hacer pruebas en la tienda de desarrollo de Shopify:
+- **Contraseña de la tienda**: `sialte`
+
 ### Modelos de Base de Datos
 
 **Frontend (fluxbot_dev):**

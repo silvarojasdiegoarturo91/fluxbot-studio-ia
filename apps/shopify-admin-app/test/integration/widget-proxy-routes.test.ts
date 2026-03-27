@@ -308,11 +308,14 @@ describe("widget proxy routes", () => {
   });
 
   it(
-    "returns widget branding (launcherLabel, avatarStyle, primaryColor, launcherPosition, welcomeMessage) from admin setup metadata",
+    "returns widget branding and header metadata from admin setup metadata",
     async () => {
       mockShopFindUnique.mockResolvedValue({
         metadata: {
           adminSetup: {
+            adminLanguage: "es",
+            botName: "Flux Advisor",
+            botGoal: "SALES_SUPPORT",
             welcomeMessage: "¡Hola! ¿En qué puedo ayudarte?",
             widgetBranding: {
               launcherLabel: "Compra ahora",
@@ -348,6 +351,9 @@ describe("widget proxy routes", () => {
         primaryColor: "#008060",
         launcherPosition: "bottom-right",
         welcomeMessage: "¡Hola! ¿En qué puedo ayudarte?",
+        botName: "Flux Advisor",
+        botGoal: "SALES_SUPPORT",
+        adminLanguage: "es",
       },
     });
   });
@@ -375,6 +381,9 @@ describe("widget proxy routes", () => {
         primaryColor: "#008060",
         launcherPosition: "bottom-right",
         welcomeMessage: "",
+        botName: "",
+        botGoal: "SALES_SUPPORT",
+        adminLanguage: "es",
       },
     });
   });

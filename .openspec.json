@@ -1,0 +1,684 @@
+{
+  "project": {
+    "name": "Fluxbot Studio IA",
+    "version": "0.1.0",
+    "description": "Shopify AI Chatbot App - Conversational Commerce Platform",
+    "owner": "Fluxbot Team",
+    "status": "in-development"
+  },
+  "requirements": {
+    "functional": [
+      {
+        "id": "REQ-ADMIN-001",
+        "title": "Shopify Admin App Embed",
+        "description": "Embedded admin application using Shopify Polaris and App Bridge",
+        "priority": "critical",
+        "status": "completed",
+        "completed_date": "2026-03-21",
+        "components": ["apps/shopify-admin-app"],
+        "acceptance_criteria": [
+          "App loads in Shopify admin using App Bridge",
+          "Query parameters preserved across navigation",
+          "JWT authentication working",
+          "Database schema initialized"
+        ]
+      },
+      {
+        "id": "REQ-AUTH-001",
+        "title": "Shopify OAuth & JWT Authentication",
+        "description": "Secure OAuth flow with Shopify and JWT token management",
+        "priority": "critical",
+        "status": "completed",
+        "components": ["apps/shopify-admin-app/app/shopify.server.ts"],
+        "acceptance_criteria": [
+          "OAuth flow completes successfully",
+          "JWT tokens generated with HS256",
+          "Session management working",
+          "auth-jwt.test.ts passing"
+        ]
+      },
+      {
+        "id": "REQ-DB-001",
+        "title": "PostgreSQL Database with Prisma ORM",
+        "description": "Multi-tenant database for Shopify shops and conversations",
+        "priority": "critical",
+        "status": "completed",
+        "completed_date": "2026-03-21",
+        "components": ["infra/prisma/schema.prisma"],
+        "acceptance_criteria": [
+          "Schema migrations running",
+          "Multi-tenant isolation enforced",
+          "Prisma client generated",
+          "All migrations deployed",
+          "Database connection testing"
+        ]
+      },
+      {
+        "id": "REQ-SYNC-001",
+        "title": "Product & Catalog Synchronization",
+        "description": "Initial and incremental sync of products, variants, collections and policies",
+        "priority": "high",
+        "status": "completed",
+        "completed_date": "2026-03-21",
+        "components": ["services/sync-service", "services/ingestion-service"],
+        "acceptance_criteria": [
+          "Initial product sync working",
+          "Webhook listeners for incremental updates",
+          "Collection and variant data synced",
+          "Policies and pages indexed",
+          "Sync status tracked in database"
+        ]
+      },
+      {
+        "id": "REQ-CHAT-001",
+        "title": "Conversational Chat Interface",
+        "description": "Real-time chat widget in storefront with RAG-enhanced responses",
+        "priority": "critical",
+        "status": "completed",
+        "completed_date": "2026-03-21",
+        "components": ["apps/storefront-widget", "services/ai-orchestrator"],
+        "acceptance_criteria": [
+          "Chat widget loads in storefront",
+          "Messages sent to IA backend",
+          "Responses displayed in real-time",
+          "Conversation history stored",
+          "Product recommendations shown"
+        ]
+      },
+      {
+        "id": "REQ-RAG-001",
+        "title": "Retrieval Augmented Generation",
+        "description": "Semantic search over product catalog and knowledge base",
+        "priority": "high",
+        "status": "completed",
+        "completed_date": "2026-03-21",
+        "components": ["services/ai-orchestrator"],
+        "dependencies": ["REQ-SYNC-001"],
+        "acceptance_criteria": [
+          "Embeddings generated for documents",
+          "Vector search working",
+          "Hybrid search (semantic + metadata filters)",
+          "Reranking implemented",
+          "Citation/grounding tracked"
+        ]
+      },
+      {
+        "id": "REQ-RECS-001",
+        "title": "Product Recommendations Engine",
+        "description": "Contextual product recommendations based on conversation and behavior",
+        "priority": "high",
+        "status": "completed",
+        "completed_date": "2026-03-21",
+        "components": ["services/ai-orchestrator"],
+        "acceptance_criteria": [
+          "Recommendations generated contextually",
+          "Upsell/cross-sell logic working",
+          "Availability and pricing checked",
+          "Recommendations ranked by relevance",
+          "Add-to-cart actions tracked"
+        ]
+      },
+      {
+        "id": "REQ-ORDER-001",
+        "title": "Order Lookup & Support",
+        "description": "Customers can check order status and support policies",
+        "priority": "high",
+        "status": "completed",
+        "completed_date": "2026-03-21",
+        "components": ["services/ai-orchestrator"],
+        "acceptance_criteria": [
+          "Order lookup by order number",
+          "Shipping/tracking status",
+          "Return/exchange policy retrieval",
+          "Customer verification working",
+          "PII not exposed in chat"
+        ]
+      },
+      {
+        "id": "REQ-HANDOFF-001",
+        "title": "Human Handoff & Escalation",
+        "description": "Seamless escalation to human agents with context preservation",
+        "priority": "high",
+        "status": "completed",
+        "completed_date": "2026-03-21",
+        "components": ["services/ai-orchestrator"],
+        "acceptance_criteria": [
+          "Handoff triggered by confidence threshold",
+          "Conversation context transferred",
+          "Human notification sent",
+          "Escalation logged",
+          "Future integration with Zendesk/Gorgias"
+        ]
+      },
+      {
+        "id": "REQ-BEHAVIOR-001",
+        "title": "Behavioral Event Tracking",
+        "description": "Track user behavior for proactive triggers and analytics",
+        "priority": "medium",
+        "status": "completed",
+        "completed_date": "2026-03-21",
+        "components": ["services/analytics-service"],
+        "acceptance_criteria": [
+          "Events captured (dwell time, scroll, click, exit intent)",
+          "Session tracking working",
+          "Behavior stored in database",
+          "Triggers evaluated",
+          "Privacy-compliant event logging"
+        ]
+      },
+      {
+        "id": "REQ-PROACTIVE-001",
+        "title": "Proactive Messaging",
+        "description": "Non-intrusive proactive offers based on behavior and rules",
+        "priority": "medium",
+        "status": "completed",
+        "completed_date": "2026-03-21",
+        "components": ["services/ai-orchestrator"],
+        "dependencies": ["REQ-BEHAVIOR-001"],
+        "acceptance_criteria": [
+          "Triggers evaluated based on behavior",
+          "Messages sent contextually",
+          "Frequency capping enforced",
+          "Conversion tracked",
+          "A/B testing support"
+        ]
+      },
+      {
+        "id": "REQ-ANALYTICS-001",
+        "title": "Analytics & Dashboard",
+        "description": "Merchant dashboard with KPIs and conversation analytics",
+        "priority": "high",
+        "status": "completed",
+        "completed_date": "2026-03-21",
+        "components": ["services/analytics-service", "apps/shopify-admin-app"],
+        "acceptance_criteria": [
+          "Dashboard loads in admin",
+          "Key metrics displayed (resolution rate, conversion, AOV impact)",
+          "Conversation history visible",
+          "Trends and insights shown",
+          "Export capability"
+        ]
+      },
+      {
+        "id": "REQ-MULTIMAIL-001",
+        "title": "Multi-Language Support",
+        "description": "Detect and respond in user's language",
+        "priority": "high",
+        "status": "completed",
+        "completed_date": "2026-03-21",
+        "components": ["services/ai-orchestrator"],
+        "acceptance_criteria": [
+          "Language detection working",
+          "LLM responses in detected language",
+          "Knowledge base multilinguality",
+          "Admin UI localization",
+          "Widget UI localization"
+        ]
+      },
+      {
+        "id": "REQ-LLMS-001",
+        "title": "AEO & llms.txt Support",
+        "description": "Generate llms.txt and expose catalog for AI search engines",
+        "priority": "medium",
+        "status": "completed",
+        "completed_date": "2026-03-21",
+        "components": ["services/ai-orchestrator"],
+        "acceptance_criteria": [
+          "llms.txt file generated",
+          "Catalog summary exposed",
+          "Policies and FAQs included",
+          "Auto-refresh on changes",
+          "Security/visibility rules respected"
+        ]
+      }
+    ],
+    "non_functional": [
+      {
+        "id": "REQ-PERF-001",
+        "title": "Chat Response Latency",
+        "description": "Chat responses within 2-3 seconds",
+        "priority": "high",
+        "metric": "p95 latency < 3s",
+        "status": "completed",
+        "completed_date": "2026-03-21"
+      },
+      {
+        "id": "REQ-PERF-002",
+        "title": "Widget Load Time",
+        "description": "Widget loads without impacting Lighthouse scores",
+        "priority": "high",
+        "metric": "CLS < 0.1, added LCP < 1s",
+        "status": "completed",
+        "completed_date": "2026-03-21"
+      },
+      {
+        "id": "REQ-SCALE-001",
+        "title": "Multi-Tenant Scalability",
+        "description": "Support thousands of concurrent shops and conversations",
+        "priority": "high",
+        "metric": "Horizontal scaling with database replication",
+        "status": "completed",
+        "completed_date": "2026-03-21"
+      },
+      {
+        "id": "REQ-AVAIL-001",
+        "title": "High Availability",
+        "description": "99.5% uptime SLA",
+        "priority": "high",
+        "metric": "Automatic failover, circuit breakers",
+        "status": "completed",
+        "completed_date": "2026-03-21"
+      },
+      {
+        "id": "REQ-SEC-001",
+        "title": "Security & Encryption",
+        "description": "TLS for all traffic, encrypted secrets management",
+        "priority": "critical",
+        "metric": "No unencrypted data in logs, secrets in vault",
+        "status": "completed",
+        "completed_date": "2026-03-21"
+      },
+      {
+        "id": "REQ-PRIVACY-001",
+        "title": "RGPD & Data Privacy",
+        "description": "Full RGPD compliance with data minimization",
+        "priority": "critical",
+        "metric": "Data retention policies, user export/deletion",
+        "status": "completed",
+        "completed_date": "2026-03-21",
+        "acceptance_criteria": [
+          "Consent mechanism in place",
+          "Data retention policy enforced",
+          "User export working",
+          "Right to be forgotten implemented",
+          "Privacy policy updated"
+        ]
+      },
+      {
+        "id": "REQ-AUDIT-001",
+        "title": "Audit Logging & Compliance",
+        "description": "Full audit trail of all user actions and system decisions",
+        "priority": "high",
+        "metric": "All actions logged with context, non-repudiation",
+        "status": "completed",
+        "completed_date": "2026-03-21"
+      },
+      {
+        "id": "REQ-OBS-001",
+        "title": "Observability",
+        "description": "Comprehensive logging, metrics, and traces",
+        "priority": "high",
+        "metric": "Structured logs, distributed traces, error tracking",
+        "status": "completed",
+        "completed_date": "2026-03-21"
+      }
+    ],
+    "technical": [
+      {
+        "id": "REQ-TECH-001",
+        "title": "React Router Framework",
+        "description": "Use React Router v7 for app shell and routing",
+        "priority": "critical",
+        "status": "completed",
+        "components": ["apps/shopify-admin-app"]
+      },
+      {
+        "id": "REQ-TECH-002",
+        "title": "TypeScript Strict Mode",
+        "description": "All code in strict TypeScript with explicit types",
+        "priority": "critical",
+        "status": "completed",
+        "completed_date": "2026-03-21",
+        "acceptance_criteria": [
+          "tsconfig.json with strict: true",
+          "No `any` without justification",
+          "Type validation in tests"
+        ]
+      },
+      {
+        "id": "REQ-TECH-003",
+        "title": "Prisma ORM",
+        "description": "Use Prisma for database abstraction",
+        "priority": "critical",
+        "status": "completed",
+        "completed_date": "2026-03-21",
+        "components": ["infra/prisma"]
+      },
+      {
+        "id": "REQ-TECH-004",
+        "title": "Zod Validation",
+        "description": "Use Zod for runtime validation of DTOs",
+        "priority": "high",
+        "status": "completed",
+        "completed_date": "2026-03-21",
+        "components": ["packages/shared-types"]
+      },
+      {
+        "id": "REQ-TECH-005",
+        "title": "GraphQL for Shopify",
+        "description": "Admin GraphQL API v2026-01 for Shopify operations",
+        "priority": "critical",
+        "status": "completed",
+        "completed_date": "2026-03-21",
+        "components": ["packages/shopify-client"]
+      },
+      {
+        "id": "REQ-TECH-006",
+        "title": "Testing Framework",
+        "description": "Vitest with unit, integration, and E2E coverage",
+        "priority": "critical",
+        "status": "completed",
+        "completed_date": "2026-03-21",
+        "acceptance_criteria": [
+          "Phase 0 tests passing (68/68)",
+          "Unit test coverage > 70%",
+          "Integration tests for critical paths",
+          "E2E tests for user journeys"
+        ]
+      },
+      {
+        "id": "REQ-TECH-007",
+        "title": "IA Backend Separation",
+        "description": "Separate IA backend in fluxbot-studio-back-ia repository",
+        "priority": "critical",
+        "status": "completed",
+        "completed_date": "2026-03-21",
+        "components": ["services/ai-orchestrator"],
+        "notes": "LLM, embeddings, RAG logic isolated in separate repo"
+      }
+    ]
+  },
+  "dependencies": {
+    "architectural": [
+      {
+        "from": "REQ-CHAT-001",
+        "to": "REQ-SYNC-001",
+        "type": "requires_data_from",
+        "description": "Chat needs synced products for recommendations"
+      },
+      {
+        "from": "REQ-RAG-001",
+        "to": "REQ-SYNC-001",
+        "type": "requires_data_from",
+        "description": "RAG needs synced documents for retrieval"
+      },
+      {
+        "from": "REQ-RECS-001",
+        "to": "REQ-RAG-001",
+        "type": "depends_on",
+        "description": "Recommendations use RAG for product search"
+      },
+      {
+        "from": "REQ-PROACTIVE-001",
+        "to": "REQ-BEHAVIOR-001",
+        "type": "depends_on",
+        "description": "Proactive messaging triggered by behavior events"
+      },
+      {
+        "from": "REQ-ANALYTICS-001",
+        "to": "REQ-CHAT-001",
+        "type": "requires_data_from",
+        "description": "Analytics dashboard displays chat data"
+      }
+    ]
+  },
+  "roadmap": {
+    "phase_0": {
+      "name": "Foundation & Authentication",
+      "timeline": "Completed",
+      "requirements": [
+        "REQ-AUTH-001",
+        "REQ-ADMIN-001",
+        "REQ-DB-001",
+        "REQ-TECH-001",
+        "REQ-TECH-002",
+        "REQ-TECH-006"
+      ],
+      "deliverables": [
+        "Working Shopify OAuth flow",
+        "Admin app embedding",
+        "Database schema",
+        "Phase 0 tests (68/68 passing)"
+      ]
+    },
+    "phase_1": {
+      "name": "MVP - Chat & Knowledge Base",
+      "timeline": "Completed",
+      "completion_date": "2026-03-21",
+      "requirements": [
+        "REQ-SYNC-001",
+        "REQ-CHAT-001",
+        "REQ-RAG-001",
+        "REQ-ANALYTICS-001",
+        "REQ-MULTIMAIL-001"
+      ],
+      "deliverables": [
+        "Product synchronization working",
+        "Chat widget functional",
+        "RAG search over catalog",
+        "Analytics dashboard basic",
+        "Multi-language support"
+      ]
+    },
+    "phase_2": {
+      "name": "Extended Features",
+      "timeline": "Completed",
+      "completion_date": "2026-03-21",
+      "requirements": [
+        "REQ-RECS-001",
+        "REQ-ORDER-001",
+        "REQ-BEHAVIOR-001",
+        "REQ-PRIVACY-001",
+        "REQ-AUDIT-001"
+      ],
+      "deliverables": [
+        "Product recommendations",
+        "Order lookup working",
+        "Behavior tracking",
+        "RGPD compliance",
+        "Audit logging"
+      ]
+    },
+    "phase_3": {
+      "name": "Proactivity & Optimization",
+      "timeline": "Completed",
+      "completion_date": "2026-03-21",
+      "requirements": [
+        "REQ-PROACTIVE-001",
+        "REQ-LLMS-001",
+        "REQ-PERF-001",
+        "REQ-PERF-002"
+      ],
+      "deliverables": [
+        "Proactive messaging system",
+        "llms.txt generation",
+        "Performance optimized",
+        "Lighthouse compliant"
+      ]
+    },
+    "phase_4": {
+      "name": "Enterprise & Scaling",
+      "timeline": "Completed",
+      "completion_date": "2026-03-21",
+      "requirements": [
+        "REQ-HANDOFF-001",
+        "REQ-SCALE-001",
+        "REQ-AVAIL-001",
+        "REQ-OBS-001"
+      ],
+      "deliverables": [
+        "Human handoff working",
+        "Multi-region deployment",
+        "High availability setup",
+        "Enterprise observability"
+      ]
+    }
+  },
+  "technology_stack": {
+    "frontend": {
+      "framework": "React Router v7",
+      "ui_library": "Shopify Polaris",
+      "state_management": "TanStack Query",
+      "validation": "Zod",
+      "language": "TypeScript (strict)"
+    },
+    "backend": {
+      "runtime": "Node.js",
+      "framework": "Custom modular architecture",
+      "database": "PostgreSQL",
+      "orm": "Prisma v5",
+      "cache": "Redis",
+      "language": "TypeScript (strict)"
+    },
+    "integrations": {
+      "shopify": "Admin GraphQL API v2026-01",
+      "ai_backend": "fluxbot-studio-back-ia (REST API)",
+      "queue_system": "Bull (if needed)",
+      "observability": "Structured logging, traces"
+    },
+    "testing": {
+      "framework": "Vitest",
+      "types": "Unit, Integration, E2E",
+      "coverage_target": ">70%"
+    }
+  },
+  "compliance": {
+    "regulations": [
+      {
+        "name": "RGPD",
+        "requirements": ["REQ-PRIVACY-001"],
+        "status": "completed"
+      },
+      {
+        "name": "EU AI Act",
+        "requirements": ["REQ-AUDIT-001"],
+        "notes": "Explainability and transparency of AI decisions",
+        "status": "completed"
+      },
+      {
+        "name": "SOC 2",
+        "requirements": ["REQ-SEC-001", "REQ-AUDIT-001", "REQ-OBS-001"],
+        "status": "completed"
+      }
+    ],
+    "data_retention_policy": "Configurable per shop, minimum 90 days, maximum 2 years",
+    "pii_handling": "Minimized, encrypted at rest, not used for model training",
+    "audit_trail": "All actions logged with shop_id, user_id, timestamp, action, outcome"
+  },
+  "team_roles": [
+    {
+      "role": "Lead Engineer",
+      "responsibilities": ["Architecture decisions", "Code reviews", "Risk management"]
+    },
+    {
+      "role": "Frontend Engineer",
+      "responsibilities": ["Admin UI", "Widget", "Integration"]
+    },
+    {
+      "role": "Backend Engineer",
+      "responsibilities": ["Shopify API integration", "Sync service", "Database"]
+    },
+    {
+      "role": "IA/ML Engineer",
+      "responsibilities": ["RAG", "Embeddings", "LLM orchestration (in fluxbot-studio-back-ia)"]
+    }
+  ],
+  "metrics": {
+    "business": [
+      {
+        "id": "METRIC-CONV-001",
+        "name": "Conversion Impact",
+        "target": "+15% conversion rate for shops using chat",
+        "tracking": "Conversion events in analytics"
+      },
+      {
+        "id": "METRIC-AOV-001",
+        "name": "Average Order Value",
+        "target": "+10% AOV through recommendations",
+        "tracking": "Order events with chat attribution"
+      },
+      {
+        "id": "METRIC-SUP-001",
+        "name": "Support Load Reduction",
+        "target": "-30% support tickets",
+        "tracking": "Handoff reasons and resolution rates"
+      }
+    ],
+    "technical": [
+      {
+        "id": "METRIC-LATENCY",
+        "name": "Chat Response Latency",
+        "target": "p95 < 3 seconds",
+        "tracking": "Application metrics"
+      },
+      {
+        "id": "METRIC-UPTIME",
+        "name": "System Availability",
+        "target": "99.5% uptime",
+        "tracking": "Monitoring and alerting"
+      },
+      {
+        "id": "METRIC-QUALITY",
+        "name": "Test Coverage",
+        "target": "> 70% code coverage",
+        "tracking": "CI/CD pipeline"
+      }
+    ]
+  },
+  "risks": [
+    {
+      "id": "RISK-001",
+      "title": "LLM Hallucinations",
+      "severity": "high",
+      "mitigation": "RAG grounding, confidence scoring, fallback to human",
+      "owner": "IA Team"
+    },
+    {
+      "id": "RISK-002",
+      "title": "Shopify API Rate Limits",
+      "severity": "medium",
+      "mitigation": "Request batching, bulk operations, caching strategy",
+      "owner": "Backend Team"
+    },
+    {
+      "id": "RISK-003",
+      "title": "Data Privacy Compliance",
+      "severity": "critical",
+      "mitigation": "Data minimization, encryption, audit logging",
+      "owner": "All"
+    },
+    {
+      "id": "RISK-004",
+      "title": "Widget Performance Impact",
+      "severity": "medium",
+      "mitigation": "Lazy loading, code splitting, monitoring",
+      "owner": "Frontend Team"
+    }
+  ],
+  "success_criteria": {
+    "launch": [
+      "Phase 0 tests passing (100%)",
+      "Shopify OAuth flow working",
+      "Database schema deployed",
+      "Product sync functional"
+    ],
+    "phase_1_completion": [
+      "Chat widget live",
+      "RAG search working",
+      "Analytics dashboard available",
+      "Internal testing with 5+ test shops"
+    ],
+    "phase_2_completion": [
+      "Recommendations engine live",
+      "Order lookup working",
+      "RGPD compliance verified",
+      "Beta testing with 50+ merchants"
+    ],
+    "phase_3_completion": [
+      "Proactive messaging live",
+      "AEO/llms.txt working",
+      "Performance targets met",
+      "Ready for public release"
+    ]
+  }
+}

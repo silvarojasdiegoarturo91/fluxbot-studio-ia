@@ -303,8 +303,14 @@
   }
 
   function init() {
+    console.log('[FluxBot] Initializing widget...');
+    
     launcher = document.getElementById('fluxbot-chat-launcher');
-    if (!launcher) return;
+    if (!launcher) {
+      console.error('[FluxBot] Launcher element not found');
+      return;
+    }
+    console.log('[FluxBot] Launcher element found');
 
     // W6 — Sanitize data attributes before use
     var showLauncher = sanitizeAttr(launcher.dataset.showLauncher);
@@ -345,7 +351,13 @@
     chatForm          = document.getElementById('fluxbot-chat-form');
     chatInput         = document.getElementById('fluxbot-chat-input');
 
-    if (!launcherButton || !chatWindow || !messagesContainer || !chatForm || !chatInput) return;
+    console.log('[FluxBot] Elements:', { launcherButton, chatWindow, messagesContainer, chatForm, chatInput });
+
+    if (!launcherButton || !chatWindow || !messagesContainer || !chatForm || !chatInput) {
+      console.error('[FluxBot] Missing required DOM elements, aborting init');
+      return;
+    }
+    console.log('[FluxBot] All required DOM elements found');
 
     // Apply primary color
     var primaryColor = sanitizeAttr(launcher.dataset.primaryColor);
@@ -372,9 +384,14 @@
     }
 
     // Event listeners
+    console.log('[FluxBot] Adding event listeners...');
     launcherButton.addEventListener('click', toggleChat);
+    console.log('[FluxBot] Added click listener to launcherButton');
     closeBtn && closeBtn.addEventListener('click', closeChat);
+    console.log('[FluxBot] Added click listener to closeBtn');
     chatForm.addEventListener('submit', handleSubmit);
+    console.log('[FluxBot] Added submit listener to chatForm');
+    console.log('[FluxBot] Widget initialized successfully');
 
     loadConversationState();
 
@@ -445,6 +462,33 @@
     updateLauncherButtonA11y();
   }
 
+  function getWidgetTitle(config) {
+    var nextTitle = sanitizeAttr(config && config.botName);
+    if (nextTitle) {
+      return nextTitle.slice(0, 64);
+    }
+
+    return config && config.adminLanguage === 'en' ? 'AI Assistant' : 'Asistente AI';
+  }
+
+  function getWidgetSubtitle(config) {
+    var isEnglish = config && config.adminLanguage === 'en';
+    var goal =
+      config && (config.botGoal === 'SALES' || config.botGoal === 'SUPPORT' || config.botGoal === 'SALES_SUPPORT')
+        ? config.botGoal
+        : 'SALES_SUPPORT';
+
+    if (goal === 'SALES') {
+      return isEnglish ? 'Online · Sales mode' : 'En linea · Modo ventas';
+    }
+
+    if (goal === 'SUPPORT') {
+      return isEnglish ? 'Online · Support mode' : 'En linea · Modo soporte';
+    }
+
+    return isEnglish ? 'Online · Sales + support' : 'En linea · Ventas + soporte';
+  }
+
   function applyRemoteWidgetConfig(config) {
     if (!config || typeof config !== 'object') return;
 
@@ -455,21 +499,15 @@
       launcherAvatarStyle = config.avatarStyle;
     }
 
-    // Apply primary color from admin config, but do not override theme-configured data-primary-color
+    // Apply primary color from admin config (single source of truth)
     if (typeof config.primaryColor === 'string' && /^#[0-9a-fA-F]{6}$/.test(config.primaryColor)) {
-      var themePrimaryColor = launcher && launcher.getAttribute('data-primary-color');
-      if (!themePrimaryColor) {
-        document.documentElement.style.setProperty('--fluxbot-primary-color', config.primaryColor);
-      }
+      document.documentElement.style.setProperty('--fluxbot-primary-color', config.primaryColor);
     }
 
-    // Apply launcher position from admin config, but do not override theme-configured launcher_position
+    // Apply launcher position from admin config (single source of truth)
     if (config.launcherPosition === 'bottom-left' || config.launcherPosition === 'bottom-right') {
-      var themeLauncherPosition = launcher && launcher.getAttribute('data-launcher-position');
-      if (!themeLauncherPosition && launcher) {
-        launcher.classList.remove('fluxbot-launcher--bottom-right', 'fluxbot-launcher--bottom-left');
-        launcher.classList.add('fluxbot-launcher--' + config.launcherPosition);
-      }
+      launcher.classList.remove('fluxbot-launcher--bottom-right', 'fluxbot-launcher--bottom-left');
+      launcher.classList.add('fluxbot-launcher--' + config.launcherPosition);
     }
 
     // Apply welcome message from admin config (update first bot bubble if present)
@@ -478,6 +516,16 @@
       if (firstBubble) {
         firstBubble.textContent = config.welcomeMessage.trim();
       }
+    }
+
+    var title = chatWindow && chatWindow.querySelector('.fluxbot-chat-window__title');
+    if (title) {
+      title.textContent = getWidgetTitle(config);
+    }
+
+    var subtitle = chatWindow && chatWindow.querySelector('.fluxbot-chat-window__subtitle');
+    if (subtitle) {
+      subtitle.textContent = getWidgetSubtitle(config);
     }
 
     applyLauncherPresentation();
@@ -553,15 +601,19 @@
 
   // ─── Chat open/close ──────────────────────────────────────────────────────
   function toggleChat() {
+    console.log('[FluxBot] toggleChat called, isOpen:', isOpen);
     if (isOpen) { closeChat(); } else { openChat(); }
   }
 
   function openChat() {
+    console.log('[FluxBot] openChat called');
     isOpen = true;
     chatWindow.hidden = false;
+    chatWindow.style.display = 'flex';
     launcherButton.setAttribute('aria-expanded', 'true');
     launcher.classList.add('fluxbot-launcher--open');
     updateLauncherButtonA11y();
+    console.log('[FluxBot] Chat opened, chatWindow.hidden:', chatWindow.hidden, 'chatWindow.style.display:', chatWindow.style.display);
 
     if (!hasConsent) {
       showConsentOverlay();
@@ -576,11 +628,14 @@
   }
 
   function closeChat() {
+    console.log('[FluxBot] closeChat called');
     isOpen = false;
     chatWindow.hidden = true;
+    chatWindow.style.display = 'none';
     launcherButton.setAttribute('aria-expanded', 'false');
     launcher.classList.remove('fluxbot-launcher--open');
     updateLauncherButtonA11y();
+    console.log('[FluxBot] Chat closed, chatWindow.hidden:', chatWindow.hidden, 'chatWindow.style.display:', chatWindow.style.display);
     trackEvent('chat_closed');
   }
 
