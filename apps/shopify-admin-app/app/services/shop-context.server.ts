@@ -1,5 +1,12 @@
 import prisma from "../db.server";
 import { syncShopReferenceToIABackend } from "./shop-backend-sync.server";
+import { SyncService, type SyncJobType } from "./sync-service.server";
+
+const INITIAL_SYNC_JOBS: SyncJobType[] = [
+  "initial:catalog",
+  "initial:policies",
+  "initial:pages",
+];
 
 export interface ShopContext {
   domain: string;
@@ -46,6 +53,17 @@ export function extractShopContextFromSession(session: unknown): ShopContext | n
   };
 }
 
+async function queueInitialSyncJobs(shopId: string): Promise<void> {
+  try {
+    for (const jobType of INITIAL_SYNC_JOBS) {
+      await SyncService.createSyncJob(shopId, jobType, 0);
+    }
+  } catch (err) {
+    // Non-fatal: scheduler will retry. Log and continue.
+    console.error(`[ShopContext] Failed to queue initial sync jobs for shop ${shopId}:`, err);
+  }
+}
+
 export async function ensureShopRecord(context: ShopContext): Promise<{ id: string; domain: string }> {
   const createAccessToken = context.accessToken || "__pending_access_token__";
 
@@ -70,6 +88,13 @@ export async function ensureShopRecord(context: ShopContext): Promise<{ id: stri
     updateData.isOnline = context.isOnline;
   }
 
+  // Detect whether this is a first-time install before upsert.
+  const existingShop = await prisma.shop.findUnique({
+    where: { domain: context.domain },
+    select: { id: true },
+  });
+  const isNewInstall = !existingShop;
+
   const shop = await prisma.shop.upsert({
     where: { domain: context.domain },
     create: {
@@ -84,6 +109,10 @@ export async function ensureShopRecord(context: ShopContext): Promise<{ id: stri
   });
 
   await syncShopReferenceToIABackend(shop);
+
+  if (isNewInstall) {
+    await queueInitialSyncJobs(shop.id);
+  }
 
   return shop;
 }
