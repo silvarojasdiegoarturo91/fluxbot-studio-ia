@@ -1,4 +1,8 @@
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
+import { vi, describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
+import { prismaMock, resetStores } from "../mocks/prisma-in-memory";
+
+vi.mock("../../app/db.server", () => ({ default: prismaMock }));
+
 import prisma from "../../app/db.server";
 
 /**
@@ -15,6 +19,7 @@ describe("Phase 1 E2E: Chat Flow", () => {
   let testShop: any;
   
   beforeAll(async () => {
+    resetStores();
     // Create test shop
     testShop = await prisma.shop.create({
       data: {

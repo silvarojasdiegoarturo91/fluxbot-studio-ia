@@ -13,8 +13,8 @@
     },
     "test_snapshot": {
       "frontend": {
-        "files": "53/54 passing (1 needs DB)",
-        "tests": "961 passing, 15 skipped",
+        "files": "55/55 passing",
+        "tests": "986 passing",
         "phase0": "68/68 passing",
         "last_run": "2026-04-09"
       },
@@ -724,16 +724,18 @@
         "title": "Phase 1 E2E chat test (needs running PostgreSQL)",
         "description": "test/phase1/chat-e2e.test.ts currently fails when DB is not available",
         "priority": "low",
-        "status": "blocked",
+        "status": "completed",
+        "completed_date": "2026-04-09",
         "owner": "frontend",
-        "blocked_reason": "Requires PostgreSQL at localhost:5432",
         "components": [
-          "apps/shopify-admin-app/test/phase1/chat-e2e.test.ts"
+          "apps/shopify-admin-app/test/phase1/chat-e2e.test.ts",
+          "apps/shopify-admin-app/test/mocks/prisma-in-memory.ts"
         ],
         "acceptance_criteria": [
           "Test passes in CI with DB available",
           "Or test mocked to not require a live DB"
-        ]
+        ],
+        "evidence": "Implemented in-memory Prisma mock (test/mocks/prisma-in-memory.ts). All 15 E2E tests pass. Total suite: 55/55 files, 986/986 tests."
       }
     ]
   }
