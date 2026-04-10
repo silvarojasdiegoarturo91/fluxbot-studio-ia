@@ -722,11 +722,20 @@
         "title": "External SIEM adapter integration (Datadog / Splunk)",
         "description": "Enterprise compliance SIEM export pipeline for audit events",
         "priority": "low",
-        "status": "planned",
+        "status": "completed",
         "owner": "frontend",
         "acceptance_criteria": [
           "Audit events exported to configurable SIEM endpoint",
           "Legal hold scoped retention exclusions per data class"
+        ],
+        "completed_date": "2026-04-10",
+        "evidence": [
+          "app/services/enterprise-compliance.server.ts: ComplianceSIEMExportService with Datadog (HTTP Log Intake) and Splunk (HEC) connectors",
+          "app/services/enterprise-compliance.server.ts: LegalHoldService with scoped retention exclusions (ALL / CONVERSATIONS / BEHAVIOR_EVENTS / AUDIT_LOGS / CONSENT_RECORDS)",
+          "app/routes/api.compliance.enterprise.ts: export_siem_ndjson action with optional dispatchConnectors",
+          "test/integration/enterprise-compliance.test.ts: ComplianceSIEMExportService and RetentionEnforcementService scoped tests",
+          "test/integration/enterprise-compliance-route.test.ts: route-level export_siem_ndjson tests",
+          "1011/1011 tests passing"
         ]
       },
       {
