@@ -8,7 +8,8 @@
   To modify the widget appearance, use the FluxBot app admin panel.
 {% endcomment %}
 
-<link href="{{ 'chat-launcher.css' | asset_url }}" rel="stylesheet" type="text/css" media="all">
+{{- 'chat-launcher.css' | asset_url | stylesheet_tag: media: 'print', onload: "this.media='all'" -}}
+<noscript>{{ 'chat-launcher.css' | asset_url | stylesheet_tag }}</noscript>
 
 <div 
   id="fluxbot-chat-launcher" 

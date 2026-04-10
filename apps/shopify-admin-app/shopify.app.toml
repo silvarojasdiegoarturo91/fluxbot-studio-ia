@@ -31,3 +31,6 @@ redirect_urls = [
 
 [pos]
 embedded = false
+
+[[extensions]]
+path = "extensions/chat-widget"

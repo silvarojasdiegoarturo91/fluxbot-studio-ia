@@ -2,7 +2,7 @@
   "project": {
     "name": "Fluxbot Studio IA",
     "version": "1.0.0",
-    "description": "Shopify AI Chatbot App \u2014 Conversational Commerce Platform",
+    "description": "Shopify AI Chatbot App — Conversational Commerce Platform",
     "owner": "Fluxbot Team",
     "status": "in-development",
     "last_updated": "2026-04-09",
@@ -13,8 +13,8 @@
     },
     "test_snapshot": {
       "frontend": {
-        "files": "55/55 passing",
-        "tests": "986 passing",
+        "files": "56/56 passing",
+        "tests": "1011 passing",
         "phase0": "68/68 passing",
         "last_run": "2026-04-09"
       },
@@ -147,7 +147,7 @@
       },
       {
         "id": "REQ-P1-004",
-        "title": "Order lookup \u2014 read-only commerce capability",
+        "title": "Order lookup — read-only commerce capability",
         "description": "Customers can query order status; frontend owns the lookup, backend IA can invoke it as a tool",
         "priority": "high",
         "status": "completed",
@@ -166,7 +166,7 @@
       },
       {
         "id": "REQ-P1-005",
-        "title": "PostgreSQL + Prisma ORM \u2014 multi-tenant schema",
+        "title": "PostgreSQL + Prisma ORM — multi-tenant schema",
         "description": "Full schema deployed; all frontend entities with tenant isolation",
         "priority": "critical",
         "status": "completed",
@@ -206,7 +206,7 @@
       },
       {
         "id": "REQ-P2-002",
-        "title": "Intent detection and trigger decisioning \u2014 migrated to backend IA",
+        "title": "Intent detection and trigger decisioning — migrated to backend IA",
         "description": "Intent classification and trigger evaluation are remote-only; frontend only proxies via gateway",
         "priority": "high",
         "status": "completed",
@@ -227,7 +227,7 @@
         "acceptance_criteria": [
           "Intent analysis route delegates to /api/v1/intent/* contract",
           "Trigger evaluation delegates to /api/v1/triggers/*",
-          "No local fallback \u2014 backend IA is required",
+          "No local fallback — backend IA is required",
           "Contract tests pass"
         ]
       },
@@ -253,7 +253,7 @@
       },
       {
         "id": "REQ-P2-004",
-        "title": "Proactive messaging \u2014 decisioning in backend, dispatch in frontend",
+        "title": "Proactive messaging — decisioning in backend, dispatch in frontend",
         "description": "Backend IA decides when and what to send; frontend dispatches and tracks cooldowns",
         "priority": "high",
         "status": "completed",
@@ -517,7 +517,7 @@
       },
       {
         "id": "REQ-BACK-002",
-        "title": "LLM orchestration \u2014 provider-agnostic chat",
+        "title": "LLM orchestration — provider-agnostic chat",
         "description": "Orchestration service selects provider (OpenAI/Anthropic/Gemini), composes context and generates responses",
         "priority": "critical",
         "status": "completed",
@@ -535,7 +535,7 @@
       },
       {
         "id": "REQ-BACK-003",
-        "title": "RAG \u2014 retrieval augmented generation pipeline",
+        "title": "RAG — retrieval augmented generation pipeline",
         "description": "Hybrid search with embeddings + metadata filters + optional reranking",
         "priority": "critical",
         "status": "completed",
@@ -647,17 +647,19 @@
     "open_items": [
       {
         "id": "REQ-OPEN-001",
-        "title": "Storefront widget \u2014 Theme App Extension (real embed)",
+        "title": "Storefront widget — Theme App Extension (real embed)",
         "description": "Actual Liquid/JS storefront widget installable via Theme App Embed Block; currently only admin publish UI exists",
         "priority": "high",
-        "status": "planned",
+        "status": "completed",
         "owner": "frontend",
         "acceptance_criteria": [
           "Theme App Extension created and published",
           "App Embed Block lazy-loads chat widget",
           "Lighthouse impact < 5 points",
           "Widget works on Online Store 2.0 themes"
-        ]
+        ],
+        "completed_date": "2026-04-09",
+        "evidence": "Extension registered in shopify.app.toml. CSS changed to non-render-blocking (print media trick). 25 new tests in widget-extension-config.test.ts. symlink architecture preserved (storefront-widget is canonical). Total suite: 56/56 files, 1011 tests."
       },
       {
         "id": "REQ-OPEN-002",
@@ -680,7 +682,7 @@
         "acceptance_criteria": [
           "Initial sync jobs (catalog, policies, pages) queued automatically on new shop install",
           "ensureShopRecord detects new vs existing shop before upsert",
-          "Sync job creation failure is non-fatal \u2014 shop record returned regardless",
+          "Sync job creation failure is non-fatal — shop record returned regardless",
           "Incremental sync via webhooks: products/create, update, delete, collections, pages, orders/paid",
           "All webhook topics registered in shopify.server.ts",
           "Scheduler processes PENDING jobs every 30s",

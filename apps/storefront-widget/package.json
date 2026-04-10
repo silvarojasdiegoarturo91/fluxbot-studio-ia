@@ -3,7 +3,8 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "description": "FluxBot storefront chat widget — Theme App Extension lives at apps/shopify-admin-app/extensions/chat-widget",
   "scripts": {
-    "check": "echo 'Storefront widget extension package ready'"
+    "check": "echo 'Theme App Extension is at apps/shopify-admin-app/extensions/chat-widget (canonical location)'"
   }
 }
