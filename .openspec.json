@@ -700,13 +700,21 @@
         "title": "Vector store upgrade to pgvector / ANN index",
         "description": "Replace current JSON-based embedding store with pgvector for production-scale retrieval",
         "priority": "medium",
-        "status": "planned",
+        "status": "completed",
         "owner": "backend_ia",
         "acceptance_criteria": [
           "pgvector extension enabled in PostgreSQL",
           "EmbeddingRecord model uses vector column",
           "ANN index (HNSW/IVFFlat) created",
           "Retrieval latency < 100ms p99"
+        ],
+        "completed_date": "2026-04-10",
+        "evidence": [
+          "fluxbot-studio-back-ia prisma/schema.prisma: postgresqlExtensions + vector(1536) field",
+          "fluxbot-studio-back-ia migration 20260409_pgvector_ann_index: HNSW index + backfill",
+          "fluxbot-studio-back-ia src/services/pgvector-search.ts: ANN + fallback + shopId isolation",
+          "fluxbot-studio-back-ia src/routes/embeddings.ts: /search uses pgvectorSearchService",
+          "fluxbot-studio-back-ia tests/unit/pgvector-search.test.ts: 17 tests, 49/49 suite"
         ]
       },
       {
