@@ -1,7 +1,6 @@
 import {
   Page,
   Layout,
-  Card,
   Text,
   BlockStack,
   InlineStack,
@@ -19,6 +18,7 @@ import { getMerchantAdminConfig } from "../services/admin-config.server";
 import { ensureShopForSession } from "../services/shop-context.server";
 import { authenticate } from "../shopify.server";
 import { useIsSpanish } from "../hooks/use-admin-language";
+import { AdminInfoCallout, AdminPageHeader, AdminSectionCard, AdminStatCard, AdminStatusBadge } from "../components/admin-ui";
 
 interface DashboardLoaderData {
   shopConnection: {
@@ -304,14 +304,31 @@ export default function DashboardIndex() {
   const formatCurrency = (value: number) => `$${value.toFixed(2)}`;
 
   return (
-    <Page
-      title={isEs ? "FluxBot Centro de Control" : "FluxBot Control Center"}
-      subtitle={
-        isEs
-          ? "Opera ventas, soporte y cumplimiento desde un solo lugar"
-          : "Operate sales, support and compliance from one place"
-      }
-    >
+    <Page fullWidth>
+      <AdminPageHeader
+        eyebrow={isEs ? "Centro de control" : "Control center"}
+        title={isEs ? "FluxBot Centro de Control" : "FluxBot Control Center"}
+        description={
+          isEs
+            ? "Opera ventas, soporte y cumplimiento desde un solo lugar con una vista clara del negocio, el asistente y las prioridades."
+            : "Operate sales, support, and compliance from one place with a clear view of the business, the assistant, and the next priorities."
+        }
+        badge={
+          <AdminStatusBadge tone={assistant.isActive ? "success" : "attention"}>
+            {assistant.isActive ? (isEs ? "Asistente activo" : "Assistant active") : (isEs ? "Atencion requerida" : "Needs attention")}
+          </AdminStatusBadge>
+        }
+        actions={
+          <InlineStack gap="200" wrap>
+            <Button variant="primary" url={withEmbeddedQuery("/app/conversations")}>
+              {isEs ? "Abrir conversaciones" : "Open conversations"}
+            </Button>
+            <Button url={withEmbeddedQuery("/app/settings")}>
+              {isEs ? "Ajustar asistente" : "Tune assistant"}
+            </Button>
+          </InlineStack>
+        }
+      />
       <Layout>
         {showOnboardingSuccess ? (
           <Layout.Section>
@@ -326,90 +343,113 @@ export default function DashboardIndex() {
         ) : null}
 
         <Layout.Section>
-          <Card>
-            <BlockStack gap="300">
-              <InlineStack align="space-between" blockAlign="center">
-                <Text as="h2" variant="headingMd">
-                  {isEs ? "Conexion de tienda" : "Store Connection"}
+          <AdminSectionCard
+            title={isEs ? "Conexion de tienda" : "Store connection"}
+            description={
+              isEs
+                ? "Comprueba que la app esta leyendo correctamente el contexto comercial del merchant."
+                : "Confirm the app is reading the merchant's commercial context correctly."
+            }
+            badge={
+              <AdminStatusBadge tone={shopConnection.connected ? "success" : "warning"}>
+                {shopConnection.connected ? (isEs ? "Conectada" : "Connected") : (isEs ? "Revisar" : "Check required")}
+              </AdminStatusBadge>
+            }
+          >
+            {shopConnection.connected ? (
+              <BlockStack gap="200">
+                <Text as="p" variant="bodyMd">
+                  {isEs ? "Tienda" : "Store"}: {shopConnection.name || (isEs ? "Desconocida" : "Unknown")}
                 </Text>
-                <Badge>{shopConnection.connected ? (isEs ? "Conectada" : "Connected") : (isEs ? "Revisar" : "Check required")}</Badge>
-              </InlineStack>
-
-              {shopConnection.connected ? (
-                <BlockStack gap="200">
-                  <Text as="p" variant="bodyMd">
-                    {isEs ? "Tienda" : "Store"}: {shopConnection.name || (isEs ? "Desconocida" : "Unknown")}
-                  </Text>
-                  <Text as="p" variant="bodyMd" tone="subdued">
-                    {isEs ? "Dominio myshopify" : "myshopify domain"}: {shopConnection.myshopifyDomain || (isEs ? "Desconocido" : "Unknown")}
-                  </Text>
-                  <Text as="p" variant="bodyMd" tone="subdued">
-                    {isEs ? "Dominio principal" : "Primary domain"}: {shopConnection.primaryDomainHost || (isEs ? "Desconocido" : "Unknown")}
-                  </Text>
-                  <Text as="p" variant="bodyMd" tone="subdued">
-                    {isEs ? "Plan" : "Plan"}: {shopConnection.planName || (isEs ? "Desconocido" : "Unknown")}
-                  </Text>
-                </BlockStack>
-              ) : (
-                <Text as="p" variant="bodyMd" tone="critical">
-                  {isEs ? "No se pudieron obtener datos de la tienda desde Admin API" : "Could not fetch shop data from Admin API"}: {shopConnection.error || (isEs ? "Error desconocido" : "Unknown error")}
+                <Text as="p" variant="bodyMd" tone="subdued">
+                  {isEs ? "Dominio myshopify" : "myshopify domain"}: {shopConnection.myshopifyDomain || (isEs ? "Desconocido" : "Unknown")}
                 </Text>
-              )}
-            </BlockStack>
-          </Card>
+                <Text as="p" variant="bodyMd" tone="subdued">
+                  {isEs ? "Dominio principal" : "Primary domain"}: {shopConnection.primaryDomainHost || (isEs ? "Desconocido" : "Unknown")}
+                </Text>
+                <Text as="p" variant="bodyMd" tone="subdued">
+                  {isEs ? "Plan" : "Plan"}: {shopConnection.planName || (isEs ? "Desconocido" : "Unknown")}
+                </Text>
+              </BlockStack>
+            ) : (
+              <Text as="p" variant="bodyMd" tone="critical">
+                {isEs ? "No se pudieron obtener datos de la tienda desde Admin API" : "Could not fetch shop data from Admin API"}: {shopConnection.error || (isEs ? "Error desconocido" : "Unknown error")}
+              </Text>
+            )}
+          </AdminSectionCard>
         </Layout.Section>
 
         <Layout.Section>
           <InlineGrid columns={{ xs: 1, sm: 2, md: 4 }} gap="400">
-            <Card>
-              <BlockStack gap="100">
-                <Text as="p" variant="bodySm" tone="subdued">{isEs ? "Conversaciones (7d)" : "Conversations (7d)"}</Text>
-                <Text as="p" variant="headingXl">{business.conversationsLast7d}</Text>
-              </BlockStack>
-            </Card>
-            <Card>
-              <BlockStack gap="100">
-                <Text as="p" variant="bodySm" tone="subdued">{isEs ? "Ingresos influenciados (7d)" : "Revenue Influenced (7d)"}</Text>
-                <Text as="p" variant="headingXl">{formatCurrency(business.assistedRevenueLast7d)}</Text>
-              </BlockStack>
-            </Card>
-            <Card>
-              <BlockStack gap="100">
-                <Text as="p" variant="bodySm" tone="subdued">{isEs ? "Mensajes proactivos enviados (7d)" : "Proactive Messages Sent (7d)"}</Text>
-                <Text as="p" variant="headingXl">{business.proactiveSentLast7d}</Text>
-              </BlockStack>
-            </Card>
-            <Card>
-              <BlockStack gap="100">
-                <Text as="p" variant="bodySm" tone="subdued">{isEs ? "Handoffs abiertos" : "Open Handoffs"}</Text>
-                <Text as="p" variant="headingXl">{business.openHandoffs}</Text>
-              </BlockStack>
-            </Card>
+            <AdminStatCard
+              label={isEs ? "Conversaciones (7d)" : "Conversations (7d)"}
+              value={business.conversationsLast7d}
+              meta={isEs ? "Actividad reciente del asistente" : "Recent assistant activity"}
+            />
+            <AdminStatCard
+              label={isEs ? "Ingresos influenciados (7d)" : "Revenue influenced (7d)"}
+              value={formatCurrency(business.assistedRevenueLast7d)}
+              meta={isEs ? "Impacto comercial atribuido" : "Attributed commercial impact"}
+            />
+            <AdminStatCard
+              label={isEs ? "Mensajes proactivos (7d)" : "Proactive messages (7d)"}
+              value={business.proactiveSentLast7d}
+              meta={isEs ? "Acciones de outreach activas" : "Outbound assistant touches"}
+            />
+            <AdminStatCard
+              label={isEs ? "Handoffs abiertos" : "Open handoffs"}
+              value={business.openHandoffs}
+              meta={isEs ? "Escalaciones pendientes" : "Escalations waiting for action"}
+              badge={<AdminStatusBadge tone={business.openHandoffs > 0 ? "warning" : "success"}>{business.openHandoffs > 0 ? (isEs ? "Atender" : "Review") : (isEs ? "OK" : "OK")}</AdminStatusBadge>}
+            />
           </InlineGrid>
         </Layout.Section>
 
         <Layout.Section>
           <InlineGrid columns={{ xs: 1, md: 2 }} gap="400">
-            <Card>
-              <BlockStack gap="300">
-                <Text as="h2" variant="headingMd">{isEs ? "Acciones inmediatas" : "Immediate Actions"}</Text>
-                <Text as="p" variant="bodyMd" tone="subdued">
-                  {isEs
-                    ? "Flujos que los merchants usan a diario para aumentar ingresos y reducir carga de soporte."
-                    : "Workflows merchants use daily to grow revenue and reduce support load."}
-                </Text>
-                <InlineStack gap="200" wrap>
-                  <Button url={withEmbeddedQuery("/app/campaigns")}>{isEs ? "Lanzar campana" : "Launch campaign"}</Button>
-                  <Button url={withEmbeddedQuery("/app/conversations")}>{isEs ? "Revisar conversaciones" : "Review conversations"}</Button>
+          <AdminSectionCard
+            title={isEs ? "Acciones inmediatas" : "Immediate actions"}
+            description={
+              isEs
+                ? "Flujos que los merchants usan a diario para aumentar ingresos y reducir carga de soporte."
+                : "Workflows merchants use daily to grow revenue and reduce support load."
+            }
+          >
+            <BlockStack gap="300">
+              <AdminInfoCallout title={isEs ? "Siguiente mejor paso" : "Best next step"}>
+                <p>
+                  {business.totalSources === 0
+                    ? (isEs
+                      ? "Empieza conectando tus fuentes de datos para que el asistente pueda responder con contexto real."
+                      : "Start by connecting your data sources so the assistant can answer with real context.")
+                    : business.openHandoffs > 0
+                      ? (isEs
+                        ? "Hay conversaciones esperando revision humana. Resolverlas primero ayuda a mantener la experiencia estable."
+                        : "There are conversations waiting for human review. Resolving them first helps keep the experience stable.")
+                      : (isEs
+                        ? "Tu base esta lista para optimizar ventas y soporte. Ajusta campanas o conversaciones segun la prioridad del dia."
+                        : "Your base is ready to optimize sales and support. Tune campaigns or conversations based on today’s priority.")}
+                </p>
+              </AdminInfoCallout>
+
+              <InlineStack gap="200" wrap>
+                <Button url={withEmbeddedQuery("/app/campaigns")}>{isEs ? "Lanzar campana" : "Launch campaign"}</Button>
+                <Button url={withEmbeddedQuery("/app/conversations")}>{isEs ? "Revisar conversaciones" : "Review conversations"}</Button>
                   <Button url={withEmbeddedQuery("/app/data-sources")}>{isEs ? "Sincronizar fuentes" : "Sync data sources"}</Button>
                   <Button url={withEmbeddedQuery("/app/settings")}>{isEs ? "Ajustar asistente" : "Tune assistant"}</Button>
                 </InlineStack>
               </BlockStack>
-            </Card>
+            </AdminSectionCard>
 
-            <Card>
+            <AdminSectionCard
+              title={isEs ? "Salud del asistente" : "Assistant health"}
+              description={
+                isEs
+                  ? "Resumen operativo para comprobar readiness, cobertura y estado del runtime."
+                  : "Operational summary to confirm readiness, coverage, and runtime status."
+              }
+            >
               <BlockStack gap="300">
-                <Text as="h2" variant="headingMd">{isEs ? "Salud del asistente" : "Assistant Health"}</Text>
                 <InlineStack align="space-between">
                   <Text as="p" variant="bodyMd">{isEs ? "Estado del asistente" : "Assistant status"}</Text>
                   <Badge tone={assistant.isActive ? "success" : "critical"}>
@@ -441,40 +481,42 @@ export default function DashboardIndex() {
                   <Text as="p" variant="bodyMd">{business.lastSyncLabel}</Text>
                 </InlineStack>
               </BlockStack>
-            </Card>
+            </AdminSectionCard>
           </InlineGrid>
         </Layout.Section>
 
         <Layout.Section>
-          <Card>
-            <BlockStack gap="300">
-              <InlineStack align="space-between" blockAlign="center">
-                <Text as="h2" variant="headingMd">
-                  {isEs ? "Requiere atencion" : "Needs Attention"}
-                </Text>
-                <Badge tone={alerts.length > 0 ? "attention" : "success"}>
-                  {alerts.length > 0 ? `${alerts.length} ${isEs ? "alertas" : "alerts"}` : (isEs ? "Todo bien" : "All good")}
-                </Badge>
-              </InlineStack>
-              {alerts.length > 0 ? (
-                <List>
-                  {alerts.map((alert) => (
-                    <List.Item key={alert}>{alert}</List.Item>
-                  ))}
-                </List>
-              ) : (
-                <Text as="p" variant="bodyMd" tone="subdued">
-                  {isEs ? "No hay issues criticos detectados por ahora." : "No critical issues detected right now."}
-                </Text>
-              )}
+          <AdminSectionCard
+            title={isEs ? "Requiere atencion" : "Needs attention"}
+            description={
+              isEs
+                ? "Alertas clave para desbloquear operacion, cumplimiento y crecimiento."
+                : "Key alerts to unblock operations, compliance, and growth."
+            }
+            badge={
+              <AdminStatusBadge tone={alerts.length > 0 ? "attention" : "success"}>
+                {alerts.length > 0 ? `${alerts.length} ${isEs ? "alertas" : "alerts"}` : (isEs ? "Todo bien" : "All good")}
+              </AdminStatusBadge>
+            }
+          >
+            {alerts.length > 0 ? (
+              <List>
+                {alerts.map((alert) => (
+                  <List.Item key={alert}>{alert}</List.Item>
+                ))}
+              </List>
+            ) : (
+              <Text as="p" variant="bodyMd" tone="subdued">
+                {isEs ? "No hay issues criticos detectados por ahora." : "No critical issues detected right now."}
+              </Text>
+            )}
 
-              <InlineStack gap="200" wrap>
-                <Button url={withEmbeddedQuery("/app/privacy")}>{isEs ? "Centro de cumplimiento" : "Compliance center"}</Button>
-                <Button url={withEmbeddedQuery("/app/operations")}>{isEs ? "Vista de operaciones" : "Operations view"}</Button>
-                <Button url={withEmbeddedQuery("/app/billing")}>{isEs ? "Facturacion" : "Billing"}</Button>
-              </InlineStack>
-            </BlockStack>
-          </Card>
+            <InlineStack gap="200" wrap>
+              <Button url={withEmbeddedQuery("/app/privacy")}>{isEs ? "Centro de cumplimiento" : "Compliance center"}</Button>
+              <Button url={withEmbeddedQuery("/app/operations")}>{isEs ? "Vista de operaciones" : "Operations view"}</Button>
+              <Button url={withEmbeddedQuery("/app/billing")}>{isEs ? "Facturacion" : "Billing"}</Button>
+            </InlineStack>
+          </AdminSectionCard>
         </Layout.Section>
       </Layout>
     </Page>

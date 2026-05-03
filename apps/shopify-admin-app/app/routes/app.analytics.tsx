@@ -1,8 +1,6 @@
 import {
   Page,
   Layout,
-  Card,
-  BlockStack,
   Text,
   InlineGrid,
   DataTable,
@@ -13,6 +11,7 @@ import { useLoaderData, useLocation } from "react-router";
 import { authenticate } from "../shopify.server";
 import { AnalyticsService } from "../services/analytics.server";
 import { useIsSpanish } from "../hooks/use-admin-language";
+import { AdminPageHeader, AdminSectionCard, AdminStatCard } from "../components/admin-ui";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const { session } = await authenticate.admin(request);
@@ -38,57 +37,29 @@ export default function AnalyticsPage() {
   const { conversations, revenue, proactive, intents, topTriggers } = report;
 
   return (
-    <Page
-      title={isEs ? "Analitica" : "Analytics"}
-      subtitle={isEs ? `Ultimos ${days} dias` : `Last ${days} days`}
-      backAction={{ content: isEs ? "Panel" : "Dashboard", url: backUrl }}
-    >
+    <Page fullWidth>
+      <AdminPageHeader
+        eyebrow={isEs ? "Insights" : "Insights"}
+        title={isEs ? "Analitica" : "Analytics"}
+        description={isEs ? `Ultimos ${days} dias de rendimiento, atribucion e intenciones.` : `Last ${days} days of performance, attribution, and intent signals.`}
+        backUrl={backUrl}
+        backLabel={isEs ? "Panel" : "Dashboard"}
+      />
       <Layout>
         <Layout.Section>
           <InlineGrid columns={{ xs: 1, sm: 2, md: 4 }} gap="400">
-            <Card>
-              <BlockStack gap="100">
-                <Text as="p" variant="bodySm" tone="subdued">{isEs ? "Conversaciones" : "Conversations"}</Text>
-                <Text as="p" variant="headingXl">{conversations.total}</Text>
-                <Text as="p" variant="bodySm" tone="subdued">
-                  {isEs ? "Resolucion" : "Resolution"}: {pct(conversations.resolutionRate)}
-                </Text>
-              </BlockStack>
-            </Card>
-            <Card>
-              <BlockStack gap="100">
-                <Text as="p" variant="bodySm" tone="subdued">{isEs ? "Ingresos asistidos" : "Assisted Revenue"}</Text>
-                <Text as="p" variant="headingXl">{currency(revenue.totalRevenue)}</Text>
-                <Text as="p" variant="bodySm" tone="subdued">
-                  {revenue.conversionCount} {isEs ? "pedidos atribuidos" : "orders attributed"}
-                </Text>
-              </BlockStack>
-            </Card>
-            <Card>
-              <BlockStack gap="100">
-                <Text as="p" variant="bodySm" tone="subdued">{isEs ? "Proactivos enviados" : "Proactive Sent"}</Text>
-                <Text as="p" variant="headingXl">{proactive.sent}</Text>
-                <Text as="p" variant="bodySm" tone="subdued">
-                  CVR: {pct(proactive.conversionRate)}
-                </Text>
-              </BlockStack>
-            </Card>
-            <Card>
-              <BlockStack gap="100">
-                <Text as="p" variant="bodySm" tone="subdued">{isEs ? "Tasa de handoff" : "Handoff Rate"}</Text>
-                <Text as="p" variant="headingXl">{pct(conversations.handoffRate)}</Text>
-                <Text as="p" variant="bodySm" tone="subdued">
-                  {conversations.escalated} {isEs ? "escaladas" : "escalated"}
-                </Text>
-              </BlockStack>
-            </Card>
+            <AdminStatCard label={isEs ? "Conversaciones" : "Conversations"} value={conversations.total} meta={`${isEs ? "Resolucion" : "Resolution"}: ${pct(conversations.resolutionRate)}`} />
+            <AdminStatCard label={isEs ? "Ingresos asistidos" : "Assisted revenue"} value={currency(revenue.totalRevenue)} meta={`${revenue.conversionCount} ${isEs ? "pedidos atribuidos" : "orders attributed"}`} />
+            <AdminStatCard label={isEs ? "Proactivos enviados" : "Proactive sent"} value={proactive.sent} meta={`CVR: ${pct(proactive.conversionRate)}`} />
+            <AdminStatCard label={isEs ? "Tasa de handoff" : "Handoff rate"} value={pct(conversations.handoffRate)} meta={`${conversations.escalated} ${isEs ? "escaladas" : "escalated"}`} />
           </InlineGrid>
         </Layout.Section>
 
         <Layout.Section>
-          <Card>
-            <BlockStack gap="400">
-              <Text as="h2" variant="headingMd">{isEs ? "Atribucion de ingresos" : "Revenue Attribution"}</Text>
+          <AdminSectionCard
+            title={isEs ? "Atribucion de ingresos" : "Revenue attribution"}
+            description={isEs ? "Desglosa como el asistente mueve valor a lo largo del funnel." : "Break down how the assistant drives value across the funnel."}
+          >
               <DataTable
                 columnContentTypes={["text", "numeric"]}
                 headings={isEs ? ["Tipo de atribucion", "Ingresos"] : ["Attribution Type", "Revenue"]}
@@ -100,14 +71,14 @@ export default function AnalyticsPage() {
                   [isEs ? "Total" : "Total", currency(revenue.totalRevenue)],
                 ]}
               />
-            </BlockStack>
-          </Card>
+          </AdminSectionCard>
         </Layout.Section>
 
         <Layout.Section>
-          <Card>
-            <BlockStack gap="400">
-              <Text as="h2" variant="headingMd">{isEs ? "Embudo de mensajeria proactiva" : "Proactive Messaging Funnel"}</Text>
+          <AdminSectionCard
+            title={isEs ? "Embudo de mensajeria proactiva" : "Proactive messaging funnel"}
+            description={isEs ? "Comprueba entregabilidad y conversion de las campañas activas." : "Check deliverability and conversion of active campaigns."}
+          >
               <DataTable
                 columnContentTypes={["text", "numeric", "text"]}
                 headings={isEs ? ["Etapa", "Cantidad", "Tasa"] : ["Stage", "Count", "Rate"]}
@@ -119,14 +90,14 @@ export default function AnalyticsPage() {
                   [isEs ? "Fallidos" : "Failed", String(proactive.failed), "—"],
                 ]}
               />
-            </BlockStack>
-          </Card>
+          </AdminSectionCard>
         </Layout.Section>
 
         <Layout.Section variant="oneHalf">
-          <Card>
-            <BlockStack gap="400">
-              <Text as="h2" variant="headingMd">{isEs ? "Desglose de intenciones" : "Intent Breakdown"}</Text>
+          <AdminSectionCard
+            title={isEs ? "Desglose de intenciones" : "Intent breakdown"}
+            description={isEs ? "Identifica las necesidades dominantes que llegan al chat." : "Identify the dominant needs reaching the chat."}
+          >
               {intents.length === 0 ? (
                 <EmptyState heading={isEs ? "Sin datos de intencion" : "No intent data yet"} image="">
                   <Text as="p" variant="bodySm">
@@ -142,14 +113,14 @@ export default function AnalyticsPage() {
                   rows={intents.map((i) => [i.type, String(i.count), pct(i.avgConfidence)])}
                 />
               )}
-            </BlockStack>
-          </Card>
+          </AdminSectionCard>
         </Layout.Section>
 
         <Layout.Section variant="oneHalf">
-          <Card>
-            <BlockStack gap="400">
-              <Text as="h2" variant="headingMd">{isEs ? "Top triggers proactivos" : "Top Proactive Triggers"}</Text>
+          <AdminSectionCard
+            title={isEs ? "Top triggers proactivos" : "Top proactive triggers"}
+            description={isEs ? "Prioriza los triggers que mas conversacion y conversion generan." : "Prioritize the triggers that drive the most conversation and conversion."}
+          >
               {topTriggers.length === 0 ? (
                 <EmptyState heading={isEs ? "Sin datos de triggers" : "No trigger data yet"} image="">
                   <Text as="p" variant="bodySm">
@@ -170,8 +141,7 @@ export default function AnalyticsPage() {
                   ])}
                 />
               )}
-            </BlockStack>
-          </Card>
+          </AdminSectionCard>
         </Layout.Section>
       </Layout>
     </Page>

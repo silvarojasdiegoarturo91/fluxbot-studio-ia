@@ -1,7 +1,6 @@
 import {
   Page,
   Layout,
-  Card,
   BlockStack,
   Text,
   Badge,
@@ -13,7 +12,6 @@ import {
   Select,
   TextField,
   Banner,
-  InlineStack,
 } from "@shopify/polaris";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
 import { Form, useActionData, useLoaderData, useLocation, useNavigation } from "react-router";
@@ -24,6 +22,7 @@ import { ensureShopForSession } from "../services/shop-context.server";
 import { authenticate } from "../shopify.server";
 import { getMerchantAdminConfig } from "../services/admin-config.server";
 import { useIsSpanish } from "../hooks/use-admin-language";
+import { AdminPageHeader, AdminSectionCard, AdminStatCard, AdminStatusBadge } from "../components/admin-ui";
 
 interface DataSourcesActionData {
   ok: boolean;
@@ -239,10 +238,19 @@ export default function DataSourcesPage() {
   ]);
 
   return (
-    <Page
-      title={isEs ? "Fuentes de datos" : "Data Sources"}
-      backAction={{ content: isEs ? "Panel" : "Dashboard", url: backToDashboardUrl }}
-    >
+    <Page fullWidth>
+      <AdminPageHeader
+        eyebrow={isEs ? "Grounding" : "Grounding"}
+        title={isEs ? "Fuentes de datos" : "Data sources"}
+        description={
+          isEs
+            ? "Conecta, activa y monitoriza las fuentes que alimentan respuestas, catalogo y politicas."
+            : "Connect, activate, and monitor the sources that power answers, catalog data, and policies."
+        }
+        backUrl={backToDashboardUrl}
+        backLabel={isEs ? "Panel" : "Dashboard"}
+        badge={<AdminStatusBadge tone={failedSyncJobs > 0 ? "warning" : "success"}>{failedSyncJobs > 0 ? `${failedSyncJobs} ${isEs ? "fallos" : "failures"}` : (isEs ? "Sync estable" : "Sync healthy")}</AdminStatusBadge>}
+      />
       <Layout>
         {actionData?.ok && actionData.message ? (
           <Layout.Section>
@@ -258,39 +266,21 @@ export default function DataSourcesPage() {
 
         <Layout.Section>
           <InlineGrid columns={{ xs: 1, sm: 2, md: 4 }} gap="400">
-            <Card>
-              <BlockStack gap="100">
-                <Text as="p" variant="bodySm" tone="subdued">{isEs ? "Fuentes activas" : "Active sources"}</Text>
-                <Text as="p" variant="headingXl">{activeSources}/{sources.length}</Text>
-              </BlockStack>
-            </Card>
-            <Card>
-              <BlockStack gap="100">
-                <Text as="p" variant="bodySm" tone="subdued">{isEs ? "Productos proyectados" : "Projected products"}</Text>
-                <Text as="p" variant="headingXl">{projections.productsProjected}</Text>
-              </BlockStack>
-            </Card>
-            <Card>
-              <BlockStack gap="100">
-                <Text as="p" variant="bodySm" tone="subdued">{isEs ? "Sync jobs en ejecucion" : "Running sync jobs"}</Text>
-                <Text as="p" variant="headingXl">{runningSyncJobs}</Text>
-              </BlockStack>
-            </Card>
-            <Card>
-              <BlockStack gap="100">
-                <Text as="p" variant="bodySm" tone="subdued">{isEs ? "Sync jobs fallidos" : "Failed sync jobs"}</Text>
-                <Text as="p" variant="headingXl">{failedSyncJobs}</Text>
-              </BlockStack>
-            </Card>
+            <AdminStatCard label={isEs ? "Fuentes activas" : "Active sources"} value={`${activeSources}/${sources.length}`} />
+            <AdminStatCard label={isEs ? "Productos proyectados" : "Projected products"} value={projections.productsProjected} />
+            <AdminStatCard label={isEs ? "Sync jobs en ejecucion" : "Running sync jobs"} value={runningSyncJobs} />
+            <AdminStatCard label={isEs ? "Sync jobs fallidos" : "Failed sync jobs"} value={failedSyncJobs} badge={<AdminStatusBadge tone={failedSyncJobs > 0 ? "warning" : "success"}>{failedSyncJobs > 0 ? (isEs ? "Revisar" : "Review") : "OK"}</AdminStatusBadge>} />
           </InlineGrid>
         </Layout.Section>
 
         <Layout.Section>
           <InlineGrid columns={{ xs: 1, md: 2 }} gap="400">
-            <Card>
+            <AdminSectionCard
+              title={isEs ? "Agregar fuente de datos" : "Add data source"}
+              description={isEs ? "Registra nuevas entradas de conocimiento sin mezclar configuracion y operacion." : "Register new knowledge inputs without mixing configuration and operations."}
+            >
               <Form method="post">
                 <BlockStack gap="300">
-                  <Text as="h2" variant="headingMd">{isEs ? "Agregar fuente de datos" : "Add data source"}</Text>
                   <FormLayout>
                     <input type="hidden" name="intent" value="create_source" />
 
@@ -335,12 +325,14 @@ export default function DataSourcesPage() {
                   </FormLayout>
                 </BlockStack>
               </Form>
-            </Card>
+            </AdminSectionCard>
 
-            <Card>
+            <AdminSectionCard
+              title={isEs ? "Encolar sincronizacion" : "Queue synchronization"}
+              description={isEs ? "Lanza trabajos de sync cuando necesites refrescar inventario, politicas o paginas." : "Launch sync jobs when you need to refresh inventory, policies, or pages."}
+            >
               <Form method="post">
                 <BlockStack gap="300">
-                  <Text as="h2" variant="headingMd">{isEs ? "Encolar sincronizacion" : "Queue synchronization"}</Text>
                   <FormLayout>
                     <input type="hidden" name="intent" value="queue_sync" />
                     <Select
@@ -367,18 +359,16 @@ export default function DataSourcesPage() {
                   </FormLayout>
                 </BlockStack>
               </Form>
-            </Card>
+            </AdminSectionCard>
           </InlineGrid>
         </Layout.Section>
 
         <Layout.Section>
-          <Card>
-            <BlockStack gap="300">
-              <InlineStack align="space-between" blockAlign="center">
-                <Text as="h2" variant="headingMd">{isEs ? "Fuentes configuradas" : "Configured sources"}</Text>
-                <Badge tone="info">{`${sources.length} ${isEs ? "totales" : "total"}`}</Badge>
-              </InlineStack>
-
+          <AdminSectionCard
+            title={isEs ? "Fuentes configuradas" : "Configured sources"}
+            description={isEs ? "Inventario operativo de fuentes disponibles y su estado de activacion." : "Operational inventory of available sources and their activation state."}
+            badge={<AdminStatusBadge tone="info">{`${sources.length} ${isEs ? "totales" : "total"}`}</AdminStatusBadge>}
+          >
               {sourceRows.length === 0 ? (
                 <EmptyState heading={isEs ? "No hay fuentes configuradas" : "No sources configured"} image="">
                   <Text as="p" variant="bodySm">
@@ -396,15 +386,14 @@ export default function DataSourcesPage() {
                   rows={sourceRows}
                 />
               )}
-            </BlockStack>
-          </Card>
+          </AdminSectionCard>
         </Layout.Section>
 
         <Layout.Section>
-          <Card>
-            <BlockStack gap="300">
-              <Text as="h2" variant="headingMd">{isEs ? "Sync jobs recientes" : "Recent sync jobs"}</Text>
-
+          <AdminSectionCard
+            title={isEs ? "Sync jobs recientes" : "Recent sync jobs"}
+            description={isEs ? "Historial corto para comprobar progreso, errores y capacidad operativa." : "Short history to inspect progress, errors, and operational capacity."}
+          >
               {syncRows.length === 0 ? (
                 <EmptyState heading={isEs ? "Aun no hay sync jobs" : "No sync jobs yet"} image="">
                   <Text as="p" variant="bodySm">
@@ -422,8 +411,7 @@ export default function DataSourcesPage() {
                   rows={syncRows}
                 />
               )}
-            </BlockStack>
-          </Card>
+          </AdminSectionCard>
         </Layout.Section>
       </Layout>
     </Page>

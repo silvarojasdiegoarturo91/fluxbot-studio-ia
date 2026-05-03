@@ -5,7 +5,7 @@
     "description": "Shopify AI Chatbot App — Conversational Commerce Platform",
     "owner": "Fluxbot Team",
     "status": "in-development",
-    "last_updated": "2026-04-09",
+    "last_updated": "2026-05-03",
     "source_of_truth": "STATUS_MATRIX.md",
     "repos": {
       "frontend": "fluxbot-studio-ia",
@@ -755,6 +755,51 @@
           "Or test mocked to not require a live DB"
         ],
         "evidence": "Implemented in-memory Prisma mock (test/mocks/prisma-in-memory.ts). All 15 E2E tests pass. Total suite: 55/55 files, 986/986 tests."
+      },
+      {
+        "id": "REQ-OPEN-006",
+        "title": "Frontend admin alignment with local UI/UX skills",
+        "description": "Apply the behavioral and visual characteristics defined in responsive-layout-guard, visual-consistency-review, admin-ui-ux, onboarding-flow, and implementation-rules across the Shopify admin frontend without breaking embedded navigation or form interactions.",
+        "priority": "high",
+        "status": "completed",
+        "owner": "frontend",
+        "components": [
+          ".claude/skills/responsive-layout-guard/SKILL.md",
+          ".claude/skills/visual-consistency-review/SKILL.md",
+          ".claude/skills/admin-ui-ux/SKILL.md",
+          ".claude/skills/onboarding-flow/SKILL.md",
+          ".claude/skills/implementation-rules/SKILL.md",
+          "apps/shopify-admin-app/app/components/admin-shell.tsx",
+          "apps/shopify-admin-app/app/components/admin-ui.tsx",
+          "apps/shopify-admin-app/app/utils/admin-navigation.ts",
+          "apps/shopify-admin-app/app/routes/app.onboarding.tsx",
+          "apps/shopify-admin-app/app/routes/app.settings.tsx",
+          "apps/shopify-admin-app/app/routes/app._index.tsx",
+          "apps/shopify-admin-app/app/routes/app.analytics.tsx",
+          "apps/shopify-admin-app/app/routes/app.data-sources.tsx",
+          "apps/shopify-admin-app/app/routes/app.conversations.tsx",
+          "apps/shopify-admin-app/app/routes/app.billing.tsx",
+          "apps/shopify-admin-app/app/routes/app.campaigns.tsx",
+          "apps/shopify-admin-app/app/routes/app.operations.tsx",
+          "apps/shopify-admin-app/app/routes/app.widget-settings.tsx"
+        ],
+        "acceptance_criteria": [
+          "Admin screens use consistent spacing, hierarchy, cards, actions, and readable section structure aligned with admin-ui-ux and visual-consistency-review",
+          "Onboarding progress, labels, percentages, buttons, and step navigation do not overlap or break at 320px, 375px, 768px, 1024px, and 1440px as required by responsive-layout-guard",
+          "Onboarding flow feels guided, lighter, and easier to scan, with working continue/back/complete actions and no navigation regressions",
+          "Technical AI controls remain available but are presented in merchant-friendly language instead of raw jargon when possible",
+          "Embedded Shopify query params and admin interactions remain stable across all updated routes per implementation-rules",
+          "Typecheck, targeted lint, and existing @fluxbot/shopify-admin-app tests remain green after the frontend refresh"
+        ],
+        "completed_date": "2026-05-03",
+        "evidence": [
+          "apps/shopify-admin-app/app/components/admin-ui.tsx: shared AdminInfoCallout and card structure upgrades",
+          "apps/shopify-admin-app/app/components/admin-shell.tsx: safer spacing, form footer, and shared breathing-room refinements without changing working navigation architecture",
+          "apps/shopify-admin-app/app/routes/app.settings.tsx: merchant-friendly grouped sections for identity, response behavior, automation, and advanced guidance",
+          "apps/shopify-admin-app/app/routes/app.onboarding.tsx: responsive progress card, safer step grid, wrapped action footer, and more guided copy",
+          "apps/shopify-admin-app/app/routes/app._index.tsx: dashboard next-step guidance aligned with the updated admin language",
+          "Validated with typecheck, targeted eslint, and existing @fluxbot/shopify-admin-app test suite"
+        ]
       }
     ]
   }

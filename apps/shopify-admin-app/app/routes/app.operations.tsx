@@ -1,12 +1,10 @@
 import {
   Page,
   Layout,
-  Card,
   BlockStack,
   Text,
   InlineGrid,
   DataTable,
-  Badge,
   EmptyState,
 } from "@shopify/polaris";
 import type { LoaderFunctionArgs } from "react-router";
@@ -16,6 +14,7 @@ import { getDeliveryStatus } from "../services/delivery.server";
 import { getProactiveJobSchedulerStats } from "../jobs/scheduler.server";
 import { getOperationsMetrics } from "../services/operations-metrics.server";
 import { useIsSpanish } from "../hooks/use-admin-language";
+import { AdminPageHeader, AdminSectionCard, AdminStatCard, AdminStatusBadge } from "../components/admin-ui";
 
 function pct(value: number) {
   return `${(value * 100).toFixed(1)}%`;
@@ -61,80 +60,34 @@ export default function OperationsPage() {
   const retentionSchedulerRunning = scheduler?.isRunning?.retention === true;
 
   return (
-    <Page
-      title={isEs ? "Operaciones" : "Operations"}
-      subtitle={
-        isEs
-          ? `Visibilidad runtime Fase 6 · ${shopDomain} · ventana ${windowMinutes}m`
-          : `Phase 6 runtime visibility · ${shopDomain} · ${windowMinutes}m window`
-      }
-      backAction={{ content: isEs ? "Panel" : "Dashboard", url: backToDashboardUrl }}
-    >
+    <Page fullWidth>
+      <AdminPageHeader
+        eyebrow={isEs ? "Runtime" : "Runtime"}
+        title={isEs ? "Operaciones" : "Operations"}
+        description={
+          isEs
+            ? `Visibilidad runtime Fase 6 para ${shopDomain} con una ventana operativa de ${windowMinutes} minutos.`
+            : `Phase 6 runtime visibility for ${shopDomain} with a ${windowMinutes}-minute operational window.`
+        }
+        backUrl={backToDashboardUrl}
+        backLabel={isEs ? "Panel" : "Dashboard"}
+        badge={<AdminStatusBadge tone={retentionSchedulerRunning ? "success" : "attention"}>{retentionSchedulerRunning ? (isEs ? "Scheduler ejecutando" : "Scheduler running") : (isEs ? "Scheduler detenido" : "Scheduler stopped")}</AdminStatusBadge>}
+      />
       <Layout>
         <Layout.Section>
           <InlineGrid columns={{ xs: 1, sm: 2, md: 4 }} gap="400">
-            <Card>
-              <BlockStack gap="100">
-                <Text as="p" variant="bodySm" tone="subdued">
-                  {isEs ? "Eventos de callback" : "Callback Events"}
-                </Text>
-                <Text as="p" variant="headingXl">{operations.callback.total}</Text>
-                <Text as="p" variant="bodySm" tone="subdued">
-                  {isEs ? `Ultimos ${windowMinutes}m` : `Last ${windowMinutes}m`}
-                </Text>
-              </BlockStack>
-            </Card>
-
-            <Card>
-              <BlockStack gap="100">
-                <Text as="p" variant="bodySm" tone="subdued">
-                  {isEs ? "Tasa aplicada" : "Applied Rate"}
-                </Text>
-                <Text as="p" variant="headingXl">{pct(operations.callback.appliedRate)}</Text>
-                <Text as="p" variant="bodySm" tone="subdued">
-                  {isEs ? "Ignorados" : "Ignored"}: {pct(operations.callback.ignoredRate)}
-                </Text>
-              </BlockStack>
-            </Card>
-
-            <Card>
-              <BlockStack gap="100">
-                <Text as="p" variant="bodySm" tone="subdued">
-                  {isEs ? "Cola de errores (DLQ)" : "Dead Letter Queue"}
-                </Text>
-                <Text as="p" variant="headingXl">{operations.deadLetter.queued}</Text>
-                <Text as="p" variant="bodySm" tone="subdued">
-                  {isEs ? "Resueltos" : "Resolved"}: {operations.deadLetter.resolved}
-                </Text>
-              </BlockStack>
-            </Card>
-
-            <Card>
-              <BlockStack gap="100">
-                <Text as="p" variant="bodySm" tone="subdued">
-                  {isEs ? "Scheduler de retencion" : "Retention Scheduler"}
-                </Text>
-                <Text as="p" variant="headingXl">
-                  <Badge tone={retentionSchedulerRunning ? "success" : "attention"}>
-                    {retentionSchedulerRunning
-                      ? (isEs ? "Ejecutando" : "Running")
-                      : (isEs ? "Detenido" : "Stopped")}
-                  </Badge>
-                </Text>
-                <Text as="p" variant="bodySm" tone="subdued">
-                  {isEs ? "Fallos de entrega" : "Delivery failures"}: {operations.callback.deliveryFailures}
-                </Text>
-              </BlockStack>
-            </Card>
+            <AdminStatCard label={isEs ? "Eventos de callback" : "Callback events"} value={operations.callback.total} meta={isEs ? `Ultimos ${windowMinutes}m` : `Last ${windowMinutes}m`} />
+            <AdminStatCard label={isEs ? "Tasa aplicada" : "Applied rate"} value={pct(operations.callback.appliedRate)} meta={`${isEs ? "Ignorados" : "Ignored"}: ${pct(operations.callback.ignoredRate)}`} />
+            <AdminStatCard label={isEs ? "Cola de errores (DLQ)" : "Dead letter queue"} value={operations.deadLetter.queued} meta={`${isEs ? "Resueltos" : "Resolved"}: ${operations.deadLetter.resolved}`} />
+            <AdminStatCard label={isEs ? "Scheduler de retencion" : "Retention scheduler"} value={retentionSchedulerRunning ? (isEs ? "Ejecutando" : "Running") : (isEs ? "Detenido" : "Stopped")} badge={<AdminStatusBadge tone={retentionSchedulerRunning ? "success" : "attention"}>{retentionSchedulerRunning ? (isEs ? "Activo" : "Active") : (isEs ? "Pausa" : "Paused")}</AdminStatusBadge>} meta={`${isEs ? "Fallos de entrega" : "Delivery failures"}: ${operations.callback.deliveryFailures}`} />
           </InlineGrid>
         </Layout.Section>
 
         <Layout.Section>
-          <Card>
-            <BlockStack gap="300">
-              <Text as="h2" variant="headingMd">
-                {isEs ? "Cobertura por canal" : "Channel Coverage"}
-              </Text>
+          <AdminSectionCard
+            title={isEs ? "Cobertura por canal" : "Channel coverage"}
+            description={isEs ? "Visualiza integraciones ya cubiertas y canales aun pendientes." : "Visualize integrated channels and the ones still pending."}
+          >
               <InlineGrid columns={{ xs: 1, md: 2 }} gap="300">
                 <BlockStack gap="200">
                   <Text as="p" variant="bodySm" tone="subdued">
@@ -153,17 +106,14 @@ export default function OperationsPage() {
                   </Text>
                 </BlockStack>
               </InlineGrid>
-            </BlockStack>
-          </Card>
+          </AdminSectionCard>
         </Layout.Section>
 
         <Layout.Section>
-          <Card>
-            <BlockStack gap="300">
-              <Text as="h2" variant="headingMd">
-                {isEs ? "Rendimiento de callbacks por canal" : "Callback Performance by Channel"}
-              </Text>
-
+          <AdminSectionCard
+            title={isEs ? "Rendimiento de callbacks por canal" : "Callback performance by channel"}
+            description={isEs ? "Tabla operativa para revisar aplicacion, ignorados, fallos y latencia." : "Operational table to review applied callbacks, ignored events, failures, and latency."}
+          >
               {channelRows.length === 0 ? (
                 <EmptyState heading={isEs ? "Sin metricas de callback" : "No callback metrics yet"} image="">
                   <Text as="p" variant="bodySm">
@@ -183,8 +133,7 @@ export default function OperationsPage() {
                   rows={channelRows}
                 />
               )}
-            </BlockStack>
-          </Card>
+          </AdminSectionCard>
         </Layout.Section>
       </Layout>
     </Page>

@@ -1,17 +1,14 @@
 import {
   Page,
   Layout,
-  Card,
   BlockStack,
   Text,
-  Badge,
   TextField,
   Select,
   InlineGrid,
   Button,
   Banner,
   FormLayout,
-  InlineStack,
 } from "@shopify/polaris";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
 import { Form, useActionData, useLoaderData, useLocation, useNavigation } from "react-router";
@@ -22,6 +19,7 @@ import { saveMerchantAdminConfig, type AdminLanguage } from "../services/admin-c
 import { ensureShopForSession } from "../services/shop-context.server";
 import { authenticate } from "../shopify.server";
 import { useIsSpanish } from "../hooks/use-admin-language";
+import { AdminInfoCallout, AdminPageHeader, AdminSectionCard, AdminStatCard, AdminStatusBadge } from "../components/admin-ui";
 
 interface SettingsActionData {
   ok: boolean;
@@ -45,6 +43,46 @@ function clampNumber(value: number, min: number, max: number, fallback: number):
 function parseGlobalLanguage(raw: FormDataEntryValue | null, fallback: AdminLanguage): AdminLanguage {
   const value = String(raw || "").trim().toLowerCase();
   return value === "es" || value === "en" ? value : fallback;
+}
+
+function getCreativitySummary(value: number, isEs: boolean) {
+  if (value <= 0.4) {
+    return isEs ? "Muy precisa y predecible" : "Very precise and predictable";
+  }
+
+  if (value <= 0.8) {
+    return isEs ? "Equilibrada para la mayoria de tiendas" : "Balanced for most stores";
+  }
+
+  if (value <= 1.2) {
+    return isEs ? "Mas expresiva y flexible" : "More expressive and flexible";
+  }
+
+  return isEs ? "Muy creativa, con mas variacion" : "Very creative with more variation";
+}
+
+function getResponseLengthSummary(value: number, isEs: boolean) {
+  if (value <= 300) {
+    return isEs ? "Breve y directa" : "Short and direct";
+  }
+
+  if (value <= 700) {
+    return isEs ? "Equilibrada y facil de leer" : "Balanced and easy to read";
+  }
+
+  return isEs ? "Mas detallada y explicativa" : "More detailed and explanatory";
+}
+
+function getConfidenceSummary(value: number, isEs: boolean) {
+  if (value >= 0.8) {
+    return isEs ? "Muy prudente antes de responder" : "Very cautious before replying";
+  }
+
+  if (value >= 0.6) {
+    return isEs ? "Equilibrio entre agilidad y seguridad" : "Balanced between speed and safety";
+  }
+
+  return isEs ? "Mas agil, con menos filtro" : "More agile with less filtering";
 }
 
 export async function loader({ request }: LoaderFunctionArgs) {
@@ -211,59 +249,82 @@ export default function SettingsPage() {
   }, [config]);
 
   const isSubmitting = navigation.state === "submitting";
+  const temperatureNumber = clampNumber(Number(temperature || 0.7), 0, 2, 0.7);
+  const maxTokensNumber = Math.round(clampNumber(Number(maxTokens || 500), 50, 4000, 500));
+  const confidenceThresholdNumber = clampNumber(Number(confidenceThreshold || 0.6), 0, 1, 0.6);
 
   return (
-    <Page
-      title={isEs ? "Configuracion del asistente" : "Assistant Settings"}
-      backAction={{ content: isEs ? "Panel" : "Dashboard", url: backToDashboardUrl }}
-    >
-      <Layout>
-        {actionData?.ok && actionData.message ? (
+    <Page fullWidth>
+      <AdminPageHeader
+        eyebrow={isEs ? "Configuracion central" : "Core configuration"}
+        title={isEs ? "Configuracion del asistente" : "Assistant settings"}
+        description={
+          isEs
+            ? "Configura la forma de hablar, el nivel de detalle y la prudencia del asistente con terminos mas faciles de entender."
+            : "Configure the assistant voice, level of detail, and caution using language that is easier to understand."
+        }
+        backUrl={backToDashboardUrl}
+        backLabel={isEs ? "Panel" : "Dashboard"}
+        badge={
+          <AdminStatusBadge tone={isActive === "true" ? "success" : "attention"}>
+            {isActive === "true" ? (isEs ? "Activo" : "Active") : (isEs ? "Pausado" : "Paused")}
+          </AdminStatusBadge>
+        }
+      />
+      <Form method="post">
+        <Layout>
+          {actionData?.ok && actionData.message ? (
+            <Layout.Section>
+              <Banner tone="success" title={actionData.message} />
+            </Layout.Section>
+          ) : null}
+
+          {!actionData?.ok && actionData?.error ? (
+            <Layout.Section>
+              <Banner tone="critical" title={actionData.error} />
+            </Layout.Section>
+          ) : null}
+
           <Layout.Section>
-            <Banner tone="success" title={actionData.message} />
+            <InlineGrid columns={{ xs: 1, md: 3 }} gap="400">
+              <AdminStatCard
+                label={isEs ? "Estado del asistente" : "Assistant status"}
+                value={isActive === "true" ? (isEs ? "Activo" : "Active") : (isEs ? "Pausado" : "Paused")}
+                badge={<AdminStatusBadge tone={isActive === "true" ? "success" : "critical"}>{isActive === "true" ? (isEs ? "Operativo" : "Live") : (isEs ? "Pausa" : "Paused")}</AdminStatusBadge>}
+              />
+              <AdminStatCard
+                label={isEs ? "Estilo de respuesta" : "Response style"}
+                value={getCreativitySummary(temperatureNumber, isEs)}
+                meta={isEs ? `Valor interno: ${temperatureNumber.toFixed(1)} de creatividad` : `Internal value: ${temperatureNumber.toFixed(1)} creativity score`}
+              />
+              <AdminStatCard
+                label={isEs ? "Nivel de detalle" : "Level of detail"}
+                value={getResponseLengthSummary(maxTokensNumber, isEs)}
+                meta={isEs ? `Prudencia actual: ${getConfidenceSummary(confidenceThresholdNumber, isEs)}` : `Current caution: ${getConfidenceSummary(confidenceThresholdNumber, isEs)}`}
+              />
+            </InlineGrid>
           </Layout.Section>
-        ) : null}
 
-        {!actionData?.ok && actionData?.error ? (
           <Layout.Section>
-            <Banner tone="critical" title={actionData.error} />
-          </Layout.Section>
-        ) : null}
-
-        <Layout.Section>
-          <InlineGrid columns={{ xs: 1, md: 3 }} gap="400">
-            <Card>
-              <BlockStack gap="100">
-                <Text as="p" variant="bodySm" tone="subdued">{isEs ? "Estado del asistente" : "Assistant status"}</Text>
-                <Badge tone={isActive === "true" ? "success" : "critical"}>
-                  {isActive === "true" ? (isEs ? "Activo" : "Active") : (isEs ? "Pausado" : "Paused")}
-                </Badge>
-              </BlockStack>
-            </Card>
-            <Card>
-              <BlockStack gap="100">
-                <Text as="p" variant="bodySm" tone="subdued">{isEs ? "Ventas proactivas" : "Proactive sales"}</Text>
-                <Badge tone={enableProactive === "true" ? "success" : "attention"}>
-                  {enableProactive === "true" ? (isEs ? "Activado" : "Enabled") : (isEs ? "Desactivado" : "Disabled")}
-                </Badge>
-              </BlockStack>
-            </Card>
-            <Card>
-              <BlockStack gap="100">
-                <Text as="p" variant="bodySm" tone="subdued">{isEs ? "Handoff humano" : "Human handoff"}</Text>
-                <Badge tone={enableHandoff === "true" ? "success" : "attention"}>
-                  {enableHandoff === "true" ? (isEs ? "Activado" : "Enabled") : (isEs ? "Desactivado" : "Disabled")}
-                </Badge>
-              </BlockStack>
-            </Card>
-          </InlineGrid>
-        </Layout.Section>
-
-        <Layout.Section>
-          <Card>
-            <Form method="post">
+            <AdminSectionCard
+              title={isEs ? "Identidad y voz del asistente" : "Assistant identity and voice"}
+              description={
+                isEs
+                  ? "Empieza por lo que el merchant reconoce enseguida: nombre, idioma y tono con el que hablara el asistente."
+                  : "Start with what merchants recognize instantly: name, language, and the tone the assistant will use."
+              }
+            >
               <BlockStack gap="400">
-                <Text as="h2" variant="headingMd">{isEs ? "Controles de comportamiento y respuesta" : "Behavior and response controls"}</Text>
+                <AdminInfoCallout
+                  title={isEs ? "Configuracion recomendada para arrancar" : "Recommended setup to get started"}
+                  tone="highlight"
+                >
+                  <p>
+                    {isEs
+                      ? "Si no estas seguro, deja un tono profesional y un solo idioma principal. Luego podras afinar el resto con datos reales."
+                      : "If you are unsure, keep a professional tone and one primary language. You can refine the rest later with real usage data."}
+                  </p>
+                </AdminInfoCallout>
 
                 <FormLayout>
                   <TextField
@@ -295,116 +356,219 @@ export default function SettingsPage() {
                     onChange={setLanguage}
                   />
                   <input type="hidden" name="language" value={language} />
+                </FormLayout>
+              </BlockStack>
+            </AdminSectionCard>
+          </Layout.Section>
 
-                  <InlineGrid columns={{ xs: 1, md: 3 }} gap="300">
-                    <TextField
-                      label={isEs ? "Temperatura" : "Temperature"}
-                      type="number"
-                      min={0}
-                      max={2}
-                      step={0.1}
-                      value={temperature}
-                      onChange={setTemperature}
-                      autoComplete="off"
-                    />
-                    <input type="hidden" name="temperature" value={temperature} />
+          <Layout.Section>
+            <InlineGrid columns={{ xs: 1, lg: 2 }} gap="400">
+              <AdminSectionCard
+                title={isEs ? "Como responde el asistente" : "How the assistant responds"}
+                description={
+                  isEs
+                    ? "Mantiene la misma potencia tecnica, pero explicada con terminos mas faciles de entender para negocio y soporte."
+                    : "It keeps the same technical power, but explained in language that is easier for business and support teams to understand."
+                }
+              >
+                <BlockStack gap="400">
+                  <AdminInfoCallout title={isEs ? "Sin jerga innecesaria" : "No unnecessary jargon"}>
+                    <p>
+                      {isEs
+                        ? "En lugar de pedirte temperature o max tokens, te explicamos el efecto real sobre creatividad, extension y prudencia."
+                        : "Instead of asking for temperature or max tokens, we explain the real effect on creativity, length, and caution."}
+                    </p>
+                  </AdminInfoCallout>
 
-                    <TextField
-                      label={isEs ? "Maximo de tokens" : "Max tokens"}
-                      type="number"
-                      min={50}
-                      max={4000}
-                      step={50}
-                      value={maxTokens}
-                      onChange={setMaxTokens}
-                      autoComplete="off"
-                    />
-                    <input type="hidden" name="maxTokens" value={maxTokens} />
+                  <FormLayout>
+                    <InlineGrid columns={{ xs: 1, md: 3 }} gap="300">
+                      <TextField
+                        label={isEs ? "Creatividad de respuestas" : "Response creativity"}
+                        type="number"
+                        min={0}
+                        max={2}
+                        step={0.1}
+                        value={temperature}
+                        onChange={setTemperature}
+                        autoComplete="off"
+                        helpText={
+                          isEs
+                            ? `Control interno: temperature. Mas bajo = respuestas mas predecibles. Mas alto = respuestas mas variadas. Ahora: ${getCreativitySummary(temperatureNumber, true)}.`
+                            : `Internal control: temperature. Lower = more predictable replies. Higher = more varied replies. Now: ${getCreativitySummary(temperatureNumber, false)}.`
+                        }
+                      />
+                      <input type="hidden" name="temperature" value={temperature} />
 
-                    <TextField
-                      label={isEs ? "Umbral de confianza" : "Confidence threshold"}
-                      type="number"
-                      min={0}
-                      max={1}
-                      step={0.05}
-                      value={confidenceThreshold}
-                      onChange={setConfidenceThreshold}
-                      autoComplete="off"
-                    />
-                    <input type="hidden" name="confidenceThreshold" value={confidenceThreshold} />
-                  </InlineGrid>
+                      <TextField
+                        label={isEs ? "Longitud maxima de respuesta" : "Maximum response length"}
+                        type="number"
+                        min={50}
+                        max={4000}
+                        step={50}
+                        value={maxTokens}
+                        onChange={setMaxTokens}
+                        autoComplete="off"
+                        helpText={
+                          isEs
+                            ? `Control interno: maxTokens. Define cuanto puede extenderse el asistente. Ahora: ${getResponseLengthSummary(maxTokensNumber, true)}.`
+                            : `Internal control: maxTokens. Defines how long the assistant can go. Now: ${getResponseLengthSummary(maxTokensNumber, false)}.`
+                        }
+                      />
+                      <input type="hidden" name="maxTokens" value={maxTokens} />
 
-                  <InlineGrid columns={{ xs: 1, md: 3 }} gap="300">
-                    <Select
-                      label={isEs ? "Estado del asistente" : "Assistant status"}
-                      options={[
-                        { label: isEs ? "Activo" : "Active", value: "true" },
-                        { label: isEs ? "Pausado" : "Paused", value: "false" },
-                      ]}
-                      value={isActive}
-                      onChange={setIsActive}
-                    />
-                    <input type="hidden" name="isActive" value={isActive} />
+                      <TextField
+                        label={isEs ? "Nivel de prudencia antes de responder" : "Caution level before replying"}
+                        type="number"
+                        min={0}
+                        max={1}
+                        step={0.05}
+                        value={confidenceThreshold}
+                        onChange={setConfidenceThreshold}
+                        autoComplete="off"
+                        helpText={
+                          isEs
+                            ? `Control interno: confidenceThreshold. Mas alto = el asistente se lo piensa mas antes de contestar. Ahora: ${getConfidenceSummary(confidenceThresholdNumber, true)}.`
+                            : `Internal control: confidenceThreshold. Higher = the assistant is more careful before answering. Now: ${getConfidenceSummary(confidenceThresholdNumber, false)}.`
+                        }
+                      />
+                      <input type="hidden" name="confidenceThreshold" value={confidenceThreshold} />
+                    </InlineGrid>
+                  </FormLayout>
+                </BlockStack>
+              </AdminSectionCard>
 
-                    <Select
-                      label={isEs ? "Activar mensajeria proactiva" : "Enable proactive messaging"}
-                      options={[
-                        { label: isEs ? "Activado" : "Enabled", value: "true" },
-                        { label: isEs ? "Desactivado" : "Disabled", value: "false" },
-                      ]}
-                      value={enableProactive}
-                      onChange={setEnableProactive}
-                    />
-                    <input type="hidden" name="enableProactive" value={enableProactive} />
+              <AdminSectionCard
+                title={isEs ? "Automatizacion y escalado" : "Automation and escalation"}
+                description={
+                  isEs
+                    ? "Define si el asistente esta activo, si inicia conversaciones por su cuenta y cuando debe pasar a una persona."
+                    : "Decide whether the assistant is live, whether it starts conversations on its own, and when it should hand off to a person."
+                }
+              >
+                <BlockStack gap="400">
+                  <AdminInfoCallout title={isEs ? "Piensa en operaciones, no en IA" : "Think operations, not AI"}>
+                    <p>
+                      {isEs
+                        ? "Estos controles cambian la experiencia del cliente y del equipo de soporte. Lo ideal es activarlos de forma progresiva."
+                        : "These controls change both the customer and support team experience. It is usually best to enable them progressively."}
+                    </p>
+                  </AdminInfoCallout>
 
-                    <Select
-                      label={isEs ? "Activar handoff humano" : "Enable human handoff"}
-                      options={[
-                        { label: isEs ? "Activado" : "Enabled", value: "true" },
-                        { label: isEs ? "Desactivado" : "Disabled", value: "false" },
-                      ]}
-                      value={enableHandoff}
-                      onChange={setEnableHandoff}
-                    />
-                    <input type="hidden" name="enableHandoff" value={enableHandoff} />
-                  </InlineGrid>
+                  <FormLayout>
+                    <InlineGrid columns={{ xs: 1, md: 3 }} gap="300">
+                      <Select
+                        label={isEs ? "Estado del asistente" : "Assistant status"}
+                        options={[
+                          { label: isEs ? "Activo" : "Active", value: "true" },
+                          { label: isEs ? "Pausado" : "Paused", value: "false" },
+                        ]}
+                        value={isActive}
+                        onChange={setIsActive}
+                      />
+                      <input type="hidden" name="isActive" value={isActive} />
 
+                      <Select
+                        label={isEs ? "Iniciar conversaciones proactivas" : "Start proactive conversations"}
+                        options={[
+                          { label: isEs ? "Activado" : "Enabled", value: "true" },
+                          { label: isEs ? "Desactivado" : "Disabled", value: "false" },
+                        ]}
+                        value={enableProactive}
+                        onChange={setEnableProactive}
+                      />
+                      <input type="hidden" name="enableProactive" value={enableProactive} />
+
+                      <Select
+                        label={isEs ? "Pasar a una persona cuando haga falta" : "Hand off to a person when needed"}
+                        options={[
+                          { label: isEs ? "Activado" : "Enabled", value: "true" },
+                          { label: isEs ? "Desactivado" : "Disabled", value: "false" },
+                        ]}
+                        value={enableHandoff}
+                        onChange={setEnableHandoff}
+                      />
+                      <input type="hidden" name="enableHandoff" value={enableHandoff} />
+                    </InlineGrid>
+                  </FormLayout>
+                </BlockStack>
+              </AdminSectionCard>
+            </InlineGrid>
+          </Layout.Section>
+
+          <Layout.Section>
+            <AdminSectionCard
+              title={isEs ? "Guia avanzada y contexto extra" : "Advanced guidance and extra context"}
+              description={
+                isEs
+                  ? "Deja estos campos para casos donde necesites marcar reglas o contexto fijo que el asistente deba respetar siempre."
+                  : "Use these fields when you need to set fixed rules or persistent context that the assistant should always respect."
+              }
+            >
+              <BlockStack gap="400">
+                <AdminInfoCallout title={isEs ? "Opcional para equipos avanzados" : "Optional for advanced teams"}>
+                  <p>
+                    {isEs
+                      ? "No hace falta rellenarlo para empezar. Utilizalo cuando quieras afinar instrucciones globales o contexto adicional por mensaje."
+                      : "You do not need to fill this to get started. Use it when you want to refine global instructions or add extra context per message."}
+                  </p>
+                </AdminInfoCallout>
+
+                <FormLayout>
                   <TextField
-                    label={isEs ? "Prompt de sistema (opcional)" : "System prompt (optional)"}
+                    label={isEs ? "Guia interna del asistente (opcional)" : "Internal assistant guide (optional)"}
                     value={systemPrompt}
                     onChange={setSystemPrompt}
                     autoComplete="off"
                     multiline={4}
-                    helpText={isEs ? "Controla el comportamiento global del asistente." : "Controls assistant behavior globally."}
+                    helpText={
+                      isEs
+                        ? "Control interno: systemPrompt. Escribe instrucciones base para definir como debe comportarse siempre."
+                        : "Internal control: systemPrompt. Write baseline instructions that define how it should behave at all times."
+                    }
                   />
                   <input type="hidden" name="systemPrompt" value={systemPrompt} />
 
                   <TextField
-                    label={isEs ? "Plantilla de prompt de usuario (opcional)" : "User prompt template (optional)"}
+                    label={isEs ? "Contexto adicional por mensaje (opcional)" : "Extra context per message (optional)"}
                     value={userPrompt}
                     onChange={setUserPrompt}
                     autoComplete="off"
                     multiline={3}
-                    helpText={isEs ? "Contexto opcional que se envia con solicitudes del usuario." : "Optional prompt context sent with user requests."}
+                    helpText={
+                      isEs
+                        ? "Control interno: userPrompt. Sirve para anadir contexto fijo a cada mensaje del usuario."
+                        : "Internal control: userPrompt. Adds a fixed layer of context to each user message."
+                    }
                   />
                   <input type="hidden" name="userPrompt" value={userPrompt} />
                 </FormLayout>
-
-                <InlineStack align="space-between" blockAlign="center">
-                  <Text as="p" variant="bodySm" tone="subdued">
-                    {config.updatedAt
-                      ? `${isEs ? "Ultima actualizacion" : "Last updated"}: ${new Date(config.updatedAt).toLocaleString()}`
-                      : isEs ? "Aun no hay configuraciones guardadas." : "No saved settings yet."}
-                  </Text>
-                  <Button submit variant="primary" loading={isSubmitting}>
-                    {isEs ? "Guardar configuracion" : "Save settings"}
-                  </Button>
-                </InlineStack>
               </BlockStack>
-            </Form>
-          </Card>
-        </Layout.Section>
-      </Layout>
+            </AdminSectionCard>
+          </Layout.Section>
+
+          <Layout.Section>
+            <AdminSectionCard
+              title={isEs ? "Guardar y revisar cambios" : "Save and review changes"}
+              description={
+                isEs
+                  ? "Revisa la ultima actualizacion y guarda esta configuracion cuando estes conforme."
+                  : "Review the latest update and save this configuration when you are ready."
+              }
+            >
+              <div className="fb-admin-form-footer">
+                <Text as="p" variant="bodySm" tone="subdued">
+                  {config.updatedAt
+                    ? `${isEs ? "Ultima actualizacion" : "Last updated"}: ${new Date(config.updatedAt).toLocaleString()}`
+                    : isEs ? "Aun no hay configuraciones guardadas." : "No saved settings yet."}
+                </Text>
+                <Button submit variant="primary" loading={isSubmitting}>
+                  {isEs ? "Guardar configuracion" : "Save settings"}
+                </Button>
+              </div>
+            </AdminSectionCard>
+          </Layout.Section>
+        </Layout>
+      </Form>
     </Page>
   );
 }

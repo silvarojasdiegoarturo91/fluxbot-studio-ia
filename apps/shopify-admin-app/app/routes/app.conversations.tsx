@@ -1,8 +1,6 @@
 import {
   Page,
   Layout,
-  Card,
-  BlockStack,
   Text,
   Badge,
   InlineGrid,
@@ -19,6 +17,7 @@ import { ensureShopForSession } from "../services/shop-context.server";
 import { authenticate } from "../shopify.server";
 import { getMerchantAdminConfig } from "../services/admin-config.server";
 import { useIsSpanish } from "../hooks/use-admin-language";
+import { AdminPageHeader, AdminSectionCard, AdminStatCard, AdminStatusBadge } from "../components/admin-ui";
 
 interface ConversationsActionData {
   ok: boolean;
@@ -238,15 +237,15 @@ export default function ConversationsPage() {
 
   const conversationRows = conversations.map((conversation) => [
     new Date(conversation.startedAt).toLocaleString(),
-    <Badge tone={statusTone(conversation.status)}>{statusLabel(conversation.status, isEs)}</Badge>,
+    <Badge key={`status-${conversation.id}`} tone={statusTone(conversation.status)}>{statusLabel(conversation.status, isEs)}</Badge>,
     conversation.channel,
     conversation.locale,
     String(conversation._count.messages),
     conversation.messages[0]?.content ? shorten(conversation.messages[0].content) : isEs ? "Sin mensajes" : "No messages",
     conversation.lastMessageAt ? new Date(conversation.lastMessageAt).toLocaleString() : "-",
     conversation._count.handoffRequests > 0
-      ? <Badge tone="warning">{`${conversation._count.handoffRequests} ${isEs ? "handoff" : "handoff"}`}</Badge>
-      : <Badge tone="success">{isEs ? "Sin handoff" : "No handoff"}</Badge>,
+      ? <Badge key={`handoff-${conversation.id}`} tone="warning">{`${conversation._count.handoffRequests} ${isEs ? "handoff" : "handoff"}`}</Badge>
+      : <Badge key={`handoff-${conversation.id}`} tone="success">{isEs ? "Sin handoff" : "No handoff"}</Badge>,
   ]);
 
   const handoffRows = pendingHandoffs.map((handoff) => [
@@ -263,10 +262,23 @@ export default function ConversationsPage() {
   ]);
 
   return (
-    <Page
-      title={isEs ? "Conversaciones" : "Conversations"}
-      backAction={{ content: isEs ? "Panel" : "Dashboard", url: backToDashboardUrl }}
-    >
+    <Page fullWidth>
+      <AdminPageHeader
+        eyebrow={isEs ? "Soporte" : "Support"}
+        title={isEs ? "Conversaciones" : "Conversations"}
+        description={
+          isEs
+            ? "Supervisa trafico, detecta escalaciones y resuelve handoffs sin perder contexto."
+            : "Monitor traffic, detect escalations, and resolve handoffs without losing context."
+        }
+        backUrl={backToDashboardUrl}
+        backLabel={isEs ? "Panel" : "Dashboard"}
+        badge={
+          <AdminStatusBadge tone={summary.openHandoffs > 0 ? "warning" : "success"}>
+            {summary.openHandoffs > 0 ? `${summary.openHandoffs} ${isEs ? "handoffs abiertos" : "open handoffs"}` : (isEs ? "Sin bloqueos" : "No blockers")}
+          </AdminStatusBadge>
+        }
+      />
       <Layout>
         {actionData?.ok && actionData.message ? (
           <Layout.Section>
@@ -282,46 +294,20 @@ export default function ConversationsPage() {
 
         <Layout.Section>
           <InlineGrid columns={{ xs: 1, sm: 2, md: 5 }} gap="400">
-            <Card>
-              <BlockStack gap="100">
-                <Text as="p" variant="bodySm" tone="subdued">{isEs ? "Activas ahora" : "Active now"}</Text>
-                <Text as="p" variant="headingXl">{summary.activeNow}</Text>
-              </BlockStack>
-            </Card>
-            <Card>
-              <BlockStack gap="100">
-                <Text as="p" variant="bodySm" tone="subdued">{isEs ? "Total (7d)" : "Total (7d)"}</Text>
-                <Text as="p" variant="headingXl">{summary.total7d}</Text>
-              </BlockStack>
-            </Card>
-            <Card>
-              <BlockStack gap="100">
-                <Text as="p" variant="bodySm" tone="subdued">{isEs ? "Escaladas (7d)" : "Escalated (7d)"}</Text>
-                <Text as="p" variant="headingXl">{summary.escalated7d}</Text>
-              </BlockStack>
-            </Card>
-            <Card>
-              <BlockStack gap="100">
-                <Text as="p" variant="bodySm" tone="subdued">{isEs ? "Resueltas (7d)" : "Resolved (7d)"}</Text>
-                <Text as="p" variant="headingXl">{summary.resolved7d}</Text>
-              </BlockStack>
-            </Card>
-            <Card>
-              <BlockStack gap="100">
-                <Text as="p" variant="bodySm" tone="subdued">{isEs ? "Handoffs abiertos" : "Open handoffs"}</Text>
-                <Text as="p" variant="headingXl">{summary.openHandoffs}</Text>
-              </BlockStack>
-            </Card>
+            <AdminStatCard label={isEs ? "Activas ahora" : "Active now"} value={summary.activeNow} />
+            <AdminStatCard label={isEs ? "Total (7d)" : "Total (7d)"} value={summary.total7d} />
+            <AdminStatCard label={isEs ? "Escaladas (7d)" : "Escalated (7d)"} value={summary.escalated7d} />
+            <AdminStatCard label={isEs ? "Resueltas (7d)" : "Resolved (7d)"} value={summary.resolved7d} />
+            <AdminStatCard label={isEs ? "Handoffs abiertos" : "Open handoffs"} value={summary.openHandoffs} badge={<AdminStatusBadge tone={summary.openHandoffs > 0 ? "warning" : "success"}>{summary.openHandoffs > 0 ? (isEs ? "Prioridad" : "Priority") : "OK"}</AdminStatusBadge>} />
           </InlineGrid>
         </Layout.Section>
 
         <Layout.Section>
-          <Card>
-            <BlockStack gap="300">
-              <InlineStack align="space-between" blockAlign="center">
-                <Text as="h2" variant="headingMd">{isEs ? "Filtrar conversaciones" : "Filter conversations"}</Text>
-                <Badge tone="info">{`${isEs ? "Actual" : "Current"}: ${statusLabel(statusFilter, isEs)}`}</Badge>
-              </InlineStack>
+          <AdminSectionCard
+            title={isEs ? "Filtrar conversaciones" : "Filter conversations"}
+            description={isEs ? "Cambia rapido de vista entre estados operativos clave." : "Quickly switch between the operational states that matter."}
+            badge={<AdminStatusBadge tone="info">{`${isEs ? "Actual" : "Current"}: ${statusLabel(statusFilter, isEs)}`}</AdminStatusBadge>}
+          >
               <InlineStack gap="200" wrap>
                 {STATUS_FILTERS.map((filter) => (
                   <Button key={filter} url={withStatusFilter(filter)} variant={statusFilter === filter ? "primary" : "secondary"}>
@@ -329,15 +315,14 @@ export default function ConversationsPage() {
                   </Button>
                 ))}
               </InlineStack>
-            </BlockStack>
-          </Card>
+          </AdminSectionCard>
         </Layout.Section>
 
         <Layout.Section>
-          <Card>
-            <BlockStack gap="300">
-              <Text as="h2" variant="headingMd">{isEs ? "Conversaciones recientes" : "Recent conversations"}</Text>
-
+          <AdminSectionCard
+            title={isEs ? "Conversaciones recientes" : "Recent conversations"}
+            description={isEs ? "Panel operativo para revisar sesiones recientes y detectar huecos en soporte." : "Operational view to review recent sessions and detect support gaps."}
+          >
               {conversationRows.length === 0 ? (
                 <EmptyState heading={isEs ? "No se encontraron conversaciones" : "No conversations found"} image="">
                   <Text as="p" variant="bodySm">
@@ -355,14 +340,14 @@ export default function ConversationsPage() {
                   rows={conversationRows}
                 />
               )}
-            </BlockStack>
-          </Card>
+          </AdminSectionCard>
         </Layout.Section>
 
         <Layout.Section>
-          <Card>
-            <BlockStack gap="300">
-              <Text as="h2" variant="headingMd">{isEs ? "Handoffs pendientes" : "Pending handoffs"}</Text>
+          <AdminSectionCard
+            title={isEs ? "Handoffs pendientes" : "Pending handoffs"}
+            description={isEs ? "Mantén el flujo de escalaciones en movimiento y evita backlog invisible." : "Keep escalations moving and avoid invisible backlog."}
+          >
               {handoffRows.length === 0 ? (
                 <EmptyState heading={isEs ? "No hay handoffs pendientes" : "No pending handoffs"} image="">
                   <Text as="p" variant="bodySm">
@@ -380,8 +365,7 @@ export default function ConversationsPage() {
                   rows={handoffRows}
                 />
               )}
-            </BlockStack>
-          </Card>
+          </AdminSectionCard>
         </Layout.Section>
       </Layout>
     </Page>

@@ -245,13 +245,16 @@ export async function getMerchantAdminConfig(shopId: string): Promise<MerchantAd
 export async function saveMerchantAdminConfig(
   shopId: string,
   patch: MerchantAdminConfigPatch,
+  options?: {
+    currentConfig?: MerchantAdminConfig;
+  },
 ): Promise<MerchantAdminConfig> {
   const [shop, currentConfig] = await Promise.all([
     prisma.shop.findUnique({
       where: { id: shopId },
       select: { metadata: true },
     }),
-    getMerchantAdminConfig(shopId),
+    options?.currentConfig ? Promise.resolve(options.currentConfig) : getMerchantAdminConfig(shopId),
   ]);
 
   const merged = mergeAdminConfig(currentConfig, patch);

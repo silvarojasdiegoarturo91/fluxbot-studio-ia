@@ -33,6 +33,8 @@ interface OnboardingActionData {
   ok: boolean;
   message?: string;
   error?: string;
+  nextStep?: number;
+  redirectTo?: string;
 }
 
 const TOTAL_STEPS = 7;
@@ -153,7 +155,7 @@ const ONBOARDING_STYLES = `
 .onb-hero {
   display: grid;
   grid-template-columns: 1.25fr 0.75fr;
-  gap: 16px;
+  gap: 24px;
   align-items: stretch;
 }
 
@@ -163,8 +165,21 @@ const ONBOARDING_STYLES = `
   border-radius: 18px;
   background: rgba(255, 251, 246, 0.88);
   box-shadow: 0 12px 26px rgba(70, 48, 24, 0.08);
-  padding: 18px;
+  padding: 20px;
   animation: onbFadeUp 520ms ease both;
+}
+
+.onb-progress-card {
+  display: grid;
+  gap: 12px;
+}
+
+.onb-progress-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 .onb-kicker {
@@ -208,16 +223,45 @@ const ONBOARDING_STYLES = `
   font-family: "Avenir Next", "Trebuchet MS", sans-serif;
 }
 
+.onb-progress-step-name {
+  margin: 0;
+  color: #2d3745;
+  font-size: 1rem;
+  line-height: 1.35;
+  font-weight: 700;
+}
+
 .onb-progress-hint {
-  margin: 6px 0 0;
+  margin: 0;
   color: #74675c;
   font-size: 0.86rem;
 }
 
+.onb-progress-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.onb-progress-next {
+  margin: 0;
+  color: #665b50;
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+.onb-progress-caption {
+  margin: 0;
+  color: #74675c;
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
+
 .onb-content-stage {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(420px, 0.62fr);
-  gap: 14px;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 0.56fr);
+  gap: 24px;
   align-items: start;
 }
 
@@ -275,6 +319,8 @@ const ONBOARDING_STYLES = `
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
   margin-top: 8px;
 }
 
@@ -293,8 +339,8 @@ const ONBOARDING_STYLES = `
 
 .onb-step-track {
   display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
 }
 
 .onb-step-pill {
@@ -302,7 +348,7 @@ const ONBOARDING_STYLES = `
   border-radius: 12px;
   background: #ffffff;
   padding: 10px 8px;
-  min-height: 66px;
+  min-height: 78px;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -310,6 +356,7 @@ const ONBOARDING_STYLES = `
   animation: onbFadeUp 480ms ease both;
   cursor: pointer;
   transition: all 180ms ease;
+  min-width: 0;
 }
 
 .onb-step-pill:hover {
@@ -350,17 +397,20 @@ const ONBOARDING_STYLES = `
   font-size: 0.76rem;
   line-height: 1.2;
   font-family: "Nunito Sans", "Helvetica Neue", sans-serif;
+  overflow-wrap: anywhere;
 }
 
 .onb-form-card {
   border: 1px solid var(--onb-border);
   border-radius: 18px;
   background: rgba(255, 251, 246, 0.94);
-  padding: 14px;
+  padding: 18px;
 }
 
 .onb-preview-slot {
   width: 100%;
+  position: sticky;
+  top: 24px;
 }
 
 .onb-preview-card {
@@ -1187,7 +1237,8 @@ const ONBOARDING_STYLES = `
 
 .onb-nav-row {
   border-top: 1px solid #ddd2c5;
-  padding-top: 14px;
+  padding-top: 18px;
+  margin-top: 8px;
 }
 
 @keyframes onbFadeUp {
@@ -1264,7 +1315,7 @@ const ONBOARDING_STYLES = `
   }
 
   .onb-step-track {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .onb-preview-modal {
@@ -1291,6 +1342,15 @@ const ONBOARDING_STYLES = `
 
   .onb-preview-card {
     padding: 10px;
+  }
+
+  .onb-progress-meta {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .onb-preview-slot {
+    position: static;
   }
 }
 
@@ -1356,6 +1416,15 @@ function buildRedirectPath(basePath: string, url: URL, step?: number, extraParam
   return `${basePath}${queryString ? `?${queryString}` : ""}`;
 }
 
+function jsonResponse(body: OnboardingActionData, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
+}
+
 export async function loader({ request }: LoaderFunctionArgs) {
   const { session } = await authenticate.admin(request);
   const shop = await ensureShopForSession(session);
@@ -1395,6 +1464,9 @@ export async function action({ request }: ActionFunctionArgs): Promise<Response 
   const currentConfig = await getMerchantAdminConfig(shop.id);
   const formData = await request.formData();
   const requestUrl = new URL(request.url);
+  const wantsJsonResponse =
+    String(formData.get("responseMode") || "").toLowerCase() === "json" ||
+    request.headers.get("X-Requested-With") === "XMLHttpRequest";
 
   const currentStep = parseStep(requestUrl);
   const intent = String(formData.get("intent") || "save_only") as OnboardingIntent;
@@ -1440,15 +1512,21 @@ export async function action({ request }: ActionFunctionArgs): Promise<Response 
   const launcherLabel = String(formData.get("launcherLabel") || currentConfig.widgetBranding.launcherLabel).trim();
 
   if (!botName) {
-    return { ok: false, error: adminLanguage === "es" ? "El nombre del chatbot es obligatorio." : "Bot name is required." };
+    const error = adminLanguage === "es"
+      ? "El nombre del chatbot es obligatorio."
+      : "Bot name is required.";
+    return wantsJsonResponse ? jsonResponse({ ok: false, error }, 400) : { ok: false, error };
   }
 
   if (!welcomeMessage) {
-    return {
+    const error = adminLanguage === "es"
+      ? "El mensaje de bienvenida es obligatorio."
+      : "Welcome message is required.";
+    return wantsJsonResponse
+      ? jsonResponse({ ok: false, error }, 400)
+      : {
       ok: false,
-      error: adminLanguage === "es"
-        ? "El mensaje de bienvenida es obligatorio."
-        : "Welcome message is required.",
+      error,
     };
   }
 
@@ -1485,13 +1563,27 @@ export async function action({ request }: ActionFunctionArgs): Promise<Response 
     },
     onboardingStep: onboardingCompleted ? TOTAL_STEPS : nextStep,
     onboardingCompleted,
+  }, {
+    currentConfig,
   });
 
-  if (intent === "complete") {
-    throw redirect(buildRedirectPath("/app", requestUrl, undefined, { onboarding: "done" }));
+  const redirectTo = intent === "complete"
+    ? buildRedirectPath("/app", requestUrl, undefined, { onboarding: "done" })
+    : buildRedirectPath("/app/onboarding", requestUrl, nextStep, { saved: "1" });
+
+  if (wantsJsonResponse) {
+    return jsonResponse({
+      ok: true,
+      nextStep,
+      redirectTo,
+    });
   }
 
-  throw redirect(buildRedirectPath("/app/onboarding", requestUrl, nextStep, { saved: "1" }));
+  if (intent === "complete") {
+    throw redirect(redirectTo);
+  }
+
+  throw redirect(redirectTo);
 }
 
 function HiddenOnboardingInputs(props: {
@@ -1690,6 +1782,7 @@ export default function OnboardingPage() {
   const [launcherLabel, setLauncherLabel] = useState(config.widgetBranding.launcherLabel);
   const [isPreviewChatOpen, setIsPreviewChatOpen] = useState(true);
   const intentInputRef = useRef<HTMLInputElement>(null);
+  const autoSaveRequestRef = useRef<XMLHttpRequest | null>(null);
 
   const setIntent = (intent: OnboardingIntent) => {
     if (intentInputRef.current) {
@@ -1720,6 +1813,60 @@ export default function OnboardingPage() {
   const previousStepRef = useRef(step);
   const formRef = useRef<HTMLFormElement>(null);
   const [stepDirection, setStepDirection] = useState<"forward" | "backward" | "neutral">("neutral");
+  const persistedConfigSnapshot = useMemo(
+    () => JSON.stringify({
+      adminLanguage: config.adminLanguage,
+      botName: config.botName,
+      botTone: config.botTone,
+      botGoal: config.botGoal,
+      responseStyle: config.responseStyle,
+      welcomeMessage: config.welcomeMessage,
+      enabledCapabilities: config.enabledCapabilities,
+      widgetBranding: config.widgetBranding,
+    }),
+    [config],
+  );
+  const currentConfigSnapshot = useMemo(
+    () => JSON.stringify({
+      adminLanguage,
+      botName,
+      botTone,
+      botGoal,
+      responseStyle,
+      welcomeMessage,
+      enabledCapabilities: {
+        answerProducts: answerProducts === "true",
+        answerPolicies: answerPolicies === "true",
+        answerOrders: answerOrders === "true",
+        recommendProducts: recommendProducts === "true",
+        captureLeads: captureLeads === "true",
+      },
+      widgetBranding: {
+        primaryColor,
+        launcherPosition,
+        avatarStyle,
+        launcherLabel,
+      },
+    }),
+    [
+      adminLanguage,
+      answerOrders,
+      answerPolicies,
+      answerProducts,
+      avatarStyle,
+      botGoal,
+      botName,
+      botTone,
+      captureLeads,
+      launcherLabel,
+      launcherPosition,
+      primaryColor,
+      recommendProducts,
+      responseStyle,
+      welcomeMessage,
+    ],
+  );
+  const hasUnsavedChanges = currentConfigSnapshot !== persistedConfigSnapshot;
 
   useEffect(() => {
     const previous = previousStepRef.current;
@@ -1741,51 +1888,90 @@ export default function OnboardingPage() {
 
   const handleStepClick = (targetStep: number) => {
     if (targetStep === step) return;
-    setIntent("save_only");
-    if (formRef.current) {
-      const url = new URL(window.location.href);
-      url.searchParams.set("step", String(targetStep));
-      // Navigate with the current form data
-      const formData = new FormData(formRef.current);
-      formData.set("intent", "save_only");
-      
-      const xhr = new XMLHttpRequest();
-      xhr.open("POST", url.toString(), true);
-      xhr.onload = () => {
-        // Reload page to get new step data
-        window.location.href = url.toString();
-      };
-      xhr.send(formData);
+    const url = new URL(window.location.href);
+    url.searchParams.set("step", String(targetStep));
+
+    if (!formRef.current || !hasUnsavedChanges) {
+      window.location.href = url.toString();
+      return;
     }
+
+    setIntent("save_only");
+    autoSaveRequestRef.current?.abort();
+
+    const formData = new FormData(formRef.current);
+    formData.set("intent", "save_only");
+    formData.set("responseMode", "json");
+
+    const xhr = new XMLHttpRequest();
+    autoSaveRequestRef.current = xhr;
+    xhr.open("POST", url.toString(), true);
+    xhr.setRequestHeader("X-Requested-With", "XMLHttpRequest");
+    xhr.onload = () => {
+      autoSaveRequestRef.current = null;
+      if (xhr.status >= 200 && xhr.status < 300) {
+        window.location.href = url.toString();
+      }
+    };
+    xhr.onerror = () => {
+      autoSaveRequestRef.current = null;
+      window.location.href = url.toString();
+    };
+    xhr.send(formData);
   };
 
   // Auto-save with debounce when user changes input values
   const autoSaveTimeoutRef = useRef<NodeJS.Timeout>();
   
   useEffect(() => {
-    // Clear previous timeout
     if (autoSaveTimeoutRef.current) {
       clearTimeout(autoSaveTimeoutRef.current);
     }
 
-    // Set new timeout for auto-save
+    if (!hasUnsavedChanges || !formRef.current || isSubmitting) {
+      return () => {
+        if (autoSaveTimeoutRef.current) {
+          clearTimeout(autoSaveTimeoutRef.current);
+        }
+      };
+    }
+
     autoSaveTimeoutRef.current = setTimeout(() => {
-      if (formRef.current && !isSubmitting) {
-        const formData = new FormData(formRef.current);
-        formData.set("intent", "save_only");
-        
-        const xhr = new XMLHttpRequest();
-        xhr.open("POST", window.location.href, true);
-        xhr.send(formData);
+      if (!formRef.current || isSubmitting) {
+        return;
       }
-    }, 1500); // Auto-save after 1.5 seconds of no changes
+
+      autoSaveRequestRef.current?.abort();
+
+      const formData = new FormData(formRef.current);
+      formData.set("intent", "save_only");
+      formData.set("responseMode", "json");
+
+      const xhr = new XMLHttpRequest();
+      autoSaveRequestRef.current = xhr;
+      xhr.open("POST", window.location.href, true);
+      xhr.setRequestHeader("X-Requested-With", "XMLHttpRequest");
+      xhr.onload = () => {
+        if (autoSaveRequestRef.current === xhr) {
+          autoSaveRequestRef.current = null;
+        }
+      };
+      xhr.onerror = () => {
+        if (autoSaveRequestRef.current === xhr) {
+          autoSaveRequestRef.current = null;
+        }
+      };
+      xhr.send(formData);
+    }, 1500);
 
     return () => {
       if (autoSaveTimeoutRef.current) {
         clearTimeout(autoSaveTimeoutRef.current);
       }
+      autoSaveRequestRef.current?.abort();
+      autoSaveRequestRef.current = null;
     };
-  }, [botName, botTone, botGoal, welcomeMessage, responseStyle, answerProducts, answerPolicies, answerOrders, recommendProducts, captureLeads, primaryColor, launcherPosition, avatarStyle, launcherLabel, isSubmitting]);
+  }, [hasUnsavedChanges, isSubmitting, currentConfigSnapshot]);
 
   const stepTitles = [
     copy.languageTitle,
@@ -1796,6 +1982,8 @@ export default function OnboardingPage() {
     copy.reviewTitle,
     copy.activateTitle,
   ];
+  const currentStepTitle = stepTitles[step - 1] ?? copy.stepLabel;
+  const nextStepTitle = step < TOTAL_STEPS ? stepTitles[step] : null;
 
   const sectionProgress = [
     {
@@ -2413,8 +2601,8 @@ export default function OnboardingPage() {
             </div>
             <p className="onb-widget-copy">
               {adminLanguage === "es"
-                ? `Launcher \"${previewLauncherLabel}\" listo en ${launcherPosition === "bottom-left" ? "inferior izquierda" : "inferior derecha"}.`
-                : `Launcher \"${previewLauncherLabel}\" ready on ${launcherPosition === "bottom-left" ? "bottom left" : "bottom right"}.`}
+                ? `Launcher "${previewLauncherLabel}" listo en ${launcherPosition === "bottom-left" ? "inferior izquierda" : "inferior derecha"}.`
+                : `Launcher "${previewLauncherLabel}" ready on ${launcherPosition === "bottom-left" ? "bottom left" : "bottom right"}.`}
             </p>
           </div>
         </BlockStack>
@@ -2462,7 +2650,7 @@ export default function OnboardingPage() {
   };
 
   return (
-    <Page title={copy.title} subtitle={copy.subtitle}>
+    <Page fullWidth>
       <style>{ONBOARDING_STYLES}</style>
       <div className="onb-shell">
         <div className="onb-orb onb-orb-1" />
@@ -2494,10 +2682,27 @@ export default function OnboardingPage() {
               </div>
 
               <div className="onb-progress-card">
-                <p className="onb-progress-title">{copy.progressLabel}</p>
-                <p className="onb-progress-value">{`${progress}%`}</p>
+                <div className="onb-progress-head">
+                  <div>
+                    <p className="onb-progress-title">{copy.progressLabel}</p>
+                    <p className="onb-progress-step-name">{currentStepTitle}</p>
+                  </div>
+                  <p className="onb-progress-value">{`${progress}%`}</p>
+                </div>
                 <ProgressBar progress={progress} size="small" />
-                <p className="onb-progress-hint">{`${copy.stepLabel} ${step}/${totalSteps}`}</p>
+                <div className="onb-progress-meta">
+                  <p className="onb-progress-hint">{`${copy.stepLabel} ${step}/${totalSteps}`}</p>
+                  <p className="onb-progress-next">
+                    {nextStepTitle
+                      ? `${adminLanguage === "es" ? "Siguiente" : "Next"}: ${nextStepTitle}`
+                      : (adminLanguage === "es" ? "Listo para activar tu asistente." : "Ready to activate your assistant.")}
+                  </p>
+                </div>
+                <p className="onb-progress-caption">
+                  {adminLanguage === "es"
+                    ? "Configuracion guiada con guardado automatico y vista previa en tiempo real."
+                    : "Guided setup with autosave and live preview as you move through the steps."}
+                </p>
               </div>
             </div>
           </Layout.Section>
@@ -2591,7 +2796,7 @@ export default function OnboardingPage() {
                         </div>
 
                         <div className="onb-nav-row">
-                          <InlineStack align="space-between" blockAlign="center">
+                          <InlineStack align="space-between" blockAlign="center" wrap>
                             {step > 1 ? (
                               <Button submit onClick={() => setIntent("back")} loading={isSubmitting}>
                                 {copy.back}

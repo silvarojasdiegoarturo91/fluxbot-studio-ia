@@ -14,6 +14,8 @@ import { getMerchantAdminConfig } from "../services/admin-config.server";
 import { ensureShopForSession } from "../services/shop-context.server";
 import { authenticate } from "../shopify.server";
 import type { AdminLanguage } from "../services/admin-config.server";
+import { getAdminNavGroups } from "../utils/admin-navigation";
+import { AdminShell } from "../components/admin-shell";
 
 const AUTH_DEBUG_HEADER_NAMES = [
   "x-shopify-api-request-failure-reauthorize",
@@ -22,39 +24,6 @@ const AUTH_DEBUG_HEADER_NAMES = [
   "www-authenticate",
   "location",
 ] as const;
-
-const ADMIN_NAV_ITEMS: Record<AdminLanguage, Array<{ label: string; url: string }>> = {
-  en: [
-    { label: "Dashboard", url: "/app" },
-    { label: "Onboarding", url: "/app/onboarding" },
-    { label: "Assistant", url: "/app/settings" },
-    { label: "Data Sources", url: "/app/data-sources" },
-    { label: "Campaigns", url: "/app/campaigns" },
-    { label: "Conversations", url: "/app/conversations" },
-    { label: "Analytics", url: "/app/analytics" },
-    { label: "Compliance", url: "/app/privacy" },
-    { label: "Operations", url: "/app/operations" },
-    { label: "Widget", url: "/app/widget-settings" },
-    { label: "Widget Publish", url: "/app/widget-publish" },
-    { label: "llms.txt", url: "/app/llms-status" },
-    { label: "Billing", url: "/app/billing" },
-  ],
-  es: [
-    { label: "Panel", url: "/app" },
-    { label: "Onboarding", url: "/app/onboarding" },
-    { label: "Asistente", url: "/app/settings" },
-    { label: "Fuentes de datos", url: "/app/data-sources" },
-    { label: "Campanas", url: "/app/campaigns" },
-    { label: "Conversaciones", url: "/app/conversations" },
-    { label: "Analitica", url: "/app/analytics" },
-    { label: "Cumplimiento", url: "/app/privacy" },
-    { label: "Operaciones", url: "/app/operations" },
-    { label: "Widget", url: "/app/widget-settings" },
-    { label: "Publicar widget", url: "/app/widget-publish" },
-    { label: "llms.txt", url: "/app/llms-status" },
-    { label: "Facturacion", url: "/app/billing" },
-  ],
-};
 
 function normalizeAdminLanguage(value: unknown): AdminLanguage {
   return value === "es" ? "es" : "en";
@@ -182,6 +151,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     return {
       apiKey: process.env.SHOPIFY_API_KEY || "",
       adminLanguage,
+      storeDomain: typeof (authResult as { session?: { shop?: string } }).session?.shop === "string"
+        ? (authResult as { session?: { shop?: string } }).session?.shop || null
+        : null,
     };
   } catch (error) {
     if (error instanceof Response) {
@@ -206,11 +178,11 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 };
 
 export default function App() {
-  const { apiKey, adminLanguage } = useLoaderData<typeof loader>();
+  const { apiKey, adminLanguage, storeDomain } = useLoaderData<typeof loader>();
   const location = useLocation();
   const [isHydrated, setIsHydrated] = useState(false);
   const normalizedLanguage = normalizeAdminLanguage(adminLanguage);
-  const navItems = ADMIN_NAV_ITEMS[normalizedLanguage] ?? ADMIN_NAV_ITEMS.en;
+  const navItems = getAdminNavGroups(normalizedLanguage).flatMap((group) => group.items);
   const polarisTranslations =
     normalizedLanguage === "es" ? polarisTranslationsEs : polarisTranslationsEn;
 
@@ -232,7 +204,9 @@ export default function App() {
                 </a>
               ))}
             </NavMenu>
-            <Outlet />
+            <AdminShell adminLanguage={normalizedLanguage} storeDomain={storeDomain}>
+              <Outlet />
+            </AdminShell>
           </>
         ) : null}
       </PolarisReactAppProvider>

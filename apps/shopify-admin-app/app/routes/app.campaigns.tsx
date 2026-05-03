@@ -11,9 +11,6 @@
 import {
   Page,
   Layout,
-  Card,
-  BlockStack,
-  Text,
   InlineGrid,
   Badge,
   Button,
@@ -39,6 +36,7 @@ import {
   type CampaignScheduleType,
   type CampaignStatus,
 } from "../services/campaign.server";
+import { AdminPageHeader, AdminSectionCard, AdminStatCard, AdminStatusBadge } from "../components/admin-ui";
 
 // ─── Loader ──────────────────────────────────────────────────────────────────
 
@@ -250,52 +248,42 @@ export default function CampaignsPage() {
   ]);
 
   return (
-    <Page
-      title={isEs ? "Campanas de marketing" : "Marketing Campaigns"}
-      subtitle={
-        isEs
-          ? "Crea y gestiona campanas proactivas por idioma"
-          : "Create and manage locale-aware proactive campaigns"
-      }
-      backAction={{ content: isEs ? "Panel" : "Dashboard", url: backUrl }}
-      primaryAction={
-        <Button variant="primary" onClick={handleOpenModal}>
-          {isEs ? "Nueva campana" : "New campaign"}
-        </Button>
-      }
-    >
+    <Page fullWidth>
+      <AdminPageHeader
+        eyebrow={isEs ? "Crecimiento" : "Growth"}
+        title={isEs ? "Campanas de marketing" : "Marketing campaigns"}
+        description={
+          isEs
+            ? "Gestiona campanas proactivas por idioma con una vista clara del impacto, activacion y conversion."
+            : "Manage locale-aware proactive campaigns with a clear view of impact, activation, and conversion."
+        }
+        backUrl={backUrl}
+        backLabel={isEs ? "Panel" : "Dashboard"}
+        badge={<AdminStatusBadge tone={totalActive > 0 ? "success" : "attention"}>{totalActive > 0 ? `${totalActive} ${isEs ? "activas" : "active"}` : (isEs ? "Sin campanas activas" : "No active campaigns")}</AdminStatusBadge>}
+        actions={
+          <Button variant="primary" onClick={handleOpenModal}>
+            {isEs ? "Nueva campana" : "New campaign"}
+          </Button>
+        }
+      />
       <Layout>
-        {/* KPI row */}
         <Layout.Section>
           <InlineGrid columns={{ xs: 1, sm: 3 }} gap="400">
-            <Card>
-              <BlockStack gap="100">
-                <Text as="p" variant="bodySm" tone="subdued">
-                  {isEs ? "Campanas activas" : "Active campaigns"}
-                </Text>
-                <Text as="p" variant="headingXl">{totalActive}</Text>
-              </BlockStack>
-            </Card>
-            <Card>
-              <BlockStack gap="100">
-                <Text as="p" variant="bodySm" tone="subdued">
-                  {isEs ? "Total de envios" : "Total dispatched"}
-                </Text>
-                <Text as="p" variant="headingXl">{totalDispatched.toLocaleString()}</Text>
-              </BlockStack>
-            </Card>
-            <Card>
-              <BlockStack gap="100">
-                <Text as="p" variant="bodySm" tone="subdued">{isEs ? "CVR global" : "Overall CVR"}</Text>
-                <Text as="p" variant="headingXl">{overallCvr}{overallCvr !== "—" ? "%" : ""}</Text>
-              </BlockStack>
-            </Card>
+            <AdminStatCard label={isEs ? "Campanas activas" : "Active campaigns"} value={totalActive} />
+            <AdminStatCard label={isEs ? "Total de envios" : "Total dispatched"} value={totalDispatched.toLocaleString()} />
+            <AdminStatCard label={isEs ? "CVR global" : "Overall CVR"} value={`${overallCvr}${overallCvr !== "—" ? "%" : ""}`} />
           </InlineGrid>
         </Layout.Section>
 
-        {/* Campaigns table */}
         <Layout.Section>
-          <Card>
+          <AdminSectionCard
+            title={isEs ? "Campanas configuradas" : "Configured campaigns"}
+            description={
+              isEs
+                ? "Supervisa estado, programacion y performance sin salir del panel comercial."
+                : "Monitor status, scheduling, and performance without leaving the commercial control center."
+            }
+          >
             {campaigns.length === 0 ? (
               <EmptyState
                 heading={isEs ? "Aun no hay campanas" : "No campaigns yet"}
@@ -320,13 +308,12 @@ export default function CampaignsPage() {
                     : ["Name", "Status", "Schedule", "Dispatched", "Converted", "CVR", "Actions"]
                 }
                 rows={rows}
-              />
-            )}
-          </Card>
+                />
+              )}
+          </AdminSectionCard>
         </Layout.Section>
       </Layout>
 
-      {/* Create campaign modal */}
       <Modal
         open={modalOpen}
         onClose={handleCloseModal}

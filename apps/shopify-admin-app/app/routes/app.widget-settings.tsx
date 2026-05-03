@@ -1,9 +1,7 @@
 import {
-  Badge,
   Banner,
   BlockStack,
   Button,
-  Card,
   FormLayout,
   InlineStack,
   Layout,
@@ -19,6 +17,7 @@ import { useIsSpanish } from "../hooks/use-admin-language";
 import { authenticate } from "../shopify.server";
 import { ensureShopForSession } from "../services/shop-context.server";
 import { getMerchantAdminConfig, saveMerchantAdminConfig } from "../services/admin-config.server";
+import { AdminPageHeader, AdminSectionCard, AdminStatusBadge } from "../components/admin-ui";
 
 interface WidgetSettingsActionData {
   ok: boolean;
@@ -116,24 +115,30 @@ export default function WidgetSettingsPage() {
   const backToDashboardUrl = `/app${location.search || ""}`;
 
   return (
-    <Page
-      title={isEs ? "Configuracion del widget" : "Widget Settings"}
-      backAction={{ content: isEs ? "Panel" : "Dashboard", url: backToDashboardUrl }}
-    >
+    <Page fullWidth>
+      <AdminPageHeader
+        eyebrow={isEs ? "Experiencia storefront" : "Storefront experience"}
+        title={isEs ? "Configuracion del widget" : "Widget settings"}
+        description={
+          isEs
+            ? "Ajusta launcher, color y mensaje inicial para que el widget se sienta parte de la marca."
+            : "Adjust launcher, color, and welcome copy so the widget feels native to the brand."
+        }
+        backUrl={backToDashboardUrl}
+        backLabel={isEs ? "Panel" : "Dashboard"}
+        badge={<AdminStatusBadge tone="success">{isEs ? "Configuracion activa" : "Active configuration"}</AdminStatusBadge>}
+      />
       <Layout>
         <Layout.Section>
-          <Card>
-            <BlockStack gap="300">
-              <Badge tone="success">{isEs ? "Configuracion activa" : "Active configuration"}</Badge>
-              <Text as="h2" variant="headingMd">
-                {isEs ? "Runtime del chat storefront" : "Storefront chat runtime"}
-              </Text>
-              <Text as="p" variant="bodyMd" tone="subdued">
-                {isEs
-                  ? "Actualiza color, posicion del launcher, etiqueta y mensaje de bienvenida del widget."
-                  : "Update launcher color, position, label and chat welcome message."}
-              </Text>
-
+          <AdminSectionCard
+            title={isEs ? "Runtime del chat storefront" : "Storefront chat runtime"}
+            description={
+              isEs
+                ? "Actualiza color, posicion del launcher, etiqueta y mensaje de bienvenida del widget."
+                : "Update launcher color, position, label, and chat welcome message."
+            }
+            badge={<AdminStatusBadge tone="success">{isEs ? "Configuracion activa" : "Active configuration"}</AdminStatusBadge>}
+          >
               {actionData?.ok === false && actionData.error ? (
                 <Banner tone="critical" title={isEs ? "No se pudo guardar" : "Could not save"}>
                   <p>{actionData.error}</p>
@@ -215,8 +220,7 @@ export default function WidgetSettingsPage() {
                   </Button>
                 </FormLayout>
               </Form>
-            </BlockStack>
-          </Card>
+          </AdminSectionCard>
         </Layout.Section>
       </Layout>
     </Page>

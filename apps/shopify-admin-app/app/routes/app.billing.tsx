@@ -1,12 +1,8 @@
 import {
-  Badge,
   Banner,
-  BlockStack,
   Button,
-  Card,
   DataTable,
   FormLayout,
-  InlineStack,
   Layout,
   Page,
   Select,
@@ -19,6 +15,7 @@ import { useIsSpanish } from "../hooks/use-admin-language";
 import { authenticate } from "../shopify.server";
 import { ensureShopForSession } from "../services/shop-context.server";
 import { BillingService, type BillingPlanId } from "../services/billing.server";
+import { AdminPageHeader, AdminSectionCard, AdminStatusBadge } from "../components/admin-ui";
 
 interface BillingActionData {
   ok: boolean;
@@ -129,25 +126,36 @@ export default function BillingPage() {
   ]);
 
   return (
-    <Page
-      title={isEs ? "Facturacion" : "Billing"}
-      backAction={{ content: isEs ? "Panel" : "Dashboard", url: backToDashboardUrl }}
-    >
+    <Page fullWidth>
+      <AdminPageHeader
+        eyebrow={isEs ? "Cuenta" : "Account"}
+        title={isEs ? "Facturacion" : "Billing"}
+        description={
+          isEs
+            ? "Consulta el estado del plan y activa el siguiente nivel de monetizacion sin salir del admin."
+            : "Review plan status and activate the next monetization tier without leaving the admin."
+        }
+        backUrl={backToDashboardUrl}
+        backLabel={isEs ? "Panel" : "Dashboard"}
+        badge={
+          <AdminStatusBadge tone={data.status.hasActiveSubscription ? "success" : "attention"}>
+            {data.status.hasActiveSubscription ? (isEs ? "Suscripcion activa" : "Active subscription") : (isEs ? "Sin plan activo" : "No active plan")}
+          </AdminStatusBadge>
+        }
+      />
       <Layout>
         <Layout.Section>
-          <Card>
-            <BlockStack gap="300">
-              <InlineStack align="space-between" blockAlign="center">
-                <Text as="h2" variant="headingMd">
-                  {isEs ? "Estado de suscripcion" : "Subscription status"}
-                </Text>
-                {data.status.hasActiveSubscription ? (
-                  <Badge tone="success">{isEs ? "Activa" : "Active"}</Badge>
-                ) : (
-                  <Badge tone="attention">{isEs ? "Sin plan activo" : "No active plan"}</Badge>
-                )}
-              </InlineStack>
-
+          <AdminSectionCard
+            title={isEs ? "Estado de suscripcion" : "Subscription status"}
+            description={isEs ? "Visibilidad actual del estado de cobro y el plan asignado a la tienda." : "Current visibility into billing state and the plan assigned to the shop."}
+            badge={
+              data.status.hasActiveSubscription ? (
+                <AdminStatusBadge tone="success">{isEs ? "Activa" : "Active"}</AdminStatusBadge>
+              ) : (
+                <AdminStatusBadge tone="attention">{isEs ? "Sin plan activo" : "No active plan"}</AdminStatusBadge>
+              )
+            }
+          >
               {data.error ? (
                 <Banner tone="critical" title={isEs ? "No se pudo cargar el estado de facturacion" : "Billing status could not be loaded"}>
                   <p>{data.error}</p>
@@ -173,18 +181,15 @@ export default function BillingPage() {
                     : "There are no active subscriptions for this shop yet."}
                 </Text>
               )}
-            </BlockStack>
-          </Card>
+          </AdminSectionCard>
         </Layout.Section>
 
         <Layout.Section>
-          <Card>
-            <BlockStack gap="300">
-              <Badge tone="info">{isEs ? "Control transversal" : "Cross-phase control"}</Badge>
-              <Text as="h2" variant="headingMd">
-                {isEs ? "Crear o actualizar suscripcion" : "Create or update subscription"}
-              </Text>
-
+          <AdminSectionCard
+            title={isEs ? "Crear o actualizar suscripcion" : "Create or update subscription"}
+            description={isEs ? "Inicia la contratacion desde un flujo claro y mantén el cobro final en Shopify Admin." : "Start subscription from a clear flow while keeping final approval inside Shopify Admin."}
+            badge={<AdminStatusBadge tone="info">{isEs ? "Control transversal" : "Cross-phase control"}</AdminStatusBadge>}
+          >
               {actionData && "ok" in actionData && actionData.ok === false && actionData.error ? (
                 <Banner tone="critical" title={isEs ? "No se pudo iniciar la suscripcion" : "Could not start subscription"}>
                   <p>{actionData.error}</p>
@@ -228,8 +233,7 @@ export default function BillingPage() {
                   ? "La confirmacion final del cobro siempre ocurre en Shopify Admin."
                   : "Final billing confirmation always happens in Shopify Admin."}
               </Text>
-            </BlockStack>
-          </Card>
+          </AdminSectionCard>
         </Layout.Section>
       </Layout>
     </Page>
