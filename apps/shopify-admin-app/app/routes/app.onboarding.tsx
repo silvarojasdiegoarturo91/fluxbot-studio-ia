@@ -1241,6 +1241,58 @@ const ONBOARDING_STYLES = `
   margin-top: 8px;
 }
 
+.onb-nav-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.onb-nav-spacer {
+  flex: 1 1 auto;
+}
+
+.onb-nav-button {
+  appearance: none;
+  border: 1px solid #c9ccd1;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #303030;
+  min-height: 40px;
+  padding: 0 16px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 180ms ease, border-color 180ms ease;
+}
+
+.onb-nav-button:hover:not(:disabled) {
+  background: #f6f6f7;
+  border-color: #b9bcc2;
+}
+
+.onb-nav-button:focus-visible {
+  outline: 2px solid #0a66c2;
+  outline-offset: 2px;
+}
+
+.onb-nav-button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.onb-nav-button-primary {
+  background: #111827;
+  border-color: #111827;
+  color: #ffffff;
+}
+
+.onb-nav-button-primary:hover:not(:disabled) {
+  background: #1f2937;
+  border-color: #1f2937;
+}
+
 @keyframes onbFadeUp {
   from {
     opacity: 0;
@@ -1781,14 +1833,7 @@ export default function OnboardingPage() {
   );
   const [launcherLabel, setLauncherLabel] = useState(config.widgetBranding.launcherLabel);
   const [isPreviewChatOpen, setIsPreviewChatOpen] = useState(true);
-  const intentInputRef = useRef<HTMLInputElement>(null);
   const autoSaveRequestRef = useRef<XMLHttpRequest | null>(null);
-
-  const setIntent = (intent: OnboardingIntent) => {
-    if (intentInputRef.current) {
-      intentInputRef.current.value = intent;
-    }
-  };
 
   useEffect(() => {
     setAdminLanguage(config.adminLanguage);
@@ -1896,7 +1941,6 @@ export default function OnboardingPage() {
       return;
     }
 
-    setIntent("save_only");
     autoSaveRequestRef.current?.abort();
 
     const formData = new FormData(formRef.current);
@@ -2769,7 +2813,6 @@ export default function OnboardingPage() {
                     <Form method="post" ref={formRef}>
                       <BlockStack gap="400">
                         <input type="hidden" name="step" value={String(step)} />
-                        <input ref={intentInputRef} type="hidden" name="intent" defaultValue="save_only" />
 
                         <HiddenOnboardingInputs
                           adminLanguage={adminLanguage}
@@ -2796,35 +2839,41 @@ export default function OnboardingPage() {
                         </div>
 
                         <div className="onb-nav-row">
-                          <InlineStack align="space-between" blockAlign="center" wrap>
+                          <div className="onb-nav-actions">
                             {step > 1 ? (
-                              <Button submit onClick={() => setIntent("back")} loading={isSubmitting}>
+                              <button
+                                type="button"
+                                className="onb-nav-button"
+                                disabled={isSubmitting}
+                                onClick={() => handleStepClick(step - 1)}
+                              >
                                 {copy.back}
-                              </Button>
+                              </button>
                             ) : (
-                              <span />
+                              <span className="onb-nav-spacer" />
                             )}
 
                             {step < TOTAL_STEPS ? (
-                              <Button
-                                submit
-                                variant="primary"
-                                onClick={() => setIntent("save_continue")}
-                                loading={isSubmitting}
+                              <button
+                                type="button"
+                                className="onb-nav-button onb-nav-button-primary"
+                                disabled={isSubmitting}
+                                onClick={() => handleStepClick(step + 1)}
                               >
                                 {copy.next}
-                              </Button>
+                              </button>
                             ) : (
-                              <Button
-                                submit
-                                variant="primary"
-                                onClick={() => setIntent("complete")}
-                                loading={isSubmitting}
+                              <button
+                                type="submit"
+                                name="intent"
+                                value="complete"
+                                className="onb-nav-button onb-nav-button-primary"
+                                disabled={isSubmitting}
                               >
                                 {copy.complete}
-                              </Button>
+                              </button>
                             )}
-                          </InlineStack>
+                          </div>
 
                           {step < TOTAL_STEPS ? (
                             <p style={{ margin: "10px 0 0", color: "#7a6f65", fontSize: "0.85rem" }}>
