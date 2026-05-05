@@ -1,7 +1,7 @@
 name = "React Router"
 roles = ["frontend", "backend"]
 api_version = "2026-01"
-webhooks_path = "/webhooks/app/uninstalled"
+webhooks_path = "/api/webhooks"
 
 [commands]
 predev = "../../node_modules/.bin/prisma generate --schema ../../infra/prisma/schema.prisma"

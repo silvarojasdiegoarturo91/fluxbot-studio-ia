@@ -141,6 +141,12 @@ describe("Theme App Extension — assets", () => {
 // ---------------------------------------------------------------------------
 describe("shopify.app.toml — extension registration", () => {
   const toml = readFile("shopify.app.toml");
+  const applicationUrl = toml.match(/^application_url\s*=\s*"([^"]+)"/m)?.[1];
+  const appProxyUrl = toml.match(/\[app_proxy\][\s\S]*?^\s*url\s*=\s*"([^"]+)"/m)?.[1];
+  const redirectUrls = Array.from(
+    toml.matchAll(/"([^"]+\/(?:auth\/callback|auth\/shopify\/callback|api\/auth\/callback))"/g),
+    (match) => match[1],
+  );
 
   it("registers the chat-widget extension path", () => {
     expect(toml).toMatch(/\[\[extensions\]\]/);
@@ -155,5 +161,28 @@ describe("shopify.app.toml — extension registration", () => {
 
   it("requests read_products scope", () => {
     expect(toml).toContain("read_products");
+  });
+
+  it("uses a non-development base URL in the committed manifest", () => {
+    expect(applicationUrl).toBeDefined();
+    expect(applicationUrl).not.toContain("ngrok");
+    expect(applicationUrl).not.toContain("localhost");
+  });
+
+  it("keeps app proxy and auth redirects aligned with application_url", () => {
+    expect(appProxyUrl).toBe(applicationUrl);
+    expect(redirectUrls.length).toBe(3);
+    redirectUrls.forEach((url) => {
+      expect(url.startsWith(`${applicationUrl}/`)).toBe(true);
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+describe("shopify.web.toml — webhook routing", () => {
+  const toml = readFile("shopify.web.toml");
+
+  it("routes Shopify webhooks to the implemented endpoint", () => {
+    expect(toml).toMatch(/webhooks_path\s*=\s*["']?\/api\/webhooks["']?/);
   });
 });

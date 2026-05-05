@@ -56,7 +56,7 @@ if [[ -z "$DEV_URL" ]]; then
 fi
 
 echo "Using ngrok URL: $DEV_URL"
-node "$SCRIPT_DIR/set-dev-url.mjs" "$DEV_URL"
+node "$SCRIPT_DIR/set-app-url.mjs" "$DEV_URL"
 
 # Force Vite to resolve HMR against the ngrok public URL instead of localhost.
 export SHOPIFY_APP_URL="$DEV_URL"

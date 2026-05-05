@@ -61,7 +61,7 @@ Edit `.env` with your credentials:
 # Shopify
 SHOPIFY_API_KEY=your_api_key
 SHOPIFY_API_SECRET=your_api_secret
-SHOPIFY_APP_URL=https://your-ngrok-url.ngrok-free.app
+SHOPIFY_APP_URL=https://your-production-domain.example.com
 
 # Database (PostgreSQL required for production)
 DATABASE_URL=postgresql://user:password@localhost:5432/fluxbot_dev
@@ -69,9 +69,10 @@ DATABASE_URL=postgresql://user:password@localhost:5432/fluxbot_dev
 # Redis
 REDIS_URL=redis://localhost:6379
 
-# AI Provider (choose one)
-AI_PROVIDER=openai
-OPENAI_API_KEY=sk-...
+# IA Backend (remote mode recommended for production)
+IA_EXECUTION_MODE=remote
+IA_BACKEND_URL=https://your-ia-backend.example.com
+IA_BACKEND_API_KEY=your_ia_backend_api_key
 
 # Session
 SESSION_SECRET=your_random_32_char_secret_here
@@ -212,16 +213,22 @@ npm run lint
 1. **Database**: PostgreSQL 14+ with pgvector extension
 2. **Redis**: For caching, queues, and rate limiting
 3. **Environment**: All variables in `.env.example` must be set
-4. **Webhooks**: Configure endpoint in Shopify Partner Dashboard
+4. **Webhooks**: Shopify must reach the app at `/api/webhooks`
 
 ### Deploy to Production
 
 \`\`\`bash
+# Set SHOPIFY_APP_URL to your public production URL first
+export SHOPIFY_APP_URL=https://your-production-domain.example.com
+
 # Build the app
 npm run build
 
-# Deploy to your hosting provider
+# Sync the Shopify manifest to SHOPIFY_APP_URL and deploy app config/extensions
 npm run deploy
+
+# Start the production server on your host
+npm run setup && npm start
 
 # Or use Docker
 docker build -t fluxbot-studio-ia .
@@ -247,7 +254,7 @@ docker run -p 3000:3000 --env-file .env fluxbot-studio-ia
 
 ### Shopify authentication issues
 - Ensure `SHOPIFY_API_KEY` and `SHOPIFY_API_SECRET` match Partner Dashboard
-- Verify `SHOPIFY_APP_URL` matches your tunnel URL
+- Verify `SHOPIFY_APP_URL` matches the current public URL (tunnel in dev, production domain in prod)
 - Clear browser cookies and reinstall app
 
 ## Documentation
