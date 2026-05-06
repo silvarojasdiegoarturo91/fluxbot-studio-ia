@@ -33,7 +33,8 @@
     "openspec:watch": "node ./scripts/openspec-cli.mjs watch"
   },
   "dependencies": {
-    "@prisma/client": "^5.22.0"
+    "@prisma/client": "^5.22.0",
+    "@rollup/rollup-linux-x64-gnu": "^4.60.3"
   },
   "devDependencies": {
     "openspec": "^0.0.0"
