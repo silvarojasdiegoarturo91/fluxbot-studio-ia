@@ -7,7 +7,7 @@ embedded = true
 handle = "fluxbot-studio-ia"
 
 [build]
-automatically_update_urls_on_dev = true
+automatically_update_urls_on_dev = false
 dev_store_url = "quickstart-c8cc9986.myshopify.com"
 
 [webhooks]

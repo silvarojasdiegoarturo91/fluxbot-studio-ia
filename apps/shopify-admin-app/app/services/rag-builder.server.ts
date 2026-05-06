@@ -11,6 +11,7 @@
 
 import prisma from '../db.server';
 import { iaClient, type RerankStrategy } from './ia-backend.server';
+import { isRemoteIAExecutionEnabled } from "./ia-execution-mode.server";
 
 interface SearchResult {
   chunkId: string;
@@ -85,7 +86,7 @@ export interface RAGBuilderOptions {
 const REMOTE_RAG_DEFAULT_LIMIT = 24;
 
 function isRemoteRagEnabled(): boolean {
-  return process.env.IA_EXECUTION_MODE !== 'local';
+  return isRemoteIAExecutionEnabled(process.env);
 }
 
 interface RemoteSearchSuccess {

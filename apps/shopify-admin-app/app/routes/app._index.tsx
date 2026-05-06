@@ -16,7 +16,7 @@ import prisma from "../db.server";
 import { AnalyticsService } from "../services/analytics.server";
 import { getMerchantAdminConfig } from "../services/admin-config.server";
 import { ensureShopForSession } from "../services/shop-context.server";
-import { authenticate } from "../shopify.server";
+import { authenticateAdminRequest } from "../utils/authenticate-admin.server";
 import { useIsSpanish } from "../hooks/use-admin-language";
 import { AdminInfoCallout, AdminPageHeader, AdminSectionCard, AdminStatCard, AdminStatusBadge } from "../components/admin-ui";
 
@@ -114,7 +114,7 @@ export const loader = async ({ request }: LoaderFunctionArgs): Promise<Dashboard
   };
 
   try {
-    const { admin, session } = await authenticate.admin(request);
+    const { admin, session } = await authenticateAdminRequest(request);
     const response = await admin.graphql(SHOP_CONNECTION_QUERY);
 
     const payload = (await response.json()) as {

@@ -3,6 +3,8 @@
  * Validates required environment variables on app startup
  */
 
+import { getIAExecutionMode } from "./services/ia-execution-mode.server";
+
 interface EnvironmentConfig {
   // Shopify
   shopify: {
@@ -128,7 +130,7 @@ export function loadEnvironmentConfig(): EnvironmentConfig {
     }
   }
 
-  const iaExecutionMode = (process.env.IA_EXECUTION_MODE === 'local' ? 'local' : 'remote') as 'local' | 'remote';
+  const iaExecutionMode = getIAExecutionMode(process.env);
 
   // The provider config is only executed in local mode, but we keep parsing the value
   // so the shape stays stable across both execution modes.

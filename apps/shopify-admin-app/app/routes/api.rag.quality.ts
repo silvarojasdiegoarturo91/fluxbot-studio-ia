@@ -12,7 +12,7 @@
  */
 
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
-import { authenticate } from '../shopify.server';
+import { authenticateAdminRequest } from "../utils/authenticate-admin.server";
 import prisma from '../db.server';
 import type { RerankStrategy } from '../services/ia-backend.server';
 
@@ -37,7 +37,7 @@ function isValidRerankStrategy(value: unknown): value is RerankStrategy {
 // ─── GET ─────────────────────────────────────────────────────────────────────
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  const { session } = await authenticate.admin(request);
+  const { session } = await authenticateAdminRequest(request);
   const shopId = session.shop;
 
   const config = await prisma.chatbotConfig.findFirst({
@@ -61,7 +61,7 @@ export async function action({ request }: ActionFunctionArgs) {
     return json({ error: 'Method not allowed' }, { status: 405 });
   }
 
-  const { session } = await authenticate.admin(request);
+  const { session } = await authenticateAdminRequest(request);
   const shopId = session.shop;
 
   let body: unknown;

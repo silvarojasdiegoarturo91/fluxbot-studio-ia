@@ -19,7 +19,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { KnowledgeSourceType } from "@prisma/client";
 import prisma from "../db.server";
 import { ensureShopForSession } from "../services/shop-context.server";
-import { authenticate } from "../shopify.server";
+import { authenticateAdminRequest } from "../utils/authenticate-admin.server";
 import { getMerchantAdminConfig } from "../services/admin-config.server";
 import { useIsSpanish } from "../hooks/use-admin-language";
 import { AdminPageHeader, AdminSectionCard, AdminStatCard, AdminStatusBadge } from "../components/admin-ui";
@@ -40,7 +40,7 @@ const SOURCE_TYPE_OPTIONS: Array<{ label: string; value: KnowledgeSourceType }> 
 ];
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  const { session } = await authenticate.admin(request);
+  const { session } = await authenticateAdminRequest(request);
   const shop = await ensureShopForSession(session);
 
   if (!shop) {
@@ -103,7 +103,7 @@ export async function action({ request }: ActionFunctionArgs): Promise<DataSourc
     return { ok: false, error: "Method not allowed" };
   }
 
-  const { session } = await authenticate.admin(request);
+  const { session } = await authenticateAdminRequest(request);
   const shop = await ensureShopForSession(session);
 
   if (!shop) {

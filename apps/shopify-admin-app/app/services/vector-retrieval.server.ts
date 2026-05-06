@@ -12,6 +12,7 @@
 import prisma from '../db.server';
 import type { Prisma } from '@prisma/client';
 import { getIAGateway } from './ia-gateway.server';
+import { getIAExecutionMode } from "./ia-execution-mode.server";
 
 type EmbeddingRecordWithRelations = Prisma.EmbeddingRecordGetPayload<{
   include: {
@@ -191,7 +192,7 @@ function normalizeVector(vec: number[]): number[] {
 // ============================================================================
 
 function getVectorExecutionMode(): 'local' | 'remote' {
-  return process.env.IA_EXECUTION_MODE === 'local' ? 'local' : 'remote';
+  return getIAExecutionMode(process.env);
 }
 
 function clampRelevance(value: number): number {

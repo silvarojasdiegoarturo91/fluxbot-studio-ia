@@ -27,7 +27,7 @@ import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
 import { useLoaderData, useLocation, useSubmit } from "react-router";
 import { useState, useCallback } from "react";
 import { ensureShopForSession } from "../services/shop-context.server";
-import { authenticate } from "../shopify.server";
+import { authenticateAdminRequest } from "../utils/authenticate-admin.server";
 import { useIsSpanish } from "../hooks/use-admin-language";
 import {
   listCampaigns,
@@ -41,7 +41,7 @@ import { AdminPageHeader, AdminSectionCard, AdminStatCard, AdminStatusBadge } fr
 // ─── Loader ──────────────────────────────────────────────────────────────────
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  const { session } = await authenticate.admin(request);
+  const { session } = await authenticateAdminRequest(request);
   const shop = await ensureShopForSession(session);
   if (!shop) return { campaigns: [] };
   const campaigns = await listCampaigns(shop.id);
@@ -54,7 +54,7 @@ export async function action({ request }: ActionFunctionArgs) {
   const VALID_SCHEDULE_TYPES: CampaignScheduleType[] = ["IMMEDIATE", "SCHEDULED", "RECURRING"];
   const VALID_STATUSES: CampaignStatus[] = ["DRAFT", "ACTIVE", "PAUSED", "COMPLETED", "ARCHIVED"];
 
-  const { session } = await authenticate.admin(request);
+  const { session } = await authenticateAdminRequest(request);
   const shop = await ensureShopForSession(session);
   if (!shop) return { error: "Shop not found" };
 

@@ -14,7 +14,7 @@ import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
 import { Form, useActionData, useLoaderData, useLocation, useNavigation } from "react-router";
 import prisma from "../db.server";
 import { ensureShopForSession } from "../services/shop-context.server";
-import { authenticate } from "../shopify.server";
+import { authenticateAdminRequest } from "../utils/authenticate-admin.server";
 import { getMerchantAdminConfig } from "../services/admin-config.server";
 import { useIsSpanish } from "../hooks/use-admin-language";
 import { AdminPageHeader, AdminSectionCard, AdminStatCard, AdminStatusBadge } from "../components/admin-ui";
@@ -59,7 +59,7 @@ function statusLabel(status: string, isEs: boolean): string {
 }
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  const { session } = await authenticate.admin(request);
+  const { session } = await authenticateAdminRequest(request);
   const url = new URL(request.url);
 
   const statusFilterRaw = String(url.searchParams.get("status") || "ALL").toUpperCase();
@@ -172,7 +172,7 @@ export async function action({ request }: ActionFunctionArgs): Promise<Conversat
     return { ok: false, error: "Method not allowed" };
   }
 
-  const { session } = await authenticate.admin(request);
+  const { session } = await authenticateAdminRequest(request);
   const shop = await ensureShopForSession(session);
 
   if (!shop) {

@@ -14,7 +14,7 @@ import {
 import type { Prisma } from "@prisma/client";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
 import { Form, useActionData, useLoaderData, useLocation, useNavigation } from "react-router";
-import { authenticate } from "../shopify.server";
+import { authenticateAdminRequest } from "../utils/authenticate-admin.server";
 import { ensureShopForSession } from "../services/shop-context.server";
 import { useIsSpanish } from "../hooks/use-admin-language";
 import prisma from "../db.server";
@@ -77,7 +77,7 @@ function getMetadataRecord(raw: unknown): Record<string, unknown> {
 // ─── Loader ──────────────────────────────────────────────────────────────────
 
 export async function loader({ request }: LoaderFunctionArgs): Promise<WidgetPublishLoaderData> {
-  const { admin, session } = await authenticate.admin(request);
+  const { admin, session } = await authenticateAdminRequest(request);
   const shop = await ensureShopForSession(session);
 
   if (!shop) {
@@ -143,7 +143,7 @@ export async function action({ request }: ActionFunctionArgs): Promise<WidgetPub
     return { ok: false, error: "Method not allowed" };
   }
 
-  const { session } = await authenticate.admin(request);
+  const { session } = await authenticateAdminRequest(request);
   const shop = await ensureShopForSession(session);
 
   if (!shop) {

@@ -9,7 +9,7 @@ import {
 } from "@shopify/polaris";
 import type { LoaderFunctionArgs } from "react-router";
 import { useLoaderData, useLocation } from "react-router";
-import { authenticate } from "../shopify.server";
+import { authenticateAdminRequest } from "../utils/authenticate-admin.server";
 import { getDeliveryStatus } from "../services/delivery.server";
 import { getProactiveJobSchedulerStats } from "../jobs/scheduler.server";
 import { getOperationsMetrics } from "../services/operations-metrics.server";
@@ -21,7 +21,7 @@ function pct(value: number) {
 }
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  const { session } = await authenticate.admin(request);
+  const { session } = await authenticateAdminRequest(request);
   const requestUrl = new URL(request.url);
   const windowMinutesRaw = Number(requestUrl.searchParams.get("windowMinutes") || "60");
   const windowMinutes =

@@ -7,6 +7,7 @@
  */
 
 import { AIOrchestrationService } from './ai-orchestration.server';
+import { getIAExecutionMode } from "./ia-execution-mode.server";
 import {
   type EmbeddingSearchRequest,
   type EmbeddingSearchResult,
@@ -428,7 +429,7 @@ export class RemoteIAGateway implements IAGateway {
 export type IAExecutionMode = 'local' | 'remote';
 
 export function getExecutionMode(): IAExecutionMode {
-  return process.env.IA_EXECUTION_MODE === 'local' ? 'local' : 'remote';
+  return getIAExecutionMode(process.env);
 }
 
 // ─── Singleton factory ────────────────────────────────────────────────────────

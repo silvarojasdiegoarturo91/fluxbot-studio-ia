@@ -7,7 +7,7 @@
  */
 
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
-import { authenticate } from '../shopify.server';
+import { authenticateAdminRequest } from "../utils/authenticate-admin.server";
 import {
   getCampaign,
   updateCampaign,
@@ -31,7 +31,7 @@ async function resolveShopId(shopDomain: string): Promise<string | null> {
 // ─── GET ─────────────────────────────────────────────────────────────────────
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
-  const { session } = await authenticate.admin(request);
+  const { session } = await authenticateAdminRequest(request);
   const campaignId = params.id;
   if (!campaignId) return json({ error: 'Missing campaign ID' }, { status: 400 });
 
@@ -47,7 +47,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 // ─── PUT / DELETE ─────────────────────────────────────────────────────────────
 
 export async function action({ request, params }: ActionFunctionArgs) {
-  const { session } = await authenticate.admin(request);
+  const { session } = await authenticateAdminRequest(request);
   const campaignId = params.id;
   if (!campaignId) return json({ error: 'Missing campaign ID' }, { status: 400 });
 

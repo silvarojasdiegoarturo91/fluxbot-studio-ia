@@ -6,7 +6,7 @@
  */
 
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
-import { authenticate } from '../shopify.server';
+import { authenticateAdminRequest } from "../utils/authenticate-admin.server";
 import {
   listCampaigns,
   createCampaign,
@@ -23,7 +23,7 @@ function json(data: unknown, init?: ResponseInit) {
 // ─── GET ─────────────────────────────────────────────────────────────────────
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  const { session } = await authenticate.admin(request);
+  const { session } = await authenticateAdminRequest(request);
 
   const shop = await import('../db.server').then((m) =>
     m.default.shop.findFirst({ where: { domain: session.shop }, select: { id: true } }),
@@ -41,7 +41,7 @@ export async function action({ request }: ActionFunctionArgs) {
     return json({ error: 'Method not allowed' }, { status: 405 });
   }
 
-  const { session } = await authenticate.admin(request);
+  const { session } = await authenticateAdminRequest(request);
 
   let body: unknown;
   try { body = await request.json(); } catch {

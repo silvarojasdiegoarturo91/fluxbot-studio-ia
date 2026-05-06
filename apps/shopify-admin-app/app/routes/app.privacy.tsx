@@ -17,7 +17,7 @@ import {
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
 import { Form, useActionData, useLoaderData, useLocation, useNavigation } from "react-router";
 import { useEffect, useState } from "react";
-import { authenticate } from "../shopify.server";
+import { authenticateAdminRequest } from "../utils/authenticate-admin.server";
 import { ensureShopForSession } from "../services/shop-context.server";
 import {
   AuditReportService,
@@ -94,7 +94,7 @@ function parseRegions(raw: string): DataRegion[] {
 }
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  const { session } = await authenticate.admin(request);
+  const { session } = await authenticateAdminRequest(request);
   const url = new URL(request.url);
   const days = parseDays(url.searchParams.get("days"), 365);
 
@@ -148,7 +148,7 @@ export async function action({ request }: ActionFunctionArgs) {
     } satisfies PrivacyActionResponse;
   }
 
-  const { session } = await authenticate.admin(request);
+  const { session } = await authenticateAdminRequest(request);
   const shop = await ensureShopForSession(session);
 
   if (!shop) {

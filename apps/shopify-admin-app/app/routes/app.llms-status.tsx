@@ -11,7 +11,7 @@ import {
 } from "@shopify/polaris";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
 import { Form, useActionData, useLoaderData, useLocation, useNavigation } from "react-router";
-import { authenticate } from "../shopify.server";
+import { authenticateAdminRequest } from "../utils/authenticate-admin.server";
 import { ensureShopForSession } from "../services/shop-context.server";
 import { LlmsTxtService } from "../services/llms-txt.server";
 import { useIsSpanish } from "../hooks/use-admin-language";
@@ -36,7 +36,7 @@ interface LlmsStatusActionData {
 // ─── Loader ──────────────────────────────────────────────────────────────────
 
 export async function loader({ request }: LoaderFunctionArgs): Promise<LlmsStatusLoaderData> {
-  const { session } = await authenticate.admin(request);
+  const { session } = await authenticateAdminRequest(request);
   const shop = await ensureShopForSession(session);
 
   if (!shop) {
@@ -68,7 +68,7 @@ export async function action({ request }: ActionFunctionArgs): Promise<LlmsStatu
     return { ok: false, error: "Method not allowed" };
   }
 
-  const { session } = await authenticate.admin(request);
+  const { session } = await authenticateAdminRequest(request);
   const shop = await ensureShopForSession(session);
 
   if (!shop) {

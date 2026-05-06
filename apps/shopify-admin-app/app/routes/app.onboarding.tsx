@@ -25,7 +25,7 @@ import {
   saveMerchantAdminConfig,
 } from "../services/admin-config.server";
 import { ensureShopForSession } from "../services/shop-context.server";
-import { authenticate } from "../shopify.server";
+import { authenticateAdminRequest } from "../utils/authenticate-admin.server";
 
 type OnboardingIntent = "back" | "save_only" | "save_continue" | "complete";
 
@@ -37,66 +37,66 @@ interface OnboardingActionData {
   redirectTo?: string;
 }
 
-const TOTAL_STEPS = 7;
+const TOTAL_STEPS = 4;
 
 const ONBOARDING_COPY = {
   es: {
-    title: "Onboarding inicial",
-    subtitle: "Configura tu asistente IA en pocos minutos",
+    title: "The 4-Step Magic Setup",
+    subtitle: "Configura Fluxbot en 4 capitulos con preview en vivo y activacion guiada.",
     stepLabel: "Paso",
-    progressLabel: "Progreso",
+    progressLabel: "Magic setup",
     saveDraft: "Guardar progreso",
     back: "Volver",
     next: "Continuar",
-    complete: "Activar asistente",
-    welcomeTitle: "Bienvenido",
+    complete: "Activar Fluxbot en mi tienda",
+    welcomeTitle: "Identidad",
     welcomeText:
-      "Vamos a dejar tu chatbot listo para ventas y soporte sin configuraciones tecnicas complejas.",
+      "Define el idioma, el nombre y el primer saludo para que tu asistente se sienta real desde el minuto uno.",
     welcomeBullets: [
-      "Definir idioma global del asistente",
-      "Configurar nombre, tono y objetivo",
-      "Activar capacidades iniciales",
-      "Personalizar apariencia base del widget",
+      "Idioma global y consistente con la tienda",
+      "Nombre visible en la cabecera del chat",
+      "Mensaje de bienvenida listo para usar",
+      "Preview instantaneo mientras escribes",
     ],
-    languageTitle: "Idioma global",
-    profileTitle: "Perfil del asistente",
-    capabilitiesTitle: "Capacidades iniciales",
-    brandingTitle: "Apariencia inicial",
-    reviewTitle: "Revision final",
-    activateTitle: "Activacion",
-    reviewText: "Revisa la configuracion antes de activar.",
+    languageTitle: "Identidad",
+    profileTitle: "Cerebro",
+    capabilitiesTitle: "Superpoderes",
+    brandingTitle: "Estilo",
+    reviewTitle: "Despegue",
+    activateTitle: "Despegue",
+    reviewText: "Resumen visual y sincronizacion inicial antes de activar.",
     activateText:
-      "Al activar, el merchant podra seguir optimizando desde el dashboard principal.",
-    activatedMessage: "Onboarding completado. Tu asistente esta listo.",
+      "Sincronizaremos catalogo, politicas y capacidades base para que la primera conversacion ya se sienta util.",
+    activatedMessage: "Fluxbot listo para atender en tu tienda.",
   },
   en: {
-    title: "Initial onboarding",
-    subtitle: "Set up your AI assistant in a few minutes",
+    title: "The 4-Step Magic Setup",
+    subtitle: "Configure Fluxbot in 4 chapters with live preview and guided activation.",
     stepLabel: "Step",
-    progressLabel: "Progress",
+    progressLabel: "Magic setup",
     saveDraft: "Save progress",
     back: "Back",
     next: "Continue",
-    complete: "Activate assistant",
-    welcomeTitle: "Welcome",
+    complete: "Activate Fluxbot in my store",
+    welcomeTitle: "Identity",
     welcomeText:
-      "We will configure your chatbot for sales and support without exposing technical complexity.",
+      "Define language, assistant name, and first greeting so the bot feels real from the first minute.",
     welcomeBullets: [
-      "Choose a single global language",
-      "Define name, tone and primary goal",
-      "Enable initial capabilities",
-      "Set widget branding basics",
+      "Single global language aligned with the store",
+      "Assistant name visible in chat header",
+      "Ready-to-use welcome message",
+      "Instant live preview while you type",
     ],
-    languageTitle: "Global language",
-    profileTitle: "Assistant profile",
-    capabilitiesTitle: "Initial capabilities",
-    brandingTitle: "Branding basics",
-    reviewTitle: "Final review",
-    activateTitle: "Activation",
-    reviewText: "Review your setup before activation.",
+    languageTitle: "Identity",
+    profileTitle: "Brain",
+    capabilitiesTitle: "Superpowers",
+    brandingTitle: "Style",
+    reviewTitle: "Launch",
+    activateTitle: "Launch",
+    reviewText: "Visual summary and initial sync before activation.",
     activateText:
-      "After activation, merchants can keep optimizing from the main dashboard.",
-    activatedMessage: "Onboarding complete. Your assistant is ready.",
+      "We will sync catalog, policies, and core capabilities so the very first chat already feels useful.",
+    activatedMessage: "Fluxbot is ready for your storefront.",
   },
 } as const;
 
@@ -265,6 +265,10 @@ const ONBOARDING_STYLES = `
   align-items: start;
 }
 
+.onb-content-stage-full {
+  grid-template-columns: 1fr;
+}
+
 .onb-content-column {
   display: grid;
   gap: 16px;
@@ -272,7 +276,7 @@ const ONBOARDING_STYLES = `
 
 .onb-section-track {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 10px;
 }
 
@@ -950,6 +954,12 @@ const ONBOARDING_STYLES = `
   padding: 10px;
 }
 
+.onb-note-card-highlight {
+  background: linear-gradient(180deg, #fff8ef 0%, #f8efe2 100%);
+  border-style: solid;
+  border-color: #e5caa7;
+}
+
 .onb-note-title {
   margin: 0;
   font-weight: 700;
@@ -961,6 +971,57 @@ const ONBOARDING_STYLES = `
   margin: 4px 0 0;
   color: #6a5f54;
   font-size: 0.8rem;
+}
+
+.onb-choice-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.onb-choice-grid-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.onb-choice-grid-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.onb-choice-card {
+  appearance: none;
+  border: 1px solid #ddd2c5;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.86);
+  padding: 14px;
+  text-align: left;
+  display: grid;
+  gap: 6px;
+  cursor: pointer;
+  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.onb-choice-card:hover {
+  transform: translateY(-1px);
+  border-color: #b4c7d6;
+  box-shadow: 0 8px 18px rgba(71, 101, 127, 0.08);
+}
+
+.onb-choice-card-active {
+  border-color: var(--onb-accent);
+  background: linear-gradient(180deg, #f3f7fa 0%, #ebf1f5 100%);
+  box-shadow: inset 0 0 0 1px #d6e1e9;
+}
+
+.onb-choice-title {
+  color: #2f3641;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.onb-choice-description {
+  color: #6a5f54;
+  font-size: 0.78rem;
+  line-height: 1.45;
 }
 
 .onb-chip-row {
@@ -1033,6 +1094,60 @@ const ONBOARDING_STYLES = `
   margin: 0;
   color: #685c52;
   font-size: 0.82rem;
+}
+
+.onb-color-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.onb-color-swatch {
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  border: 2px solid rgba(255, 255, 255, 0.82);
+  box-shadow: 0 0 0 1px #d6ccbf;
+  cursor: pointer;
+}
+
+.onb-color-swatch-active {
+  box-shadow: 0 0 0 2px #111827;
+}
+
+.onb-sync-card {
+  border: 1px solid #ddd2c5;
+  border-radius: 16px;
+  background: linear-gradient(180deg, #fff8ef 0%, #f7ecde 100%);
+  padding: 16px;
+  display: grid;
+  gap: 12px;
+}
+
+.onb-sync-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.onb-sync-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 6px 10px;
+  background: #111827;
+  color: #ffffff;
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.onb-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
 }
 
 .onb-mock-chat {
@@ -1384,6 +1499,13 @@ const ONBOARDING_STYLES = `
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .onb-choice-grid,
+  .onb-choice-grid-2,
+  .onb-choice-grid-3,
+  .onb-summary-grid {
+    grid-template-columns: 1fr;
+  }
+
   .onb-note-grid {
     grid-template-columns: 1fr;
   }
@@ -1450,6 +1572,16 @@ function parseResponseStyle(raw: FormDataEntryValue | null, fallback: ResponseSt
   return value === "CONCISE" || value === "BALANCED" || value === "DETAILED" ? value : fallback;
 }
 
+function getDefaultBotName(language: AdminLanguage): string {
+  return language === "es" ? "Asistente virtual" : "Virtual Assistant";
+}
+
+function getDefaultWelcomeMessage(language: AdminLanguage, botName: string): string {
+  return language === "es"
+    ? `Hola, soy ${botName}. Estoy aqui para ayudarte con productos, pedidos y dudas de tu tienda.`
+    : `Hi, I'm ${botName}. I'm here to help with products, orders, and store questions.`;
+}
+
 function buildRedirectPath(basePath: string, url: URL, step?: number, extraParams?: Record<string, string>) {
   const params = new URLSearchParams(url.search);
   params.delete("step");
@@ -1478,7 +1610,7 @@ function jsonResponse(body: OnboardingActionData, status = 200): Response {
 }
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  const { session } = await authenticate.admin(request);
+  const { session } = await authenticateAdminRequest(request);
   const shop = await ensureShopForSession(session);
 
   if (!shop) {
@@ -1506,7 +1638,7 @@ export async function action({ request }: ActionFunctionArgs): Promise<Response 
     return { ok: false, error: "Method not allowed" };
   }
 
-  const { session } = await authenticate.admin(request);
+  const { session } = await authenticateAdminRequest(request);
   const shop = await ensureShopForSession(session);
 
   if (!shop) {
@@ -1561,26 +1693,10 @@ export async function action({ request }: ActionFunctionArgs): Promise<Response 
       ? avatarStyleRaw
       : "assistant";
 
+  const normalizedBotName = botName || getDefaultBotName(adminLanguage);
+  const normalizedWelcomeMessage = welcomeMessage || getDefaultWelcomeMessage(adminLanguage, normalizedBotName);
   const launcherLabel = String(formData.get("launcherLabel") || currentConfig.widgetBranding.launcherLabel).trim();
-
-  if (!botName) {
-    const error = adminLanguage === "es"
-      ? "El nombre del chatbot es obligatorio."
-      : "Bot name is required.";
-    return wantsJsonResponse ? jsonResponse({ ok: false, error }, 400) : { ok: false, error };
-  }
-
-  if (!welcomeMessage) {
-    const error = adminLanguage === "es"
-      ? "El mensaje de bienvenida es obligatorio."
-      : "Welcome message is required.";
-    return wantsJsonResponse
-      ? jsonResponse({ ok: false, error }, 400)
-      : {
-      ok: false,
-      error,
-    };
-  }
+  const normalizedLauncherLabel = launcherLabel || normalizedBotName;
 
   let nextStep = currentStep;
   if (intent === "save_continue") {
@@ -1595,11 +1711,11 @@ export async function action({ request }: ActionFunctionArgs): Promise<Response 
     adminLanguage,
     primaryBotLanguage,
     supportedLanguages,
-    botName,
+    botName: normalizedBotName,
     botTone,
     botGoal,
     responseStyle,
-    welcomeMessage,
+    welcomeMessage: normalizedWelcomeMessage,
     enabledCapabilities: {
       answerProducts,
       answerPolicies,
@@ -1611,7 +1727,7 @@ export async function action({ request }: ActionFunctionArgs): Promise<Response 
       primaryColor: primaryColor || "#008060",
       launcherPosition,
       avatarStyle,
-      launcherLabel: launcherLabel || (adminLanguage === "es" ? "Asistente" : "Assistant"),
+      launcherLabel: normalizedLauncherLabel,
     },
     onboardingStep: onboardingCompleted ? TOTAL_STEPS : nextStep,
     onboardingCompleted,
@@ -1808,13 +1924,16 @@ export default function OnboardingPage() {
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
   const showSectionSummaryCards = config.onboardingCompleted;
+  const initialBotName = config.botName.trim() || getDefaultBotName(config.adminLanguage);
+  const initialWelcomeMessage =
+    config.welcomeMessage.trim() || getDefaultWelcomeMessage(config.adminLanguage, initialBotName);
 
   const [adminLanguage, setAdminLanguage] = useState<AdminLanguage>(config.adminLanguage);
-  const [botName, setBotName] = useState(config.botName);
+  const [botName, setBotName] = useState(initialBotName);
   const [botTone, setBotTone] = useState<BotTone>(config.botTone);
   const [botGoal, setBotGoal] = useState<BotGoal>(config.botGoal);
   const [responseStyle, setResponseStyle] = useState<ResponseStyle>(config.responseStyle);
-  const [welcomeMessage, setWelcomeMessage] = useState(config.welcomeMessage);
+  const [welcomeMessage, setWelcomeMessage] = useState(initialWelcomeMessage);
 
   const [answerProducts, setAnswerProducts] = useState(config.enabledCapabilities.answerProducts ? "true" : "false");
   const [answerPolicies, setAnswerPolicies] = useState(config.enabledCapabilities.answerPolicies ? "true" : "false");
@@ -1831,17 +1950,21 @@ export default function OnboardingPage() {
   const [avatarStyle, setAvatarStyle] = useState<"assistant" | "spark" | "store">(
     config.widgetBranding.avatarStyle,
   );
-  const [launcherLabel, setLauncherLabel] = useState(config.widgetBranding.launcherLabel);
+  const [launcherLabel, setLauncherLabel] = useState(config.widgetBranding.launcherLabel || initialBotName);
   const [isPreviewChatOpen, setIsPreviewChatOpen] = useState(true);
+  const [syncPreviewProgress, setSyncPreviewProgress] = useState(18);
   const autoSaveRequestRef = useRef<XMLHttpRequest | null>(null);
 
   useEffect(() => {
     setAdminLanguage(config.adminLanguage);
-    setBotName(config.botName);
+    const nextBotName = config.botName.trim() || getDefaultBotName(config.adminLanguage);
+    setBotName(nextBotName);
     setBotTone(config.botTone);
     setBotGoal(config.botGoal);
     setResponseStyle(config.responseStyle);
-    setWelcomeMessage(config.welcomeMessage);
+    setWelcomeMessage(
+      config.welcomeMessage.trim() || getDefaultWelcomeMessage(config.adminLanguage, nextBotName),
+    );
     setAnswerProducts(config.enabledCapabilities.answerProducts ? "true" : "false");
     setAnswerPolicies(config.enabledCapabilities.answerPolicies ? "true" : "false");
     setAnswerOrders(config.enabledCapabilities.answerOrders ? "true" : "false");
@@ -1850,22 +1973,28 @@ export default function OnboardingPage() {
     setPrimaryColor(config.widgetBranding.primaryColor);
     setLauncherPosition(config.widgetBranding.launcherPosition);
     setAvatarStyle(config.widgetBranding.avatarStyle);
-    setLauncherLabel(config.widgetBranding.launcherLabel);
+    setLauncherLabel(config.widgetBranding.launcherLabel || nextBotName);
   }, [config]);
 
   const isSubmitting = navigation.state === "submitting";
   const progress = useMemo(() => Math.round((step / totalSteps) * 100), [step, totalSteps]);
+  const normalizedBotName = botName.trim() || getDefaultBotName(adminLanguage);
+  const normalizedWelcomeMessage = welcomeMessage.trim() || getDefaultWelcomeMessage(adminLanguage, normalizedBotName);
+  const normalizedLauncherLabel = launcherLabel.trim() || normalizedBotName;
+  const normalizedPrimaryColor = /^#[0-9a-fA-F]{6}$/.test(primaryColor) ? primaryColor : "#008060";
   const previousStepRef = useRef(step);
   const formRef = useRef<HTMLFormElement>(null);
   const [stepDirection, setStepDirection] = useState<"forward" | "backward" | "neutral">("neutral");
   const persistedConfigSnapshot = useMemo(
     () => JSON.stringify({
       adminLanguage: config.adminLanguage,
-      botName: config.botName,
+      botName: config.botName.trim() || getDefaultBotName(config.adminLanguage),
       botTone: config.botTone,
       botGoal: config.botGoal,
       responseStyle: config.responseStyle,
-      welcomeMessage: config.welcomeMessage,
+      welcomeMessage:
+        config.welcomeMessage.trim() ||
+        getDefaultWelcomeMessage(config.adminLanguage, config.botName.trim() || getDefaultBotName(config.adminLanguage)),
       enabledCapabilities: config.enabledCapabilities,
       widgetBranding: config.widgetBranding,
     }),
@@ -1874,11 +2003,11 @@ export default function OnboardingPage() {
   const currentConfigSnapshot = useMemo(
     () => JSON.stringify({
       adminLanguage,
-      botName,
+      botName: normalizedBotName,
       botTone,
       botGoal,
       responseStyle,
-      welcomeMessage,
+      welcomeMessage: normalizedWelcomeMessage,
       enabledCapabilities: {
         answerProducts: answerProducts === "true",
         answerPolicies: answerPolicies === "true",
@@ -1887,10 +2016,10 @@ export default function OnboardingPage() {
         captureLeads: captureLeads === "true",
       },
       widgetBranding: {
-        primaryColor,
+        primaryColor: normalizedPrimaryColor,
         launcherPosition,
         avatarStyle,
-        launcherLabel,
+        launcherLabel: normalizedLauncherLabel,
       },
     }),
     [
@@ -1900,15 +2029,15 @@ export default function OnboardingPage() {
       answerProducts,
       avatarStyle,
       botGoal,
-      botName,
+      normalizedBotName,
       botTone,
       captureLeads,
-      launcherLabel,
+      normalizedLauncherLabel,
       launcherPosition,
-      primaryColor,
+      normalizedPrimaryColor,
       recommendProducts,
       responseStyle,
-      welcomeMessage,
+      normalizedWelcomeMessage,
     ],
   );
   const hasUnsavedChanges = currentConfigSnapshot !== persistedConfigSnapshot;
@@ -1926,9 +2055,27 @@ export default function OnboardingPage() {
   }, [step]);
 
   useEffect(() => {
-    if (step === 5) {
+    if (step >= 3) {
       setIsPreviewChatOpen(true);
     }
+  }, [step]);
+
+  useEffect(() => {
+    if (step !== 4) {
+      setSyncPreviewProgress(18);
+      return;
+    }
+
+    const values = [22, 41, 63, 79, 91];
+    let index = 0;
+    setSyncPreviewProgress(values[index]);
+
+    const interval = window.setInterval(() => {
+      index = (index + 1) % values.length;
+      setSyncPreviewProgress(values[index]);
+    }, 900);
+
+    return () => window.clearInterval(interval);
   }, [step]);
 
   const handleStepClick = (targetStep: number) => {
@@ -2019,11 +2166,8 @@ export default function OnboardingPage() {
 
   const stepTitles = [
     copy.languageTitle,
-    copy.welcomeTitle,
     copy.profileTitle,
-    copy.capabilitiesTitle,
     copy.brandingTitle,
-    copy.reviewTitle,
     copy.activateTitle,
   ];
   const currentStepTitle = stepTitles[step - 1] ?? copy.stepLabel;
@@ -2031,25 +2175,32 @@ export default function OnboardingPage() {
 
   const sectionProgress = [
     {
-      key: "foundation",
-      title: adminLanguage === "es" ? "Fundacion" : "Foundation",
-      label: adminLanguage === "es" ? "Idioma y contexto" : "Language and context",
+      key: "identity",
+      title: adminLanguage === "es" ? "Fase 01" : "Phase 01",
+      label: copy.languageTitle,
       start: 1,
+      end: 1,
+    },
+    {
+      key: "brain",
+      title: adminLanguage === "es" ? "Fase 02" : "Phase 02",
+      label: copy.profileTitle,
+      start: 2,
       end: 2,
     },
     {
-      key: "assistant",
-      title: adminLanguage === "es" ? "Asistente" : "Assistant",
-      label: adminLanguage === "es" ? "Perfil y capacidades" : "Profile and capabilities",
+      key: "style",
+      title: adminLanguage === "es" ? "Fase 03" : "Phase 03",
+      label: copy.brandingTitle,
       start: 3,
-      end: 4,
+      end: 3,
     },
     {
       key: "launch",
-      title: adminLanguage === "es" ? "Lanzamiento" : "Launch",
-      label: adminLanguage === "es" ? "Branding y activacion" : "Branding and activation",
-      start: 5,
-      end: 7,
+      title: adminLanguage === "es" ? "Fase 04" : "Phase 04",
+      label: copy.activateTitle,
+      start: 4,
+      end: 4,
     },
   ].map((section) => {
     const totalSectionSteps = section.end - section.start + 1;
@@ -2109,6 +2260,24 @@ export default function OnboardingPage() {
       enabled: captureLeads === "true",
     },
   ];
+  const previewQuickReplies = capabilitySummary
+    .filter((item) => item.enabled)
+    .map((item) => {
+      if (item.label === "Productos" || item.label === "Products") {
+        return adminLanguage === "es" ? "Recomiendame algo" : "Recommend something";
+      }
+      if (item.label === "Politicas" || item.label === "Policies") {
+        return adminLanguage === "es" ? "Politica de envios" : "Shipping policy";
+      }
+      if (item.label === "Pedidos" || item.label === "Orders") {
+        return adminLanguage === "es" ? "Seguir mi pedido" : "Track my order";
+      }
+      if (item.label === "Recomendaciones" || item.label === "Recommendations") {
+        return adminLanguage === "es" ? "Comparar opciones" : "Compare options";
+      }
+      return adminLanguage === "es" ? "Hablar con ventas" : "Talk to sales";
+    })
+    .slice(0, 4);
 
   const previewUserMessage = adminLanguage === "es"
     ? "Busco una chaqueta ligera para clima templado, menos de 90 EUR."
@@ -2190,13 +2359,10 @@ export default function OnboardingPage() {
       ? adminLanguage === "es" ? "Modo soporte" : "Support mode"
       : adminLanguage === "es" ? "Ventas + soporte" : "Sales + support";
 
-  const normalizedPrimaryColor = /^#[0-9a-fA-F]{6}$/.test(primaryColor) ? primaryColor : "#008060";
   const previewThemeStyle = useMemo(
     () => ({ ["--fluxbot-primary-color" as string]: normalizedPrimaryColor } as CSSProperties),
     [normalizedPrimaryColor],
   );
-
-  const previewLauncherLabel = launcherLabel.trim() || (adminLanguage === "es" ? "Asistente" : "Assistant");
 
   const stepFrameClass = stepDirection === "forward"
     ? "onb-step-frame onb-step-frame-forward"
@@ -2205,7 +2371,7 @@ export default function OnboardingPage() {
       : "onb-step-frame onb-step-frame-neutral";
 
   const renderMockChatPreview = () => {
-    const previewTitle = botName.trim() || (adminLanguage === "es" ? "Asistente AI" : "AI Assistant");
+    const previewTitle = normalizedBotName;
     const previewSubtitle = adminLanguage === "es"
       ? `En linea · ${previewGoalTag}`
       : `Online · ${previewGoalTag}`;
@@ -2222,11 +2388,11 @@ export default function OnboardingPage() {
 
     const previewLauncherAriaLabel = isPreviewChatOpen
       ? previewCloseLabel
-      : `${previewOpenLabel}: ${previewLauncherLabel}`;
+      : `${previewOpenLabel}: ${normalizedLauncherLabel}`;
 
-    return (
-      <div className="onb-preview-card">
-        <p className="onb-preview-kicker">{adminLanguage === "es" ? "Vista previa" : "Live preview"}</p>
+      return (
+        <div className="onb-preview-card">
+          <p className="onb-preview-kicker">{adminLanguage === "es" ? "Vista previa" : "Live preview"}</p>
 
         <div className="onb-preview-stage" style={previewThemeStyle}>
           <div
@@ -2254,9 +2420,9 @@ export default function OnboardingPage() {
               </div>
 
               <div className="fluxbot-chat-window__messages">
-                {step === 2 ? (
+                {step === 1 ? (
                   <div className="fluxbot-message fluxbot-message--assistant">
-                    <div className="fluxbot-message__content">{welcomeMessage}</div>
+                    <div className="fluxbot-message__content">{normalizedWelcomeMessage}</div>
                   </div>
                 ) : (
                   <>
@@ -2267,6 +2433,16 @@ export default function OnboardingPage() {
                     <div className="fluxbot-message fluxbot-message--assistant">
                       <div className="fluxbot-message__content">{previewAssistantMessage}</div>
                     </div>
+
+                    {previewQuickReplies.length > 0 ? (
+                      <div className="onb-quick-replies">
+                        {previewQuickReplies.map((reply) => (
+                          <span key={reply} className="onb-quick-reply">
+                            {reply}
+                          </span>
+                        ))}
+                      </div>
+                    ) : null}
 
                     {answerProducts === "true" ? (
                       <div className="fluxbot-product-cards">
@@ -2294,7 +2470,9 @@ export default function OnboardingPage() {
                   <input
                     type="text"
                     className="fluxbot-chat-form__input"
-                    placeholder={adminLanguage === "es" ? "Escribe tu mensaje..." : "Type your message..."}
+                      placeholder={step === 2
+                        ? (adminLanguage === "es" ? "Prueba una pregunta de cliente..." : "Try a shopper question...")
+                        : (adminLanguage === "es" ? "Escribe tu mensaje..." : "Type your message...")}
                     aria-label={adminLanguage === "es" ? "Escribe tu mensaje" : "Type your message"}
                     readOnly
                   />
@@ -2325,8 +2503,8 @@ export default function OnboardingPage() {
               <PreviewLauncherChatIcon avatarStyle={avatarStyle} />
               <PreviewCloseIcon className="fluxbot-launcher__icon fluxbot-launcher__icon--close" />
             </button>
-            <span className="fluxbot-launcher__label" hidden={!previewLauncherLabel} aria-hidden="true">
-              {previewLauncherLabel}
+            <span className="fluxbot-launcher__label" hidden={!normalizedLauncherLabel} aria-hidden="true">
+              {normalizedLauncherLabel}
             </span>
           </div>
         </div>
@@ -2347,13 +2525,13 @@ export default function OnboardingPage() {
           <h2 className="onb-step-headline">{copy.languageTitle}</h2>
           <p className="onb-step-copy">
             {adminLanguage === "es"
-              ? "Selecciona el idioma maestro de tu asistente. Se aplicara al panel, al bot y a la experiencia del merchant."
-              : "Select one global language. It will be applied to both admin and chatbot."}
+              ? "Haz que el bot deje de ser codigo: elige idioma, nombre y saludo para tu primera impresion."
+              : "Turn the bot into a real teammate: choose language, name, and greeting for the first impression."}
           </p>
 
           <FormLayout>
             <Select
-              label={adminLanguage === "es" ? "Idioma global" : "Global language"}
+              label={adminLanguage === "es" ? "¿En que idioma atenderas?" : "Which language will you use?"}
               options={[
                 { label: "Espanol", value: "es" },
                 { label: "English", value: "en" },
@@ -2361,23 +2539,40 @@ export default function OnboardingPage() {
               value={adminLanguage}
               onChange={(value) => setAdminLanguage(value as AdminLanguage)}
             />
+
+            <TextField
+              label={adminLanguage === "es" ? "Dale un nombre a tu asistente" : "Give your assistant a name"}
+              value={botName}
+              onChange={setBotName}
+              autoComplete="off"
+              placeholder={getDefaultBotName(adminLanguage)}
+            />
+
+            <TextField
+              label={adminLanguage === "es" ? "Tu primer saludo" : "Your first greeting"}
+              value={welcomeMessage}
+              onChange={setWelcomeMessage}
+              autoComplete="off"
+              multiline={3}
+              placeholder={getDefaultWelcomeMessage(adminLanguage, normalizedBotName)}
+            />
           </FormLayout>
 
           <div className="onb-note-grid">
             <div className="onb-note-card">
-              <p className="onb-note-title">{adminLanguage === "es" ? "Consistencia total" : "Full consistency"}</p>
+              <p className="onb-note-title">{adminLanguage === "es" ? "Valores inteligentes" : "Smart defaults"}</p>
               <p className="onb-note-text">
                 {adminLanguage === "es"
-                  ? "Evita desalineaciones: el panel de admin y el chatbot quedan sincronizados."
-                  : "Avoid drift: admin surface and chatbot remain synchronized."}
+                  ? `Si no escribes nada, usaremos "${getDefaultBotName(adminLanguage)}" y un saludo listo para publicar.`
+                  : `If you leave it blank, we'll use "${getDefaultBotName(adminLanguage)}" and a launch-ready greeting.`}
               </p>
             </div>
             <div className="onb-note-card">
-              <p className="onb-note-title">{adminLanguage === "es" ? "Editable despues" : "Editable later"}</p>
+              <p className="onb-note-title">{adminLanguage === "es" ? "Preview en vivo" : "Live preview"}</p>
               <p className="onb-note-text">
                 {adminLanguage === "es"
-                  ? "Puedes cambiarlo mas tarde desde Settings sin repetir onboarding."
-                  : "You can change it later from Settings without re-running onboarding."}
+                  ? "La cabecera del chat y la burbuja de bienvenida cambian al instante mientras configuras."
+                  : "The chat header and welcome bubble update instantly while you configure it."}
               </p>
             </div>
           </div>
@@ -2388,28 +2583,115 @@ export default function OnboardingPage() {
     if (step === 2) {
       return (
         <BlockStack gap="300">
-          <h2 className="onb-step-headline">{copy.welcomeTitle}</h2>
-          <p className="onb-step-copy">{copy.welcomeText}</p>
-          <TextField
-            label={adminLanguage === "es" ? "Mensaje de bienvenida" : "Welcome message"}
-            value={welcomeMessage}
-            onChange={setWelcomeMessage}
-            autoComplete="off"
-            multiline={3}
-          />
-          <List>
-            {copy.welcomeBullets.map((bullet) => (
-              <List.Item key={bullet}>{bullet}</List.Item>
-            ))}
-          </List>
+          <h2 className="onb-step-headline">{copy.profileTitle}</h2>
+          <p className="onb-step-copy">
+            {adminLanguage === "es"
+              ? "Define la mision y los superpoderes del bot para que responda como una IA util desde el dia uno."
+              : "Define the bot mission and superpowers so it behaves like a useful AI teammate from day one."}
+          </p>
+
+          <BlockStack gap="200">
+            <Text as="span" variant="bodyMd" fontWeight="medium">
+              {adminLanguage === "es" ? "¿Cual es su mision?" : "What's its mission?"}
+            </Text>
+            <div className="onb-choice-grid onb-choice-grid-3">
+              {[
+                {
+                  value: "SALES",
+                  title: adminLanguage === "es" ? "Vender productos" : "Sell products",
+                  description: adminLanguage === "es" ? "Mas foco en conversion y recomendaciones." : "More focus on conversion and recommendations.",
+                },
+                {
+                  value: "SUPPORT",
+                  title: adminLanguage === "es" ? "Resolver dudas" : "Handle support",
+                  description: adminLanguage === "es" ? "Prioriza preguntas frecuentes y pedidos." : "Prioritizes FAQs and order help.",
+                },
+                {
+                  value: "SALES_SUPPORT",
+                  title: adminLanguage === "es" ? "Ambas" : "Both",
+                  description: adminLanguage === "es" ? "El equilibrio ideal para una primera version." : "The ideal balance for a first launch.",
+                },
+              ].map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  className={`onb-choice-card ${botGoal === option.value ? "onb-choice-card-active" : ""}`}
+                  onClick={() => setBotGoal(option.value as BotGoal)}
+                >
+                  <span className="onb-choice-title">{option.title}</span>
+                  <span className="onb-choice-description">{option.description}</span>
+                </button>
+              ))}
+            </div>
+          </BlockStack>
+
+          <FormLayout>
+            <Select
+              label={adminLanguage === "es" ? "Tono de voz" : "Voice tone"}
+              options={[
+                { label: adminLanguage === "es" ? "Amigable" : "Friendly", value: "friendly" },
+                { label: adminLanguage === "es" ? "Profesional" : "Professional", value: "professional" },
+                { label: adminLanguage === "es" ? "Directo" : "Direct", value: "concise" },
+                { label: adminLanguage === "es" ? "Comercial" : "Sales-focused", value: "sales" },
+              ]}
+              value={botTone}
+              onChange={(value) => setBotTone(value as BotTone)}
+            />
+          </FormLayout>
+
+          <BlockStack gap="200">
+            <Text as="span" variant="bodyMd" fontWeight="medium">
+              {adminLanguage === "es" ? "¿Que superpoderes tendra tu bot?" : "Which superpowers should your bot have?"}
+            </Text>
+            <div className="onb-choice-grid">
+              {[
+                {
+                  value: answerProducts === "true",
+                  onToggle: () => setAnswerProducts(answerProducts === "true" ? "false" : "true"),
+                  title: adminLanguage === "es" ? "Responder sobre productos" : "Product answers",
+                  description: adminLanguage === "es" ? "Usa catalogo y fichas para contestar dudas." : "Uses catalog data to answer product questions.",
+                },
+                {
+                  value: recommendProducts === "true",
+                  onToggle: () => setRecommendProducts(recommendProducts === "true" ? "false" : "true"),
+                  title: adminLanguage === "es" ? "Recomendar productos" : "Recommend products",
+                  description: adminLanguage === "es" ? "Sugiere articulos y alternativas en la conversacion." : "Suggests items and alternatives in the conversation.",
+                },
+                {
+                  value: answerOrders === "true",
+                  onToggle: () => setAnswerOrders(answerOrders === "true" ? "false" : "true"),
+                  title: adminLanguage === "es" ? "Consultar pedidos" : "Track orders",
+                  description: adminLanguage === "es" ? "Ayuda con estado y seguimiento de pedidos." : "Helps shoppers with order status and tracking.",
+                },
+                {
+                  value: answerPolicies === "true",
+                  onToggle: () => setAnswerPolicies(answerPolicies === "true" ? "false" : "true"),
+                  title: adminLanguage === "es" ? "Politicas de envio" : "Shipping policies",
+                  description: adminLanguage === "es" ? "Responde sobre envios, cambios y devoluciones." : "Answers shipping, exchange, and return questions.",
+                },
+                {
+                  value: captureLeads === "true",
+                  onToggle: () => setCaptureLeads(captureLeads === "true" ? "false" : "true"),
+                  title: adminLanguage === "es" ? "Capturar leads" : "Capture leads",
+                  description: adminLanguage === "es" ? "Recoge email o intencion comercial para seguimiento." : "Captures shopper intent for follow-up.",
+                },
+              ].map((item) => (
+                <button
+                  key={item.title}
+                  type="button"
+                  className={`onb-choice-card ${item.value ? "onb-choice-card-active" : ""}`}
+                  onClick={item.onToggle}
+                >
+                  <span className="onb-choice-title">{item.title}</span>
+                  <span className="onb-choice-description">{item.description}</span>
+                </button>
+              ))}
+            </div>
+          </BlockStack>
 
           <div className="onb-note-card">
-            <p className="onb-note-title">{adminLanguage === "es" ? "Ritmo de trabajo" : "Workflow rhythm"}</p>
-            <p className="onb-note-text">
-              {adminLanguage === "es"
-                ? "Te guiaremos paso a paso: primero identidad, luego capacidades y finalmente activacion."
-                : "You will go step by step: identity first, then capabilities, then activation."}
-            </p>
+            <p className="onb-note-title">{adminLanguage === "es" ? "Asi sonara" : "This is how it will sound"}</p>
+            <p className="onb-note-text">{tonePreview[botTone]}</p>
           </div>
         </BlockStack>
       );
@@ -2418,147 +2700,13 @@ export default function OnboardingPage() {
     if (step === 3) {
       return (
         <BlockStack gap="300">
-          <h2 className="onb-step-headline">{copy.profileTitle}</h2>
-          <p className="onb-step-copy">
-            {adminLanguage === "es"
-              ? "Define personalidad y objetivo. Este tono se reflejara en cada respuesta del asistente."
-              : "Define personality and goal. This tone will drive every assistant response."}
-          </p>
-          <FormLayout>
-            <TextField
-              label={adminLanguage === "es" ? "Nombre del chatbot" : "Chatbot name"}
-              value={botName}
-              onChange={setBotName}
-              autoComplete="off"
-            />
-
-            <Select
-              label={adminLanguage === "es" ? "Tono" : "Tone"}
-              options={[
-                { label: adminLanguage === "es" ? "Profesional" : "Professional", value: "professional" },
-                { label: adminLanguage === "es" ? "Cercano" : "Friendly", value: "friendly" },
-                { label: adminLanguage === "es" ? "Conciso" : "Concise", value: "concise" },
-                { label: adminLanguage === "es" ? "Comercial" : "Sales-focused", value: "sales" },
-              ]}
-              value={botTone}
-              onChange={(value) => setBotTone(value as BotTone)}
-            />
-
-            <Select
-              label={adminLanguage === "es" ? "Objetivo principal" : "Primary goal"}
-              options={[
-                { label: adminLanguage === "es" ? "Ventas" : "Sales", value: "SALES" },
-                { label: adminLanguage === "es" ? "Soporte" : "Support", value: "SUPPORT" },
-                { label: adminLanguage === "es" ? "Ventas + Soporte" : "Sales + Support", value: "SALES_SUPPORT" },
-              ]}
-              value={botGoal}
-              onChange={(value) => setBotGoal(value as BotGoal)}
-            />
-          </FormLayout>
-
-          <div className="onb-note-card">
-            <p className="onb-note-title">{adminLanguage === "es" ? "Vista previa de tono" : "Tone preview"}</p>
-            <p className="onb-note-text">{tonePreview[botTone]}</p>
-          </div>
-        </BlockStack>
-      );
-    }
-
-    if (step === 4) {
-      return (
-        <BlockStack gap="300">
-          <h2 className="onb-step-headline">{copy.capabilitiesTitle}</h2>
-          <p className="onb-step-copy">
-            {adminLanguage === "es"
-              ? "Activa lo que realmente necesitas en el arranque. Podras refinarlo luego por canal o mercado."
-              : "Enable only what you need at launch. You can refine by channel or market later."}
-          </p>
-          <FormLayout>
-            <Select
-              label={adminLanguage === "es" ? "Responder sobre productos" : "Answer product questions"}
-              options={[
-                { label: adminLanguage === "es" ? "Activado" : "Enabled", value: "true" },
-                { label: adminLanguage === "es" ? "Desactivado" : "Disabled", value: "false" },
-              ]}
-              value={answerProducts}
-              onChange={setAnswerProducts}
-            />
-
-            <Select
-              label={adminLanguage === "es" ? "Responder sobre politicas" : "Answer policy questions"}
-              options={[
-                { label: adminLanguage === "es" ? "Activado" : "Enabled", value: "true" },
-                { label: adminLanguage === "es" ? "Desactivado" : "Disabled", value: "false" },
-              ]}
-              value={answerPolicies}
-              onChange={setAnswerPolicies}
-            />
-
-            <Select
-              label={adminLanguage === "es" ? "Responder sobre pedidos" : "Answer order questions"}
-              options={[
-                { label: adminLanguage === "es" ? "Activado" : "Enabled", value: "true" },
-                { label: adminLanguage === "es" ? "Desactivado" : "Disabled", value: "false" },
-              ]}
-              value={answerOrders}
-              onChange={setAnswerOrders}
-            />
-
-            <Select
-              label={adminLanguage === "es" ? "Recomendaciones de producto" : "Product recommendations"}
-              options={[
-                { label: adminLanguage === "es" ? "Activado" : "Enabled", value: "true" },
-                { label: adminLanguage === "es" ? "Desactivado" : "Disabled", value: "false" },
-              ]}
-              value={recommendProducts}
-              onChange={setRecommendProducts}
-            />
-
-            <Select
-              label={adminLanguage === "es" ? "Captura de leads" : "Lead capture"}
-              options={[
-                { label: adminLanguage === "es" ? "Activado" : "Enabled", value: "true" },
-                { label: adminLanguage === "es" ? "Desactivado" : "Disabled", value: "false" },
-              ]}
-              value={captureLeads}
-              onChange={setCaptureLeads}
-            />
-
-            <Select
-              label={adminLanguage === "es" ? "Estilo de respuestas" : "Response style"}
-              options={[
-                { label: adminLanguage === "es" ? "Conciso" : "Concise", value: "CONCISE" },
-                { label: adminLanguage === "es" ? "Equilibrado" : "Balanced", value: "BALANCED" },
-                { label: adminLanguage === "es" ? "Detallado" : "Detailed", value: "DETAILED" },
-              ]}
-              value={responseStyle}
-              onChange={(value) => setResponseStyle(value as ResponseStyle)}
-            />
-          </FormLayout>
-
-          <div className="onb-chip-row">
-            {capabilitySummary.map((item) => (
-              <span
-                key={item.label}
-                className={`onb-chip ${item.enabled ? "onb-chip-on" : "onb-chip-off"}`}
-              >
-                {item.label}: {item.enabled ? (adminLanguage === "es" ? "ON" : "ON") : "OFF"}
-              </span>
-            ))}
-          </div>
-        </BlockStack>
-      );
-    }
-
-    if (step === 5) {
-      return (
-        <BlockStack gap="300">
           <h2 className="onb-step-headline">{copy.brandingTitle}</h2>
           <p className="onb-step-copy">
             {adminLanguage === "es"
-              ? "Haz que el widget se sienta parte de tu marca con un look base limpio y reconocible."
-              : "Make the widget feel native to your brand with a clean visual baseline."}
+              ? "Haz que el widget parezca nativo de tu tienda con color, avatar y posicion listos para publicar."
+              : "Make the widget feel native to your store with color, avatar, and launcher position ready to publish."}
           </p>
+
           <FormLayout>
             <BlockStack gap="100">
               <Text as="span" variant="bodyMd" fontWeight="medium">
@@ -2589,9 +2737,47 @@ export default function OnboardingPage() {
               </InlineStack>
             </BlockStack>
 
-            <Select
-              label={adminLanguage === "es" ? "Posicion del launcher" : "Launcher position"}
-              options={[
+            <div className="onb-color-presets">
+              {["#008060", "#111827", "#4F46E5", "#F59E0B"].map((color) => (
+                <button
+                  key={color}
+                  type="button"
+                  className={`onb-color-swatch ${normalizedPrimaryColor === color ? "onb-color-swatch-active" : ""}`}
+                  style={{ backgroundColor: color }}
+                  onClick={() => setPrimaryColor(color)}
+                  aria-label={`${adminLanguage === "es" ? "Usar color" : "Use color"} ${color}`}
+                />
+              ))}
+            </div>
+
+            <BlockStack gap="200">
+              <Text as="span" variant="bodyMd" fontWeight="medium">
+                {adminLanguage === "es" ? "Avatar" : "Avatar"}
+              </Text>
+              <div className="onb-choice-grid onb-choice-grid-3">
+                {[
+                  { value: "assistant", label: adminLanguage === "es" ? "Robot" : "Robot" },
+                  { value: "spark", label: adminLanguage === "es" ? "Destello IA" : "AI spark" },
+                  { value: "store", label: adminLanguage === "es" ? "Logo de tienda" : "Store mark" },
+                ].map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    className={`onb-choice-card ${avatarStyle === option.value ? "onb-choice-card-active" : ""}`}
+                    onClick={() => setAvatarStyle(option.value as "assistant" | "spark" | "store")}
+                  >
+                    <span className="onb-choice-title">{option.label}</span>
+                  </button>
+                ))}
+              </div>
+            </BlockStack>
+
+            <BlockStack gap="200">
+              <Text as="span" variant="bodyMd" fontWeight="medium">
+                {adminLanguage === "es" ? "Posicion del launcher" : "Launcher position"}
+              </Text>
+              <div className="onb-choice-grid onb-choice-grid-2">
+                {[
                 {
                   label: adminLanguage === "es" ? "Inferior derecha" : "Bottom right",
                   value: "bottom-right",
@@ -2600,27 +2786,25 @@ export default function OnboardingPage() {
                   label: adminLanguage === "es" ? "Inferior izquierda" : "Bottom left",
                   value: "bottom-left",
                 },
-              ]}
-              value={launcherPosition}
-              onChange={(value) => setLauncherPosition(value as "bottom-right" | "bottom-left")}
-            />
-
-            <Select
-              label={adminLanguage === "es" ? "Estilo de avatar" : "Avatar style"}
-              options={[
-                { label: adminLanguage === "es" ? "Asistente" : "Assistant", value: "assistant" },
-                { label: adminLanguage === "es" ? "Spark" : "Spark", value: "spark" },
-                { label: adminLanguage === "es" ? "Store" : "Store", value: "store" },
-              ]}
-              value={avatarStyle}
-              onChange={(value) => setAvatarStyle(value as "assistant" | "spark" | "store")}
-            />
+              ].map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    className={`onb-choice-card ${launcherPosition === option.value ? "onb-choice-card-active" : ""}`}
+                    onClick={() => setLauncherPosition(option.value as "bottom-right" | "bottom-left")}
+                  >
+                    <span className="onb-choice-title">{option.label}</span>
+                  </button>
+                ))}
+              </div>
+            </BlockStack>
 
             <TextField
               label={adminLanguage === "es" ? "Texto del launcher" : "Launcher label"}
               value={launcherLabel}
               onChange={setLauncherLabel}
               autoComplete="off"
+              placeholder={normalizedBotName}
             />
           </FormLayout>
 
@@ -2634,47 +2818,19 @@ export default function OnboardingPage() {
               <button
                 type="button"
                 className="fluxbot-launcher__button"
-                aria-label={`${adminLanguage === "es" ? "Abrir chat" : "Open chat"}: ${previewLauncherLabel}`}
+                aria-label={`${adminLanguage === "es" ? "Abrir chat" : "Open chat"}: ${normalizedLauncherLabel}`}
               >
                 <PreviewLauncherChatIcon avatarStyle={avatarStyle} />
                 <PreviewCloseIcon className="fluxbot-launcher__icon fluxbot-launcher__icon--close" />
               </button>
-              <span className="fluxbot-launcher__label" hidden={!previewLauncherLabel} aria-hidden="true">
-                {previewLauncherLabel}
+              <span className="fluxbot-launcher__label" hidden={!normalizedLauncherLabel} aria-hidden="true">
+                {normalizedLauncherLabel}
               </span>
             </div>
             <p className="onb-widget-copy">
               {adminLanguage === "es"
-                ? `Launcher "${previewLauncherLabel}" listo en ${launcherPosition === "bottom-left" ? "inferior izquierda" : "inferior derecha"}.`
-                : `Launcher "${previewLauncherLabel}" ready on ${launcherPosition === "bottom-left" ? "bottom left" : "bottom right"}.`}
-            </p>
-          </div>
-        </BlockStack>
-      );
-    }
-
-    if (step === 6) {
-      return (
-        <BlockStack gap="300">
-          <h2 className="onb-step-headline">{copy.reviewTitle}</h2>
-          <p className="onb-step-copy">{copy.reviewText}</p>
-
-          <List>
-            <List.Item>{`${adminLanguage === "es" ? "Idioma global" : "Global language"}: ${adminLanguage}`}</List.Item>
-            <List.Item>{`${adminLanguage === "es" ? "Nombre" : "Name"}: ${botName}`}</List.Item>
-            <List.Item>{`${adminLanguage === "es" ? "Objetivo" : "Goal"}: ${botGoal}`}</List.Item>
-            <List.Item>{`${adminLanguage === "es" ? "Estilo" : "Style"}: ${responseStyle}`}</List.Item>
-            <List.Item>{`${adminLanguage === "es" ? "Recomendaciones" : "Recommendations"}: ${recommendProducts === "true" ? "ON" : "OFF"}`}</List.Item>
-            <List.Item>{`${adminLanguage === "es" ? "Color widget" : "Widget color"}: ${primaryColor}`}</List.Item>
-            <List.Item>{`${adminLanguage === "es" ? "Posicion" : "Position"}: ${launcherPosition}`}</List.Item>
-          </List>
-
-          <div className="onb-note-card">
-            <p className="onb-note-title">{adminLanguage === "es" ? "Checklist final" : "Final checklist"}</p>
-            <p className="onb-note-text">
-              {adminLanguage === "es"
-                ? "Si algo no te convence, vuelve un paso atras y ajustalo antes de activar."
-                : "If anything feels off, go one step back and fine-tune it before activation."}
+                ? `Launcher "${normalizedLauncherLabel}" listo en ${launcherPosition === "bottom-left" ? "inferior izquierda" : "inferior derecha"}.`
+                : `Launcher "${normalizedLauncherLabel}" ready on ${launcherPosition === "bottom-left" ? "bottom left" : "bottom right"}.`}
             </p>
           </div>
         </BlockStack>
@@ -2685,9 +2841,59 @@ export default function OnboardingPage() {
       <BlockStack gap="300">
         <h2 className="onb-step-headline">{copy.activateTitle}</h2>
         <p className="onb-step-copy">{copy.activateText}</p>
-        <div className="onb-widget-preview">
-          <div className="onb-widget-dot" style={{ backgroundColor: "#2f9b82" }} />
-          <p className="onb-widget-copy">{copy.activatedMessage}</p>
+
+        <div className="onb-sync-card">
+          <div className="onb-sync-head">
+            <div>
+              <p className="onb-note-title">
+                {adminLanguage === "es" ? "Sincronizando productos y politicas..." : "Syncing catalog and policies..."}
+              </p>
+              <p className="onb-note-text">
+                {adminLanguage === "es"
+                  ? "Tu asistente quedara listo para responder con contexto real de la tienda."
+                  : "Your assistant will be ready to answer with real store context."}
+              </p>
+            </div>
+            <span className="onb-sync-badge">
+              {adminLanguage === "es" ? "IA pensando" : "AI thinking"}
+            </span>
+          </div>
+          <ProgressBar progress={syncPreviewProgress} size="small" />
+        </div>
+
+        <div className="onb-summary-grid">
+          <div className="onb-note-card">
+            <p className="onb-note-title">{adminLanguage === "es" ? "Identidad" : "Identity"}</p>
+            <List>
+              <List.Item>{`${adminLanguage === "es" ? "Idioma" : "Language"}: ${adminLanguage === "es" ? "Espanol" : "English"}`}</List.Item>
+              <List.Item>{`${adminLanguage === "es" ? "Nombre" : "Name"}: ${normalizedBotName}`}</List.Item>
+              <List.Item>{`${adminLanguage === "es" ? "Saludo" : "Greeting"}: ${normalizedWelcomeMessage}`}</List.Item>
+            </List>
+          </div>
+
+          <div className="onb-note-card">
+            <p className="onb-note-title">{adminLanguage === "es" ? "Cerebro" : "Brain"}</p>
+            <List>
+              <List.Item>{`${adminLanguage === "es" ? "Mision" : "Mission"}: ${previewGoalTag}`}</List.Item>
+              <List.Item>{`${adminLanguage === "es" ? "Tono" : "Tone"}: ${botTone}`}</List.Item>
+              <List.Item>{`${adminLanguage === "es" ? "Color" : "Color"}: ${normalizedPrimaryColor}`}</List.Item>
+            </List>
+          </div>
+        </div>
+
+        <div className="onb-chip-row">
+          {capabilitySummary
+            .filter((item) => item.enabled)
+            .map((item) => (
+              <span key={item.label} className="onb-chip onb-chip-on">
+                {item.label}
+              </span>
+            ))}
+        </div>
+
+        <div className="onb-note-card onb-note-card-highlight">
+          <p className="onb-note-title">{adminLanguage === "es" ? "Momento Aha" : "Aha moment"}</p>
+          <p className="onb-note-text">{copy.activatedMessage}</p>
         </div>
       </BlockStack>
     );
@@ -2752,7 +2958,7 @@ export default function OnboardingPage() {
           </Layout.Section>
 
           <Layout.Section>
-            <div className="onb-content-stage">
+            <div className={`onb-content-stage ${step === TOTAL_STEPS ? "onb-content-stage-full" : ""}`}>
               <div className="onb-content-column">
                 {showSectionSummaryCards ? (
                   <Card>
@@ -2816,20 +3022,20 @@ export default function OnboardingPage() {
 
                         <HiddenOnboardingInputs
                           adminLanguage={adminLanguage}
-                          botName={botName}
+                          botName={normalizedBotName}
                           botTone={botTone}
                           botGoal={botGoal}
                           responseStyle={responseStyle}
-                          welcomeMessage={welcomeMessage}
+                          welcomeMessage={normalizedWelcomeMessage}
                           answerProducts={answerProducts === "true"}
                           answerPolicies={answerPolicies === "true"}
                           answerOrders={answerOrders === "true"}
                           recommendProducts={recommendProducts === "true"}
                           captureLeads={captureLeads === "true"}
-                          primaryColor={primaryColor}
+                          primaryColor={normalizedPrimaryColor}
                           launcherPosition={launcherPosition}
                           avatarStyle={avatarStyle}
-                          launcherLabel={launcherLabel}
+                          launcherLabel={normalizedLauncherLabel}
                         />
 
                         <div key={`step-${step}`} className={stepFrameClass}>
@@ -2889,9 +3095,11 @@ export default function OnboardingPage() {
                 </Card>
               </div>
 
-              <div className="onb-preview-slot">
-                {renderMockChatPreview()}
-              </div>
+              {step < TOTAL_STEPS ? (
+                <div className="onb-preview-slot">
+                  {renderMockChatPreview()}
+                </div>
+              ) : null}
             </div>
           </Layout.Section>
         </Layout>

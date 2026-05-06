@@ -1,4 +1,5 @@
 import { iaClient } from './ia-backend.server';
+import { getIAExecutionMode } from "./ia-execution-mode.server";
 
 export interface ShopReference {
   id: string;
@@ -14,7 +15,7 @@ function isIABackendShopSyncEnabled(): boolean {
     return false;
   }
 
-  if (process.env.IA_EXECUTION_MODE === 'local') {
+  if (getIAExecutionMode(process.env) === "local") {
     return false;
   }
 

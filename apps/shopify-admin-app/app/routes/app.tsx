@@ -15,22 +15,13 @@ import { ensureShopForSession } from "../services/shop-context.server";
 import { authenticate } from "../shopify.server";
 import type { AdminLanguage } from "../services/admin-config.server";
 import { getAdminNavGroups } from "../utils/admin-navigation";
+import {
+  buildSessionTokenBounceRedirectPath,
+  isDocumentRequest,
+  isShopifyReauthResponse,
+  pickAuthDebugHeaders,
+} from "../utils/authenticate-admin.server";
 import { AdminShell } from "../components/admin-shell";
-
-const AUTH_DEBUG_HEADER_NAMES = [
-  "x-shopify-api-request-failure-reauthorize",
-  "x-shopify-api-request-failure-reauthorize-url",
-  "x-shopify-retry-invalid-session-request",
-  "www-authenticate",
-  "location",
-] as const;
-
-const SHOPIFY_REAUTH_HEADER_NAMES = [
-  "x-shopify-api-request-failure-reauthorize",
-  "x-shopify-api-request-failure-reauthorize-url",
-  "x-shopify-retry-invalid-session-request",
-  "www-authenticate",
-] as const;
 
 function normalizeAdminLanguage(value: unknown): AdminLanguage {
   return value === "es" ? "es" : "en";
@@ -72,59 +63,6 @@ function decodeJwtClaims(token: string) {
   } catch {
     return null;
   }
-}
-
-function pickAuthDebugHeaders(headers: Headers) {
-  return AUTH_DEBUG_HEADER_NAMES.reduce<Record<string, string>>((acc, headerName) => {
-    const value = headers.get(headerName);
-    if (value) {
-      acc[headerName] = value;
-    }
-    return acc;
-  }, {});
-}
-
-function isDocumentRequest(request: Request) {
-  const secFetchDest = request.headers.get("sec-fetch-dest");
-  if (secFetchDest === "document") {
-    return true;
-  }
-
-  const secFetchMode = request.headers.get("sec-fetch-mode");
-  if (secFetchMode === "navigate") {
-    return true;
-  }
-
-  const accept = request.headers.get("accept");
-  return typeof accept === "string" && accept.includes("text/html");
-}
-
-function isShopifyReauthResponse(error: Response) {
-  if (error.status === 401 || error.status === 403) {
-    return true;
-  }
-
-  return SHOPIFY_REAUTH_HEADER_NAMES.some((headerName) => headersHasTruthyValue(error.headers, headerName));
-}
-
-function headersHasTruthyValue(headers: Headers, headerName: string) {
-  const value = headers.get(headerName);
-  return value !== null && value !== "" && value !== "0" && value.toLowerCase() !== "false";
-}
-
-function buildSessionTokenBounceRedirectPath(requestUrl: URL) {
-  const searchParams = new URLSearchParams(requestUrl.search);
-  searchParams.delete("id_token");
-
-  const appUrl = process.env.SHOPIFY_APP_URL || requestUrl.origin;
-  const reloadUrl = new URL(requestUrl.pathname, appUrl);
-
-  if (searchParams.toString()) {
-    reloadUrl.search = searchParams.toString();
-  }
-
-  searchParams.set("shopify-reload", reloadUrl.toString());
-  return `/auth/session-token?${searchParams.toString()}`;
 }
 
 async function inspectAuthorizationToken(request: Request) {

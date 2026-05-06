@@ -8,13 +8,13 @@ import {
 } from "@shopify/polaris";
 import type { LoaderFunctionArgs } from "react-router";
 import { useLoaderData, useLocation } from "react-router";
-import { authenticate } from "../shopify.server";
+import { authenticateAdminRequest } from "../utils/authenticate-admin.server";
 import { AnalyticsService } from "../services/analytics.server";
 import { useIsSpanish } from "../hooks/use-admin-language";
 import { AdminPageHeader, AdminSectionCard, AdminStatCard } from "../components/admin-ui";
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  const { session } = await authenticate.admin(request);
+  const { session } = await authenticateAdminRequest(request);
   const url = new URL(request.url);
   const days = parseInt(url.searchParams.get("days") ?? "30", 10);
   const report = await AnalyticsService.getReport(session.shop, days);

@@ -12,7 +12,7 @@
 
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
 import prisma from "../db.server";
-import { authenticate } from "../shopify.server";
+import { authenticateAdminRequest } from "../utils/authenticate-admin.server";
 import {
   AuditReportService,
   BreachNotificationService,
@@ -39,7 +39,7 @@ function json(data: unknown, init?: ResponseInit) {
 }
 
 async function resolveShopFromAdminRequest(request: Request) {
-  const { session } = await authenticate.admin(request);
+  const { session } = await authenticateAdminRequest(request);
 
   const shop = await prisma.shop.findUnique({
     where: { domain: session.shop },
