@@ -21,16 +21,16 @@
     "prisma:generate": "npm --workspace @fluxbot/shopify-admin-app run prisma:generate",
     "prisma:migrate:dev": "npm --workspace @fluxbot/shopify-admin-app run prisma:migrate:dev",
     "prisma:migrate:deploy": "npm --workspace @fluxbot/shopify-admin-app run prisma:migrate:deploy",
-    "openspec:status": "openspec status",
-    "openspec:report:html": "openspec report --format html --output reports/openspec-report.html",
-    "openspec:report:md": "openspec report --format markdown --output reports/openspec-report.md",
-    "openspec:report:json": "openspec report --format json --output reports/openspec-report.json",
-    "openspec:validate": "openspec validate",
-    "openspec:phases": "openspec roadmap",
-    "openspec:trace": "openspec trace --bidirectional",
-    "openspec:risks": "openspec risks",
-    "openspec:metrics": "openspec metrics",
-    "openspec:watch": "openspec watch"
+    "openspec:status": "node ./scripts/openspec-cli.mjs status",
+    "openspec:report:html": "node ./scripts/openspec-cli.mjs report --format html --output reports/openspec-report.html",
+    "openspec:report:md": "node ./scripts/openspec-cli.mjs report --format markdown --output reports/openspec-report.md",
+    "openspec:report:json": "node ./scripts/openspec-cli.mjs report --format json --output reports/openspec-report.json",
+    "openspec:validate": "node ./scripts/openspec-cli.mjs validate",
+    "openspec:phases": "node ./scripts/openspec-cli.mjs roadmap",
+    "openspec:trace": "node ./scripts/openspec-cli.mjs trace --bidirectional",
+    "openspec:risks": "node ./scripts/openspec-cli.mjs risks",
+    "openspec:metrics": "node ./scripts/openspec-cli.mjs metrics",
+    "openspec:watch": "node ./scripts/openspec-cli.mjs watch"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0"
