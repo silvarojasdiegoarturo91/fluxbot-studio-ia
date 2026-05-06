@@ -1,0 +1,44 @@
+version: "3.8"
+
+services:
+  # PostgreSQL for integration tests
+  postgres-test:
+    image: postgres:15-alpine
+    container_name: fluxbot-test-db
+    environment:
+      POSTGRES_USER: test
+      POSTGRES_PASSWORD: test
+      POSTGRES_DB: test_db
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres-test-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U test -d test_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - test-network
+
+  # Redis for caching tests
+  redis-test:
+    image: redis:7-alpine
+    container_name: fluxbot-test-redis
+    ports:
+      - "6380:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - test-network
+
+volumes:
+  postgres-test-data:
+
+networks:
+  test-network:
+    driver: bridge
