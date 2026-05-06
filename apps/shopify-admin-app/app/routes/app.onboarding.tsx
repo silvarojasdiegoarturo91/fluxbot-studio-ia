@@ -28,6 +28,7 @@ import { ensureShopForSession } from "../services/shop-context.server";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { syncShopReferenceToIABackend } from "../services/shop-backend-sync.server";
+import { authenticateAdminRequest } from "../utils/authenticate-admin.server";
 
 type OnboardingIntent = "back" | "save_only" | "save_continue" | "complete";
 
