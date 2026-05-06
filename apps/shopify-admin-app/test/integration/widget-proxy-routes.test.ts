@@ -6,6 +6,9 @@ vi.mock("../../app/db.server", () => ({
     shop: {
       findUnique: vi.fn(),
     },
+    chatbotConfig: {
+      findUnique: vi.fn(),
+    },
   },
 }));
 
@@ -34,6 +37,7 @@ import { HandoffService } from "../../app/services/handoff.server";
 import { ProactiveMessagingService } from "../../app/services/proactive-messaging.server";
 
 const mockShopFindUnique = prisma.shop.findUnique as ReturnType<typeof vi.fn>;
+const mockChatbotConfigFindUnique = prisma.chatbotConfig.findUnique as ReturnType<typeof vi.fn>;
 const mockRecordConsentEvent = recordConsentEvent as ReturnType<typeof vi.fn>;
 const mockGetSessionMessages = ProactiveMessagingService.getSessionMessages as ReturnType<typeof vi.fn>;
 const mockMarkAsDelivered = ProactiveMessagingService.markAsDelivered as ReturnType<typeof vi.fn>;
@@ -310,7 +314,13 @@ describe("widget proxy routes", () => {
   it(
     "returns widget branding and header metadata from admin setup metadata",
     async () => {
-      mockShopFindUnique.mockResolvedValue({
+      // First call: from ensureShopRecord checking if it's a new/reinstall
+      mockShopFindUnique.mockResolvedValueOnce({
+        id: "shop-1",
+        status: "ACTIVE",
+      });
+      // Second call: from getMerchantAdminConfig getting metadata
+      mockShopFindUnique.mockResolvedValueOnce({
         metadata: {
           adminSetup: {
             adminLanguage: "es",
@@ -326,6 +336,11 @@ describe("widget proxy routes", () => {
           },
         },
       });
+      mockChatbotConfigFindUnique.mockResolvedValue({
+        name: "Flux Advisor",
+        tone: "friendly",
+        language: "es",
+      });
 
     const { loader } = await import("../../app/routes/apps.fluxbot.widget-config");
     const response = await loader({
@@ -339,8 +354,8 @@ describe("widget proxy routes", () => {
 
     const data = await response.json();
 
-    expect(mockShopFindUnique).toHaveBeenCalledWith({
-      where: { domain: "store.myshopify.com" },
+    expect(mockShopFindUnique).toHaveBeenNthCalledWith(2, {
+      where: { id: "shop-1" },
       select: { metadata: true },
     });
     expect(data).toEqual({
@@ -359,7 +374,18 @@ describe("widget proxy routes", () => {
   });
 
   it("falls back to safe launcher defaults when branding metadata is missing", async () => {
-    mockShopFindUnique.mockResolvedValue({ metadata: {} });
+    // First call: from ensureShopRecord checking if it's a new/reinstall
+    mockShopFindUnique.mockResolvedValueOnce({
+      id: "shop-1",
+      status: "ACTIVE",
+    });
+    // Second call: from getMerchantAdminConfig getting metadata
+    mockShopFindUnique.mockResolvedValueOnce({ metadata: {} });
+    mockChatbotConfigFindUnique.mockResolvedValue({
+      name: "Asistente IA",
+      tone: "friendly",
+      language: "es",
+    });
 
     const { loader } = await import("../../app/routes/apps.fluxbot.widget-config");
     const response = await loader({
@@ -376,12 +402,12 @@ describe("widget proxy routes", () => {
     expect(data).toEqual({
       success: true,
       widgetBranding: {
-        launcherLabel: "",
+        launcherLabel: "Asistente",
         avatarStyle: "assistant",
         primaryColor: "#008060",
         launcherPosition: "bottom-right",
-        welcomeMessage: "",
-        botName: "",
+        welcomeMessage: "Hola, estoy aqui para ayudarte con productos, pedidos y dudas frecuentes.",
+        botName: "Asistente IA",
         botGoal: "SALES_SUPPORT",
         adminLanguage: "es",
       },

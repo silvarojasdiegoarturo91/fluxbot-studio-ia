@@ -110,7 +110,6 @@ export async function ensureShopRecord(context: ShopContext): Promise<{ id: stri
       scope: context.scope,
       isOnline: context.isOnline ?? false,
       status: "ACTIVE",
-      onboardingCompletedAt: null,
     },
     update: updateData,
     select: { id: true, domain: true },
