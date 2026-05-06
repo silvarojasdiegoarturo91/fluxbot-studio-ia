@@ -1,10 +1,10 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
-client_id = "3e33f15eca7b32e62ea7137311172df5"
-name = "fluxbot-studio-ia"
-application_url = "https://app.fluxbotia.com"
+client_id = "8c36112e98ce36be869eb0dc5efdd572"
+name = "fluxbot-studio"
+application_url = "https://unwishful-televisionally-leeann.ngrok-free.dev"
 embedded = true
-handle = "fluxbot-studio-ia"
+handle = "fluxbot-studio"
 
 [build]
 automatically_update_urls_on_dev = false
@@ -18,15 +18,15 @@ api_version = "2026-04"
 scopes = "read_products,write_products,read_orders,read_customers,read_content,read_locales,read_online_store_pages,read_themes"
 
 [app_proxy]
-url = "https://app.fluxbotia.com"
+url = "https://unwishful-televisionally-leeann.ngrok-free.dev"
 subpath = "fluxbot"
 prefix = "apps"
 
 [auth]
 redirect_urls = [
-  "https://app.fluxbotia.com/auth/callback",
-  "https://app.fluxbotia.com/auth/shopify/callback",
-  "https://app.fluxbotia.com/api/auth/callback"
+  "https://unwishful-televisionally-leeann.ngrok-free.dev/auth/callback",
+  "https://unwishful-televisionally-leeann.ngrok-free.dev/auth/shopify/callback",
+  "https://unwishful-televisionally-leeann.ngrok-free.dev/api/auth/callback"
 ]
 
 [pos]

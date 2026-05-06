@@ -72,6 +72,7 @@ export async function ensureShopRecord(context: ShopContext): Promise<{ id: stri
     accessToken?: string;
     scope?: string;
     isOnline?: boolean;
+    onboardingCompletedAt?: null;
   } = {
     status: "ACTIVE",
   };
@@ -88,12 +89,18 @@ export async function ensureShopRecord(context: ShopContext): Promise<{ id: stri
     updateData.isOnline = context.isOnline;
   }
 
-  // Detect whether this is a first-time install before upsert.
+  // Detect whether this is a first-time install or a reinstall before upsert.
   const existingShop = await prisma.shop.findUnique({
     where: { domain: context.domain },
-    select: { id: true },
+    select: { id: true, status: true },
   });
   const isNewInstall = !existingShop;
+  const isReinstall = existingShop && existingShop.status === "CANCELLED";
+
+  // Reset onboarding for new installs and reinstalls
+  if (isNewInstall || isReinstall) {
+    updateData.onboardingCompletedAt = null;
+  }
 
   const shop = await prisma.shop.upsert({
     where: { domain: context.domain },
@@ -103,6 +110,7 @@ export async function ensureShopRecord(context: ShopContext): Promise<{ id: stri
       scope: context.scope,
       isOnline: context.isOnline ?? false,
       status: "ACTIVE",
+      onboardingCompletedAt: null,
     },
     update: updateData,
     select: { id: true, domain: true },
@@ -110,7 +118,7 @@ export async function ensureShopRecord(context: ShopContext): Promise<{ id: stri
 
   await syncShopReferenceToIABackend(shop);
 
-  if (isNewInstall) {
+  if (isNewInstall || isReinstall) {
     await queueInitialSyncJobs(shop.id);
   }
 

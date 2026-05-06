@@ -25,7 +25,8 @@ import {
   saveMerchantAdminConfig,
 } from "../services/admin-config.server";
 import { ensureShopForSession } from "../services/shop-context.server";
-import { authenticateAdminRequest } from "../utils/authenticate-admin.server";
+import { authenticate } from "../shopify.server";
+import prisma from "../db.server";
 import { syncShopReferenceToIABackend } from "../services/shop-backend-sync.server";
 
 type OnboardingIntent = "back" | "save_only" | "save_continue" | "complete";
@@ -1736,10 +1737,14 @@ export async function action({ request }: ActionFunctionArgs): Promise<Response 
     currentConfig,
   });
 
-  // Trigger real backend sync when onboarding is completed
-  // Do this in background WITHOUT waiting - user can navigate away
-  if (intent === "complete" && onboardingCompleted) {
-    // Fire and forget: start sync in background
+  // Update onboarding completion timestamp + trigger backend sync
+  if (intent === "complete") {
+    await prisma.shop.update({
+      where: { id: shop.id },
+      data: { onboardingCompletedAt: new Date() },
+    });
+
+    // Trigger real backend sync in background WITHOUT waiting - user can navigate away
     syncShopReferenceToIABackend(
       {
         id: shop.id,

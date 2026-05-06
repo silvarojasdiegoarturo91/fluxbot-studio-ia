@@ -84,9 +84,15 @@ async function handleOrderPaid(shopId: string, payload: any): Promise<void> {
 
 async function handleAppUninstalled(shopId: string): Promise<void> {
   await prisma.shop
-    .update({ where: { id: shopId }, data: { status: "CANCELLED" } })
+    .update({ 
+      where: { id: shopId }, 
+      data: { 
+        status: "CANCELLED",
+        onboardingCompletedAt: null,
+      } 
+    })
     .catch(() => {});
-  console.log("[Webhooks] Shop " + shopId + " uninstalled — marked CANCELLED");
+  console.log("[Webhooks] Shop " + shopId + " uninstalled — marked CANCELLED and onboarding reset");
 }
 
 export async function action({ request }: ActionFunctionArgs) {

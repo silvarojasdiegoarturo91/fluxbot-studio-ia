@@ -115,6 +115,7 @@ model Shop {
   status             ShopStatus         @default(ACTIVE)
   plan               String?
   metadata           Json?
+  onboardingCompletedAt DateTime?
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
   
