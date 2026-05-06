@@ -108,10 +108,6 @@ describe("verifyShopifyProxyRequest", () => {
     urlObj.searchParams.set("shop", "test-shop.myshopify.com");
     urlObj.searchParams.set("timestamp", "1700000000");
 
-    const canonical = "shop=test-shop.myshopifytimestamp=1700000000"
-      .split("")
-      .join(""); // keep as-is; build properly below
-
     const entries = [
       ["shop", "test-shop.myshopify.com"],
       ["timestamp", "1700000000"],
