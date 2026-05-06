@@ -196,6 +196,9 @@ export default function WidgetPublishPage() {
   const isSubmitting = navigation.state === "submitting";
   const backToDashboardUrl = `/app${location.search || ""}`;
   const isPublished = Boolean(widgetPublishedAt);
+  const missingThemesScope = Boolean(
+    themeQueryError && /read_themes|access denied/i.test(themeQueryError),
+  );
 
   const publishedDate = widgetPublishedAt
     ? new Date(widgetPublishedAt).toLocaleDateString(isEs ? "es-ES" : "en-US", {
@@ -229,11 +232,20 @@ export default function WidgetPublishPage() {
           )}
           {themeQueryError && (
             <Banner tone="warning">
-              <Text as="p" variant="bodyMd">
-                {isEs
-                  ? `No se pudo obtener el tema publicado: ${themeQueryError}`
-                  : `Could not fetch published theme: ${themeQueryError}`}
-              </Text>
+              <BlockStack gap="200">
+                <Text as="p" variant="bodyMd">
+                  {isEs
+                    ? `No se pudo obtener el tema publicado: ${themeQueryError}`
+                    : `Could not fetch published theme: ${themeQueryError}`}
+                </Text>
+                {missingThemesScope ? (
+                  <Text as="p" variant="bodyMd" tone="subdued">
+                    {isEs
+                      ? "Falta el permiso read_themes. Actualiza los scopes de la app, despliega la version nueva y vuelve a aprobar permisos en la tienda para que podamos abrir el editor del tema automaticamente."
+                      : "The app is missing the read_themes scope. Update the app scopes, deploy the new version, and approve the permission update in the store so we can open the Theme Editor automatically."}
+                  </Text>
+                ) : null}
+              </BlockStack>
             </Banner>
           )}
         </Layout.Section>

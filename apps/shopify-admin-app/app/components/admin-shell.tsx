@@ -2,98 +2,12 @@ import { Badge } from "@shopify/polaris";
 import { useLocation, useNavigation } from "react-router";
 import type { ReactNode } from "react";
 import type { AdminLanguage } from "../services/admin-config.server";
-import { getAdminNavGroups, getAdminRouteMeta } from "../utils/admin-navigation";
+import { getAdminRouteMeta } from "../utils/admin-navigation";
 
 const ADMIN_SHELL_STYLES = `
 .fb-admin-shell {
   min-height: 100vh;
-  display: grid;
-  grid-template-columns: 280px minmax(0, 1fr);
   background: linear-gradient(180deg, #f6f7fb 0%, #f2f4f8 100%);
-}
-
-.fb-admin-sidebar {
-  position: sticky;
-  top: 0;
-  height: 100vh;
-  padding: 28px 18px;
-  border-right: 1px solid rgba(15, 23, 42, 0.08);
-  background: rgba(255, 255, 255, 0.88);
-  backdrop-filter: blur(14px);
-  overflow-y: auto;
-}
-
-.fb-admin-sidebar-card {
-  border: 1px solid rgba(71, 101, 127, 0.14);
-  background: linear-gradient(180deg, rgba(71, 101, 127, 0.08) 0%, rgba(71, 101, 127, 0.03) 100%);
-  border-radius: 20px;
-  padding: 18px;
-  margin-bottom: 22px;
-}
-
-.fb-admin-brand {
-  margin: 0;
-  font-size: 1.05rem;
-  font-weight: 700;
-  color: #18212f;
-}
-
-.fb-admin-brand-copy {
-  margin: 8px 0 0;
-  color: #5e6879;
-  font-size: 0.9rem;
-  line-height: 1.5;
-}
-
-.fb-admin-nav-group {
-  margin-bottom: 22px;
-}
-
-.fb-admin-nav-title {
-  margin: 0 0 8px;
-  padding: 0 8px;
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: #778195;
-  font-weight: 700;
-}
-
-.fb-admin-nav-link {
-  display: block;
-  text-decoration: none;
-  color: #202a39;
-  border: 1px solid transparent;
-  border-radius: 16px;
-  padding: 12px 14px;
-  margin-bottom: 8px;
-  background: transparent;
-  transition: background 160ms ease, border-color 160ms ease, transform 160ms ease, box-shadow 160ms ease;
-}
-
-.fb-admin-nav-link:hover {
-  transform: translateY(-1px);
-  background: rgba(71, 101, 127, 0.05);
-  border-color: rgba(71, 101, 127, 0.1);
-}
-
-.fb-admin-nav-link-active {
-  background: #ffffff;
-  border-color: rgba(71, 101, 127, 0.18);
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
-}
-
-.fb-admin-nav-label {
-  display: block;
-  font-weight: 700;
-  margin-bottom: 2px;
-}
-
-.fb-admin-nav-description {
-  display: block;
-  font-size: 0.84rem;
-  line-height: 1.4;
-  color: #677286;
 }
 
 .fb-admin-main {
@@ -296,18 +210,6 @@ const ADMIN_SHELL_STYLES = `
 }
 
 @media (max-width: 1100px) {
-  .fb-admin-shell {
-    grid-template-columns: 1fr;
-  }
-
-  .fb-admin-sidebar {
-    position: relative;
-    top: 0;
-    height: auto;
-    border-right: none;
-    border-bottom: 1px solid rgba(15, 23, 42, 0.08);
-    padding-bottom: 12px;
-  }
 }
 
 @media (max-width: 768px) {
@@ -337,14 +239,6 @@ const ADMIN_SHELL_STYLES = `
 }
 `;
 
-function isActiveLink(pathname: string, href: string) {
-  if (href === "/app") {
-    return pathname === "/app";
-  }
-
-  return pathname === href || pathname.startsWith(`${href}/`);
-}
-
 export function AdminShell(props: {
   adminLanguage: AdminLanguage;
   storeDomain?: string | null;
@@ -352,44 +246,12 @@ export function AdminShell(props: {
 }) {
   const location = useLocation();
   const navigation = useNavigation();
-  const navGroups = getAdminNavGroups(props.adminLanguage);
   const routeMeta = getAdminRouteMeta(location.pathname, props.adminLanguage);
-  const withEmbeddedQuery = (path: string) => `${path}${location.search || ""}`;
 
   return (
     <>
       <style>{ADMIN_SHELL_STYLES}</style>
       <div className="fb-admin-shell">
-        <aside className="fb-admin-sidebar">
-          <div className="fb-admin-sidebar-card">
-            <p className="fb-admin-brand">FluxBot Studio</p>
-            <p className="fb-admin-brand-copy">
-              {props.adminLanguage === "es"
-                ? "Centro operativo para activar, optimizar y gobernar el asistente desde una sola experiencia."
-                : "Operational center to activate, optimize, and govern the assistant from one unified experience."}
-            </p>
-          </div>
-
-          {navGroups.map((group) => (
-            <div key={group.title} className="fb-admin-nav-group">
-              <p className="fb-admin-nav-title">{group.title}</p>
-              {group.items.map((item) => {
-                const active = isActiveLink(location.pathname, item.url);
-                return (
-                  <a
-                    key={item.url}
-                    href={withEmbeddedQuery(item.url)}
-                    className={`fb-admin-nav-link ${active ? "fb-admin-nav-link-active" : ""}`}
-                  >
-                    <span className="fb-admin-nav-label">{item.label}</span>
-                    <span className="fb-admin-nav-description">{item.description}</span>
-                  </a>
-                );
-              })}
-            </div>
-          ))}
-        </aside>
-
         <main className="fb-admin-main">
           <div className="fb-admin-topbar">
             <div>

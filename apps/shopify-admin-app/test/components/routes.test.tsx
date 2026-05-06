@@ -254,6 +254,7 @@ describe('App Loader', () => {
     vi.clearAllMocks();
     // Reset environment variable
     process.env.SHOPIFY_API_KEY = 'test-api-key';
+    delete process.env.SHOPIFY_APP_URL;
   });
 
   it('should return API key on successful authentication', async () => {
@@ -302,6 +303,51 @@ describe('App Loader', () => {
     const request = new Request('http://localhost/app');
 
     await expect(appLoader({ request } as any)).rejects.toEqual(authError);
+  });
+
+  it('should bounce document requests with expired Shopify auth back through session token refresh', async () => {
+    process.env.SHOPIFY_APP_URL = 'https://app.example.com';
+
+    const authError = new Response('Unauthorized', {
+      status: 401,
+      headers: {
+        'X-Shopify-Retry-Invalid-Session-Request': '1',
+      },
+    });
+    vi.mocked(authenticate.admin).mockRejectedValue(authError);
+
+    const request = new Request(
+      'http://localhost/app?shop=test-shop.myshopify.com&host=encoded-host&embedded=1&id_token=stale-token',
+      {
+        headers: {
+          accept: 'text/html',
+          authorization: 'Bearer expired-session-token',
+        },
+      },
+    );
+
+    try {
+      await appLoader({ request } as any);
+      throw new Error('Expected loader to redirect');
+    } catch (error) {
+      expect(error).toBeInstanceOf(Response);
+
+      const response = error as Response;
+      expect(response.status).toBe(302);
+
+      const location = response.headers.get('Location');
+      expect(location).toBeTruthy();
+
+      const redirectUrl = new URL(location!, 'https://app.example.com');
+      expect(`${redirectUrl.pathname}${redirectUrl.search}`).toContain('/auth/session-token?');
+      expect(redirectUrl.searchParams.get('shop')).toBe('test-shop.myshopify.com');
+      expect(redirectUrl.searchParams.get('host')).toBe('encoded-host');
+      expect(redirectUrl.searchParams.get('embedded')).toBe('1');
+      expect(redirectUrl.searchParams.get('id_token')).toBeNull();
+      expect(redirectUrl.searchParams.get('shopify-reload')).toBe(
+        'https://app.example.com/app?shop=test-shop.myshopify.com&host=encoded-host&embedded=1',
+      );
+    }
   });
 
   it('should handle other non-Response errors', async () => {

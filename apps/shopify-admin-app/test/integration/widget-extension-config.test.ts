@@ -14,7 +14,7 @@ import { describe, it, expect } from "vitest";
 
 const EXTENSION_DIR = join(
   __dirname,
-  "../../../storefront-widget/extensions/chat-widget"
+  "../../extensions/chat-widget"
 );
 const APP_DIR = join(__dirname, "../..");
 
@@ -161,6 +161,10 @@ describe("shopify.app.toml — extension registration", () => {
 
   it("requests read_products scope", () => {
     expect(toml).toContain("read_products");
+  });
+
+  it("requests read_themes scope for published theme lookup", () => {
+    expect(toml).toContain("read_themes");
   });
 
   it("uses a non-development base URL in the committed manifest", () => {

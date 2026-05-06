@@ -7,6 +7,7 @@
 
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
 import prisma from "../db.server";
+import { getMerchantAdminConfig } from "../services/admin-config.server";
 import { verifyShopifyProxyRequest } from "../services/shopify-proxy-auth.server";
 
 const CORS_HEADERS = {
@@ -32,68 +33,6 @@ function preflight() {
   return new Response(null, { status: 204, headers: CORS_HEADERS });
 }
 
-function asRecord(value: unknown): Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : {};
-}
-
-function extractWidgetBranding(metadata: unknown) {
-  const adminSetup = asRecord(asRecord(metadata).adminSetup);
-  const widgetBranding = asRecord(adminSetup.widgetBranding);
-
-  const avatarStyle =
-    widgetBranding.avatarStyle === "assistant" ||
-    widgetBranding.avatarStyle === "spark" ||
-    widgetBranding.avatarStyle === "store"
-      ? widgetBranding.avatarStyle
-      : "assistant";
-
-  const launcherLabel =
-    typeof widgetBranding.launcherLabel === "string"
-      ? widgetBranding.launcherLabel.trim().slice(0, 64)
-      : "";
-
-  const primaryColor =
-    typeof widgetBranding.primaryColor === "string" &&
-    /^#[0-9a-fA-F]{6}$/.test(widgetBranding.primaryColor.trim())
-      ? widgetBranding.primaryColor.trim()
-      : "#008060";
-
-  const launcherPosition =
-    widgetBranding.launcherPosition === "bottom-left" ? "bottom-left" : "bottom-right";
-
-  const welcomeMessage =
-    typeof adminSetup.welcomeMessage === "string"
-      ? adminSetup.welcomeMessage.trim().slice(0, 280)
-      : "";
-
-  const botName =
-    typeof adminSetup.botName === "string"
-      ? adminSetup.botName.trim().slice(0, 64)
-      : "";
-
-  const botGoal =
-    adminSetup.botGoal === "SALES" ||
-    adminSetup.botGoal === "SUPPORT" ||
-    adminSetup.botGoal === "SALES_SUPPORT"
-      ? adminSetup.botGoal
-      : "SALES_SUPPORT";
-
-  const adminLanguage = adminSetup.adminLanguage === "en" ? "en" : "es";
-
-  return {
-    avatarStyle,
-    launcherLabel,
-    primaryColor,
-    launcherPosition,
-    welcomeMessage,
-    botName,
-    botGoal,
-    adminLanguage,
-  };
-}
-
 export async function loader({ request }: LoaderFunctionArgs) {
   if (!verifyShopifyProxyRequest(request, { allowUnsignedInDevelopment: true })) {
     return json({ error: "Unauthorized" }, { status: 401 });
@@ -111,16 +50,27 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
   const shop = await prisma.shop.findUnique({
     where: { domain: shopDomain },
-    select: { metadata: true },
+    select: { id: true },
   });
 
   if (!shop) {
     return json({ success: false, error: "Shop not found" }, { status: 404 });
   }
 
+  const config = await getMerchantAdminConfig(shop.id);
+
   return json({
     success: true,
-    widgetBranding: extractWidgetBranding(shop.metadata),
+    widgetBranding: {
+      avatarStyle: config.widgetBranding.avatarStyle,
+      launcherLabel: config.widgetBranding.launcherLabel,
+      primaryColor: config.widgetBranding.primaryColor,
+      launcherPosition: config.widgetBranding.launcherPosition,
+      welcomeMessage: config.welcomeMessage,
+      botName: config.botName,
+      botGoal: config.botGoal,
+      adminLanguage: config.adminLanguage,
+    },
   });
 }
 

@@ -11,6 +11,7 @@
  */
 
 import type { ActionFunctionArgs } from "react-router";
+import type { Prisma } from "@prisma/client";
 import prisma from "../db.server";
 import { WebhookHandlers } from "../services/sync-service.server";
 import { AnalyticsService } from "../services/analytics.server";
@@ -24,6 +25,12 @@ function json(data: unknown, init?: ResponseInit) {
 
 function isSignedRequest(request: Request): boolean {
   return !!request.headers.get("X-Shopify-Hmac-Sha256");
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
 }
 
 async function handleOrderPaid(shopId: string, payload: any): Promise<void> {
@@ -131,9 +138,25 @@ export async function action({ request }: ActionFunctionArgs) {
         break;
       case "shop/update":
         if (payload.name) {
-          await prisma.shop
-            .update({ where: { id: shop.id }, data: { metadata: payload } })
-            .catch(() => {});
+          const shopRecord = await prisma.shop.findUnique({
+            where: { id: shop.id },
+            select: { metadata: true },
+          });
+          const existingMetadata = asRecord(shopRecord?.metadata);
+          const preservedAdminSetup = existingMetadata.adminSetup;
+          const preservedWidgetPublishedAt = existingMetadata.widgetPublishedAt;
+          const nextMetadata = {
+            ...payload,
+            ...(preservedAdminSetup ? { adminSetup: preservedAdminSetup } : {}),
+            ...(typeof preservedWidgetPublishedAt === "string"
+              ? { widgetPublishedAt: preservedWidgetPublishedAt }
+              : {}),
+          };
+
+          await prisma.shop.update({
+            where: { id: shop.id },
+            data: { metadata: nextMetadata as Prisma.InputJsonValue },
+          });
         }
         break;
       default:
