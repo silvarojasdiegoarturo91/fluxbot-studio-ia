@@ -2,7 +2,7 @@
 set -e
 
 COMPOSE_FILE="docker-compose.test.yml"
-COMPOSE_CMD="docker-compose -f $COMPOSE_FILE"
+COMPOSE_CMD="docker compose -f $COMPOSE_FILE"
 GREEN='\033[0;32m'
 RED='\033[0;31m'
 YELLOW='\033[1;33m'
@@ -13,7 +13,7 @@ case ${1:-start} in
     echo -e "${YELLOW}🚀 Starting test database...${NC}"
     $COMPOSE_CMD up -d
     sleep 3
-    if docker-compose -f $COMPOSE_FILE exec -T postgres-test pg_isready -U test -d test_db > /dev/null 2>&1; then
+    if docker compose -f $COMPOSE_FILE exec -T postgres-test pg_isready -U test -d test_db > /dev/null 2>&1; then
       echo -e "${GREEN}✅ Test database ready${NC}"
       echo "Connection: postgresql://test:test@localhost:5433/test_db"
     else

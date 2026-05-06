@@ -68,10 +68,14 @@ describe("Onboarding - Advanced Scenarios", () => {
   describe("Time-based Queries", () => {
     let oldShop: any;
     let newShop: any;
+    let cutoff: Date;
 
     beforeAll(async () => {
-      const oldDate = new Date("2026-04-01T00:00:00Z");
-      const newDate = new Date();
+      // Use dynamic dates relative to now
+      const now = new Date();
+      cutoff = new Date(now.getTime() - 15 * 60 * 1000); // 15 min ago
+      const oldDate = new Date(now.getTime() - 30 * 60 * 1000); // 30 min ago
+      const newDate = new Date(); // now
 
       oldShop = await prisma.shop.create({
         data: {
@@ -104,38 +108,40 @@ describe("Onboarding - Advanced Scenarios", () => {
     });
 
     it("should find shops completed before cutoff", async () => {
-      const cutoff = new Date("2026-04-15T00:00:00Z");
-
       const before = await prisma.shop.findMany({
         where: {
           onboardingCompletedAt: { lt: cutoff },
+          domain: { in: [oldShop.domain, newShop.domain] },
         },
       });
 
       const ids = before.map(s => s.id);
       expect(ids).toContain(oldShop.id);
+      expect(ids).not.toContain(newShop.id);
     });
 
     it("should find shops completed after cutoff", async () => {
-      const cutoff = new Date("2026-04-15T00:00:00Z");
-
       const after = await prisma.shop.findMany({
         where: {
           onboardingCompletedAt: { gte: cutoff },
+          domain: { in: [oldShop.domain, newShop.domain] },
         },
       });
 
       const ids = after.map(s => s.id);
       expect(ids).toContain(newShop.id);
+      expect(ids).not.toContain(oldShop.id);
     });
 
     it("should find shops completed in range", async () => {
-      const start = new Date("2026-03-01T00:00:00Z");
-      const end = new Date("2026-05-01T00:00:00Z");
+      const now = new Date();
+      const start = new Date(now.getTime() - 60 * 60 * 1000); // 1 hour ago
+      const end = new Date(now.getTime() + 60 * 60 * 1000); // 1 hour from now
 
       const inRange = await prisma.shop.findMany({
         where: {
           onboardingCompletedAt: { gte: start, lte: end },
+          domain: { in: [oldShop.domain, newShop.domain] },
         },
       });
 
