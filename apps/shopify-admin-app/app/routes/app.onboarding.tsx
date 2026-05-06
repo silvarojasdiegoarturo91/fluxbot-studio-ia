@@ -26,6 +26,7 @@ import {
 } from "../services/admin-config.server";
 import { ensureShopForSession } from "../services/shop-context.server";
 import { authenticateAdminRequest } from "../utils/authenticate-admin.server";
+import { syncShopReferenceToIABackend } from "../services/shop-backend-sync.server";
 
 type OnboardingIntent = "back" | "save_only" | "save_continue" | "complete";
 
@@ -1735,6 +1736,22 @@ export async function action({ request }: ActionFunctionArgs): Promise<Response 
     currentConfig,
   });
 
+  // Trigger real backend sync when onboarding is completed
+  if (intent === "complete" && onboardingCompleted) {
+    try {
+      await syncShopReferenceToIABackend(
+        {
+          id: shop.id,
+          domain: shop.domain,
+        },
+        { force: true }
+      );
+    } catch (error) {
+      console.error("Sync failed during onboarding completion:", error);
+      // Don't block onboarding if sync fails - it can retry via webhook/worker
+    }
+  }
+
   const redirectTo = intent === "complete"
     ? buildRedirectPath("/app", requestUrl, undefined, { onboarding: "done" })
     : buildRedirectPath("/app/onboarding", requestUrl, nextStep, { saved: "1" });
@@ -2066,6 +2083,21 @@ export default function OnboardingPage() {
       return;
     }
 
+    // If actively syncing (submitting the complete form), progress towards 100
+    if (isSubmitting) {
+      const values = [35, 52, 68, 82, 95];
+      let index = 0;
+      setSyncPreviewProgress(values[index]);
+
+      const interval = window.setInterval(() => {
+        index = (index + 1) % values.length;
+        setSyncPreviewProgress(values[index]);
+      }, 600);
+
+      return () => window.clearInterval(interval);
+    }
+
+    // Otherwise, cycle through normal preview animation
     const values = [22, 41, 63, 79, 91];
     let index = 0;
     setSyncPreviewProgress(values[index]);
@@ -2076,7 +2108,7 @@ export default function OnboardingPage() {
     }, 900);
 
     return () => window.clearInterval(interval);
-  }, [step]);
+  }, [step, isSubmitting]);
 
   const handleStepClick = (targetStep: number) => {
     if (targetStep === step) return;
