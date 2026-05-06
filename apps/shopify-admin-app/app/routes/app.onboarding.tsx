@@ -1737,19 +1737,19 @@ export async function action({ request }: ActionFunctionArgs): Promise<Response 
   });
 
   // Trigger real backend sync when onboarding is completed
+  // Do this in background WITHOUT waiting - user can navigate away
   if (intent === "complete" && onboardingCompleted) {
-    try {
-      await syncShopReferenceToIABackend(
-        {
-          id: shop.id,
-          domain: shop.domain,
-        },
-        { force: true }
-      );
-    } catch (error) {
+    // Fire and forget: start sync in background
+    syncShopReferenceToIABackend(
+      {
+        id: shop.id,
+        domain: shop.domain,
+      },
+      { force: true }
+    ).catch(error => {
       console.error("Sync failed during onboarding completion:", error);
       // Don't block onboarding if sync fails - it can retry via webhook/worker
-    }
+    });
   }
 
   const redirectTo = intent === "complete"
@@ -2078,34 +2078,20 @@ export default function OnboardingPage() {
   }, [step]);
 
   useEffect(() => {
-    if (step !== 4) {
-      setSyncPreviewProgress(18);
+    if (step !== 4 || !isSubmitting) {
+      setSyncPreviewProgress(0);
       return;
     }
 
-    // If actively syncing (submitting the complete form), progress towards 100
-    if (isSubmitting) {
-      const values = [35, 52, 68, 82, 95];
-      let index = 0;
-      setSyncPreviewProgress(values[index]);
-
-      const interval = window.setInterval(() => {
-        index = (index + 1) % values.length;
-        setSyncPreviewProgress(values[index]);
-      }, 600);
-
-      return () => window.clearInterval(interval);
-    }
-
-    // Otherwise, cycle through normal preview animation
-    const values = [22, 41, 63, 79, 91];
+    // Only animate when actively submitting (user clicked Activate)
+    const values = [15, 35, 52, 68, 82, 92];
     let index = 0;
     setSyncPreviewProgress(values[index]);
 
     const interval = window.setInterval(() => {
       index = (index + 1) % values.length;
       setSyncPreviewProgress(values[index]);
-    }, 900);
+    }, 700);
 
     return () => window.clearInterval(interval);
   }, [step, isSubmitting]);
@@ -2887,7 +2873,9 @@ export default function OnboardingPage() {
               </p>
             </div>
             <span className="onb-sync-badge">
-              {adminLanguage === "es" ? "IA pensando" : "AI thinking"}
+              {syncPreviewProgress === 0
+                ? (adminLanguage === "es" ? "Listo para sincronizar" : "Ready to sync")
+                : (adminLanguage === "es" ? "Sincronizando..." : "Syncing...")}
             </span>
           </div>
           <ProgressBar progress={syncPreviewProgress} size="small" />
