@@ -213,13 +213,21 @@ export function getAdminRouteMeta(pathname: string, language: AdminLanguage): Ad
   return ROUTE_COPY[pathname]?.[language] ?? ROUTE_COPY["/app"][language];
 }
 
-export function getAdminNavGroups(language: AdminLanguage): AdminNavGroup[] {
+export function getAdminNavGroups(language: AdminLanguage, onboardingCompleted: boolean = true): AdminNavGroup[] {
   return NAV_ORDER.map((group) => ({
     title: language === "es" ? group.es : group.en,
-    items: group.routes.map((route) => ({
-      label: ROUTE_COPY[route][language].title,
-      url: route,
-      description: ROUTE_COPY[route][language].description,
-    })),
+    items: group.routes
+      .filter((route) => {
+        // Hide /app/onboarding from menu if onboarding is already completed
+        if (route === "/app/onboarding" && onboardingCompleted) {
+          return false;
+        }
+        return true;
+      })
+      .map((route) => ({
+        label: ROUTE_COPY[route][language].title,
+        url: route,
+        description: ROUTE_COPY[route][language].description,
+      })),
   }));
 }

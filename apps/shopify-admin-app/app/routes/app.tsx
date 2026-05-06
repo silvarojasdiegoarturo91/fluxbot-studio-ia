@@ -129,6 +129,16 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       if (!requestUrl.pathname.startsWith("/app/onboarding") && !adminConfig.onboardingCompleted) {
         throw redirect(buildOnboardingRedirectPath(requestUrl, adminConfig.onboardingStep));
       }
+
+      // Return onboarding status for conditional UI rendering
+      return {
+        apiKey: process.env.SHOPIFY_API_KEY || "",
+        adminLanguage,
+        storeDomain: typeof (authResult as { session?: { shop?: string } }).session?.shop === "string"
+          ? (authResult as { session?: { shop?: string } }).session?.shop || null
+          : null,
+        onboardingCompleted: adminConfig.onboardingCompleted,
+      };
     }
 
     // Debug signal for embedded auth loops without leaking sensitive values.
@@ -170,11 +180,11 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 };
 
 export default function App() {
-  const { apiKey, adminLanguage, storeDomain } = useLoaderData<typeof loader>();
+  const { apiKey, adminLanguage, storeDomain, onboardingCompleted } = useLoaderData<typeof loader>();
   const location = useLocation();
   const [isHydrated, setIsHydrated] = useState(false);
   const normalizedLanguage = normalizeAdminLanguage(adminLanguage);
-  const navItems = getAdminNavGroups(normalizedLanguage).flatMap((group) => group.items);
+  const navItems = getAdminNavGroups(normalizedLanguage, onboardingCompleted).flatMap((group) => group.items);
   const polarisTranslations =
     normalizedLanguage === "es" ? polarisTranslationsEs : polarisTranslationsEn;
 
@@ -189,13 +199,16 @@ export default function App() {
       <PolarisReactAppProvider i18n={polarisTranslations}>
         {isHydrated ? (
           <>
-            <NavMenu>
-              {navItems.map((item) => (
-                <a key={item.url} href={withEmbeddedQuery(item.url)}>
-                  {item.label}
-                </a>
-              ))}
-            </NavMenu>
+            {/* Only show navigation menu if onboarding is complete */}
+            {onboardingCompleted && (
+              <NavMenu>
+                {navItems.map((item) => (
+                  <a key={item.url} href={withEmbeddedQuery(item.url)}>
+                    {item.label}
+                  </a>
+                ))}
+              </NavMenu>
+            )}
             <AdminShell adminLanguage={normalizedLanguage} storeDomain={storeDomain}>
               <Outlet />
             </AdminShell>
