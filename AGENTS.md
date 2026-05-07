@@ -1,5 +1,20 @@
 # Instrucciones de ingeniería para asistentes de IA (Copilot, Codex, Gemini) — App Shopify
 
+## 📖 GUÍA DE REFERENCIA OBLIGATORIA
+
+**SIEMPRE consultar y seguir esta guía para tests, GraphQL, MCP y agente de compra:**
+👉 https://www.revize.app/blog/shopify-ai-toolkit-guide
+
+Contenido completo local: `.agents/skills/shopify-ai-toolkit-guide/skill.md`
+
+Reglas críticas:
+- **Tests**: fechas dinámicas (`new Date()`), filtrar por `domain: { in: [...] }`, DB test puerto 5433
+- **GraphQL**: validar campos con `shopify store execute` — no alucinar campos del schema
+- **Storefront MCP**: `https://quickstart-c8cc9986.myshopify.com/api/mcp` — sin auth, listo
+- **UCP**: la tienda es agent-addressable — search_catalog, update_cart, get_cart disponibles
+
+---
+
 ## IMPORTANTE: Arquitectura Separada
 
 Este proyecto utiliza una **arquitectura separada** entre frontend y backend de IA:

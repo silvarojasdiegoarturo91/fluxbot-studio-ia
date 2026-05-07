@@ -1,4 +1,19 @@
-# # Copilot Instructions — Shopify AI Chatbot App
+# Copilot Instructions — Shopify AI Chatbot App
+
+## 📖 GUÍA DE REFERENCIA OBLIGATORIA
+
+**Todo agente debe consultar y seguir esta guía para tests, GraphQL, MCP, y agente de compra:**
+👉 https://www.revize.app/blog/shopify-ai-toolkit-guide
+
+Contenido local completo: `.agents/skills/shopify-ai-toolkit-guide/skill.md`
+
+Reglas críticas derivadas de la guía:
+- **Tests**: fechas siempre dinámicas (`new Date()`), filtrar por `domain: { in: [...] }`, DB test en puerto 5433
+- **GraphQL**: validar campos reales con `shopify store execute` antes de usar, no alucinar campos
+- **Storefront MCP**: `https://quickstart-c8cc9986.myshopify.com/api/mcp` — sin auth, 5 tools disponibles
+- **UCP**: la tienda es agent-addressable por defecto — no hace falta integración por agente
+
+---
 
 ## ⚠️ IMPORTANTE: Arquitectura Separada
 

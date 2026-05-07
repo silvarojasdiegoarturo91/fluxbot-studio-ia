@@ -1,0 +1,20 @@
+---
+description: Referencia permanente al Shopify AI Toolkit Guide para cualquier tarea del proyecto
+globs: ["**/*.ts", "**/*.tsx", "**/*.js", "**/*.graphql", "**/*.test.*", "**/*.spec.*"]
+alwaysApply: true
+---
+
+# Instrucción permanente: Shopify AI Toolkit Guide
+
+SIEMPRE consulta y sigue la guía oficial del proyecto antes de escribir código, tests o queries Shopify:
+📖 https://www.revize.app/blog/shopify-ai-toolkit-guide
+
+El contenido completo está en: `.agents/skills/shopify-ai-toolkit-guide/skill.md`
+
+## Reglas críticas
+
+- Tests: fechas dinámicas (`new Date()`), filtrar por `domain: { in: [...] }`, usar DB de test (puerto 5433)
+- GraphQL: validar campos contra el esquema real via `shopify store execute` o Dev MCP antes de usar
+- Agente de compra: usar Storefront MCP en `https://quickstart-c8cc9986.myshopify.com/api/mcp`
+- UCP: la tienda es agent-addressable por defecto — search_catalog, update_cart, get_cart disponibles sin auth
+- Datos de producto: título + descripción + specs + opciones = ROI directo en agent discovery
