@@ -13,3 +13,8 @@ dist/
 coverage/
 .vscode/
 .idea/
+
+# Playwright E2E
+playwright-report/
+test-results/
+.env.test
