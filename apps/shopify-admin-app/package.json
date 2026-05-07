@@ -34,7 +34,9 @@
     "test:e2e:smoke": "playwright test --grep @smoke tests/e2e/smoke/",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:debug": "playwright test --debug",
-    "test:e2e:headed": "playwright test --headed"
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:ci": "E2E_SKIP_SERVER=1 playwright test --reporter=list,github",
+    "test:e2e:smoke:ci": "E2E_SKIP_SERVER=1 playwright test tests/e2e/smoke/ --reporter=list"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",

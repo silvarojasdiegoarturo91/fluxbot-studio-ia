@@ -1,0 +1,88 @@
+name: Unit Tests
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - "apps/shopify-admin-app/**"
+      - "infra/prisma/**"
+      - ".github/workflows/unit.yml"
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - "apps/shopify-admin-app/**"
+      - "infra/prisma/**"
+
+concurrency:
+  group: unit-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unit:
+    name: Vitest Unit Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: test_db
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6380:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://test:test@localhost:5433/test_db?schema=public
+      REDIS_URL: redis://localhost:6380
+      SHOPIFY_API_KEY: ${{ secrets.SHOPIFY_API_KEY }}
+      SHOPIFY_API_SECRET: ${{ secrets.SHOPIFY_API_SECRET }}
+      SHOPIFY_APP_URL: http://localhost:3000
+      SHOPIFY_SHOP: quickstart-c8cc9986.myshopify.com
+      IA_BACKEND_URL: http://localhost:3001
+      IA_BACKEND_API_KEY: dev_master_key
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: |
+          cd apps/shopify-admin-app
+          npm run prisma:generate
+
+      - name: Run DB migrations
+        run: |
+          cd apps/shopify-admin-app
+          npx prisma migrate deploy --schema ../../infra/prisma/schema.prisma
+
+      - name: Run Vitest
+        run: |
+          cd apps/shopify-admin-app
+          npm test
