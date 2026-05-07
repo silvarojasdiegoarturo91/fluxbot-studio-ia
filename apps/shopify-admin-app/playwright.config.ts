@@ -18,6 +18,7 @@ export default defineConfig({
   testDir: "./tests/e2e",
   /* Only look for .spec.ts files inside tests/e2e/ — never in test/ */
   testMatch: "**/*.spec.ts",
+  globalSetup: "./tests/e2e/setup/global-setup.ts",
 
   /* Run in parallel, but limit workers during CI */
   fullyParallel: true,

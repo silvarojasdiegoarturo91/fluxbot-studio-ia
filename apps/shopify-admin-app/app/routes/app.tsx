@@ -12,10 +12,10 @@ import polarisTranslationsEs from "@shopify/polaris/locales/es.json";
 
 import { getMerchantAdminConfig } from "../services/admin-config.server";
 import { ensureShopForSession } from "../services/shop-context.server";
-import { authenticate } from "../shopify.server";
 import type { AdminLanguage } from "../services/admin-config.server";
 import { getAdminNavGroups } from "../utils/admin-navigation";
 import {
+  authenticateAdminRequest,
   buildSessionTokenBounceRedirectPath,
   isDocumentRequest,
   isShopifyReauthResponse,
@@ -119,7 +119,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   let adminLanguage: AdminLanguage = "en";
 
   try {
-    const authResult = await authenticate.admin(request);
+    const authResult = await authenticateAdminRequest(request);
 
     const shop = await ensureShopForSession((authResult as { session?: unknown }).session);
     if (shop) {
@@ -138,6 +138,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
           ? (authResult as { session?: { shop?: string } }).session?.shop || null
           : null,
         onboardingCompleted: adminConfig.onboardingCompleted,
+        isE2ETestMode: process.env.E2E_TEST_MODE === 'true',
       };
     }
 
@@ -152,6 +153,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       storeDomain: typeof (authResult as { session?: { shop?: string } }).session?.shop === "string"
         ? (authResult as { session?: { shop?: string } }).session?.shop || null
         : null,
+      isE2ETestMode: process.env.E2E_TEST_MODE === 'true',
     };
   } catch (error) {
     if (error instanceof Response) {
@@ -180,7 +182,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 };
 
 export default function App() {
-  const { apiKey, adminLanguage, storeDomain, onboardingCompleted } = useLoaderData<typeof loader>();
+  const { apiKey, adminLanguage, storeDomain, onboardingCompleted, isE2ETestMode } = useLoaderData<typeof loader>();
   const location = useLocation();
   const [isHydrated, setIsHydrated] = useState(false);
   const normalizedLanguage = normalizeAdminLanguage(adminLanguage);
@@ -193,6 +195,16 @@ export default function App() {
   useEffect(() => {
     setIsHydrated(true);
   }, []);
+
+  if (isE2ETestMode) {
+    return (
+      <PolarisReactAppProvider i18n={polarisTranslations}>
+        <AdminShell adminLanguage={normalizedLanguage} storeDomain={storeDomain ?? null}>
+          <Outlet />
+        </AdminShell>
+      </PolarisReactAppProvider>
+    );
+  }
 
   return (
     <ShopifyEmbeddedAppProvider embedded apiKey={apiKey}>

@@ -1,6 +1,44 @@
 import { redirect } from "react-router";
 import { authenticate } from "../shopify.server";
 
+function buildE2EAuthResult() {
+  const shopDomain = process.env.SHOPIFY_SHOP || 'quickstart-c8cc9986.myshopify.com';
+
+  const mockSession = {
+    id: `e2e-test-session`,
+    shop: shopDomain,
+    state: 'e2e-test',
+    isOnline: false as const,
+    accessToken: 'e2e-test-access-token',
+    scope: process.env.SCOPES || '',
+  };
+
+  const mockGraphql = async (_query: unknown) => {
+    return new Response(
+      JSON.stringify({
+        data: {
+          shop: {
+            name: 'Test Store',
+            myshopifyDomain: shopDomain,
+            primaryDomain: { host: shopDomain },
+            plan: { displayName: 'Developer Preview' },
+          },
+        },
+        errors: [],
+      }),
+      { headers: { 'Content-Type': 'application/json' } },
+    );
+  };
+
+  return {
+    session: mockSession,
+    admin: { graphql: mockGraphql as unknown },
+    billing: {},
+    cors: (r: Response) => r,
+    redirect: (url: string) => redirect(url),
+  } as unknown as Awaited<ReturnType<typeof authenticate.admin>>;
+}
+
 const AUTH_DEBUG_HEADER_NAMES = [
   "x-shopify-api-request-failure-reauthorize",
   "x-shopify-api-request-failure-reauthorize-url",
@@ -72,6 +110,9 @@ export function buildSessionTokenBounceRedirectPath(requestUrl: URL) {
 export async function authenticateAdminRequest(
   request: Request,
 ): Promise<Awaited<ReturnType<typeof authenticate.admin>>> {
+  if (process.env.E2E_TEST_MODE === 'true') {
+    return buildE2EAuthResult();
+  }
   try {
     return await authenticate.admin(request);
   } catch (error) {
