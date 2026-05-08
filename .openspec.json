@@ -5,7 +5,7 @@
     "description": "Shopify AI Chatbot App — Conversational Commerce Platform",
     "owner": "Fluxbot Team",
     "status": "in-development",
-    "last_updated": "2026-05-08T21:08:39.086Z",
+    "last_updated": "2026-05-08T21:20:47.473Z",
     "source_of_truth": "STATUS_MATRIX.md",
     "repos": {
       "frontend": "fluxbot-studio-ia",
@@ -1040,6 +1040,31 @@
       },
       {
         "id": "DOC-99c5abd-2026-05-08T21-08-39-086Z",
+        "title": "Review documentation update (1 files)",
+        "description": "Documentation changed in: apps/shopify-admin-app/README.md. Review and align agent instructions, references, and related docs.",
+        "priority": "medium",
+        "status": "planned",
+        "owner": "docs",
+        "components": [
+          "apps/shopify-admin-app/README.md"
+        ],
+        "source_files": [
+          "apps/shopify-admin-app/README.md"
+        ],
+        "acceptance_criteria": [
+          "Documentation references remain synchronized",
+          "Agent instructions stay aligned with the latest docs",
+          "Follow-up work is tracked in OpenSpec"
+        ],
+        "dependencies": [],
+        "metrics": {
+          "quality_score": 90,
+          "completion_rate": 0,
+          "velocity": 1
+        }
+      },
+      {
+        "id": "DOC-6cb1b0c-2026-05-08T21-20-47-473Z",
         "title": "Review documentation update (1 files)",
         "description": "Documentation changed in: apps/shopify-admin-app/README.md. Review and align agent instructions, references, and related docs.",
         "priority": "medium",
