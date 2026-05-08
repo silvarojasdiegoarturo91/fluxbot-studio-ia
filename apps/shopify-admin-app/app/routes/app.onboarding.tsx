@@ -44,8 +44,8 @@ const TOTAL_STEPS = 4;
 
 const ONBOARDING_COPY = {
   es: {
-    title: "The 4-Step Magic Setup",
-    subtitle: "Configura Fluxbot en 4 capitulos con preview en vivo y activacion guiada.",
+    title: "Activa Fluxbot en 4 pasos",
+    subtitle: "Guía al merchant por una activación clara, con preview en vivo y sin fricción.",
     stepLabel: "Paso",
     progressLabel: "Magic setup",
     saveDraft: "Guardar progreso",
@@ -73,8 +73,8 @@ const ONBOARDING_COPY = {
     activatedMessage: "Fluxbot listo para atender en tu tienda.",
   },
   en: {
-    title: "The 4-Step Magic Setup",
-    subtitle: "Configure Fluxbot in 4 chapters with live preview and guided activation.",
+    title: "Activate Fluxbot in 4 steps",
+    subtitle: "Guide the merchant through a clear activation flow with live preview and no friction.",
     stepLabel: "Step",
     progressLabel: "Magic setup",
     saveDraft: "Save progress",

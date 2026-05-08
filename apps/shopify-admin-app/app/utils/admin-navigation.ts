@@ -38,14 +38,14 @@ const ROUTE_COPY: Record<
   },
   "/app/onboarding": {
     en: {
-      title: "Onboarding",
-      description: "Guide merchants through a clear step-by-step activation flow for the assistant.",
-      section: "Setup",
+      title: "Activation",
+      description: "Guide merchants through a clear step-by-step assistant activation flow.",
+      section: "Activation",
     },
     es: {
-      title: "Onboarding",
-      description: "Guia al merchant por una activacion clara, paso a paso, del asistente.",
-      section: "Setup",
+      title: "Activación",
+      description: "Guía al merchant por una activación clara, paso a paso, del asistente.",
+      section: "Activación",
     },
   },
   "/app/settings": {
