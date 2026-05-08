@@ -3,9 +3,26 @@
 ## ⚠️ GUÍA OBLIGATORIA
 
 Antes de cualquier tarea en este proyecto, consulta y sigue:
-**📖 https://www.revize.app/blog/shopify-ai-toolkit-guide**
+**📖 https://weaverse.io/blogs/shopify-ai-toolkit-dev-mcp-hydrogen-2026**
 
-Contenido completo disponible en: `.agents/skills/shopify-ai-toolkit-guide/skill.md`
+Para setup de Claude Code, sigue también:
+**📖 https://www.fudge.ai/guides/shopify-ai-toolkit-claude-code-setup/**
+
+**📖 https://wearepresta.com/building-shopify-apps-with-ai-in-2026-the-ultimate-guide-to-the-shopify-ai-toolkit/**
+
+**📖 https://testrigor.com/shopify-testing/**
+
+**REFERENCIAS COMPLETAS:**
+- https://github.com/toilahuongg/shopify-agents-kit
+- https://weaverse.io/blogs/shopify-ai-toolkit-dev-mcp-hydrogen-2026
+- https://www.fudge.ai/guides/shopify-ai-toolkit-claude-code-setup/
+- https://wearepresta.com/building-shopify-apps-with-ai-in-2026-the-ultimate-guide-to-the-shopify-ai-toolkit/
+- https://testrigor.com/shopify-testing/
+
+Referencia local obligatoria: `.agents/skills/shopify-agents-kit-mandatory/skill.md`
+`.agents/skills/fudge-claude-code-setup/skill.md`
+`.agents/skills/wearepresta-shopify-ai-toolkit/skill.md`
+`.agents/skills/testrigor-shopify-testing/skill.md`
 
 Esta guía es la referencia principal para:
 - Escribir y estructurar tests de integración
@@ -13,6 +30,11 @@ Esta guía es la referencia principal para:
 - Integración con MCP servers (Dev MCP, Storefront MCP, Admin MCP)
 - Desarrollo del chat widget / agente de compra
 - Calidad de datos de producto para agent discovery (UCP)
+- Criterio de verdad cuando exista conflicto con otras guías
+- Telemetría, scopes mínimos y reglas de store ops live de la guía Fudge
+- La guía WeArePresta cubre flujo de plugin, MCP y validación para apps AI
+- La guía testRigor cubre la superficie amplia de testing del ecosistema Shopify
+- OpenSpec docs hook: los cambios en documentación crean tareas `planned` vía `.githooks/post-commit`
 
 ---
 
