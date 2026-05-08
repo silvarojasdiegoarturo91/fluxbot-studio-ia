@@ -114,6 +114,22 @@ Commands `npm run dev`, `npm run dev:ngrok`, `npm run dev:localhost`, and `npm r
 
 Use a separate production workspace/config for the production app (`fluxbot-studio-ia`) to avoid cross-deploys.
 
+### Dedicated Shopify app for CI
+
+To avoid collisions between local and GitHub Actions, CI must use a separate Shopify app and store.
+
+Required GitHub repository secrets:
+- `SHOPIFY_CI_API_KEY`
+- `SHOPIFY_CI_API_SECRET`
+- `SHOPIFY_CI_SHOP` (e.g. `ci-store.myshopify.com`)
+
+`unit.yml` and `e2e.yml` are configured to use these `SHOPIFY_CI_*` secrets only, and include a hard guard that fails if CI accidentally uses the local app key (`8c36112e98ce36be869eb0dc5efdd572`).
+
+How to keep CI on the updated app config:
+1. Create/update the dedicated CI app in Shopify Partner Dashboard.
+2. Keep `SHOPIFY_CI_API_KEY` / `SHOPIFY_CI_API_SECRET` / `SHOPIFY_CI_SHOP` secrets updated in GitHub.
+3. Any push to this repo triggers CI with those CI credentials, so tests always run against the current dedicated CI app context.
+
 ### 5. Install in Development Store
 
 - Follow the Shopify CLI prompts to install the app

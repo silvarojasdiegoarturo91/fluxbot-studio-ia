@@ -45,10 +45,10 @@ jobs:
       NODE_ENV: test
       DATABASE_URL: postgresql://test:test@localhost:5433/test_db?schema=public
       REDIS_URL: redis://localhost:6379
-      SHOPIFY_API_KEY: ${{ secrets.SHOPIFY_API_KEY }}
-      SHOPIFY_API_SECRET: ${{ secrets.SHOPIFY_API_SECRET }}
+      SHOPIFY_API_KEY: ${{ secrets.SHOPIFY_CI_API_KEY }}
+      SHOPIFY_API_SECRET: ${{ secrets.SHOPIFY_CI_API_SECRET }}
       SHOPIFY_APP_URL: https://localhost:3000
-      SHOPIFY_SHOP: quickstart-c8cc9986.myshopify.com
+      SHOPIFY_SHOP: ${{ secrets.SHOPIFY_CI_SHOP }}
       IA_BACKEND_URL: http://localhost:3001
       IA_BACKEND_API_KEY: dev_master_key
 
@@ -64,6 +64,16 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Guard CI Shopify app isolation
+        run: |
+          test -n "$SHOPIFY_API_KEY"
+          test -n "$SHOPIFY_API_SECRET"
+          test -n "$SHOPIFY_SHOP"
+          if [ "$SHOPIFY_API_KEY" = "8c36112e98ce36be869eb0dc5efdd572" ]; then
+            echo "CI is using LOCAL Shopify app credentials. Configure SHOPIFY_CI_API_KEY/SECRET/SHOP."
+            exit 1
+          fi
 
       - name: Generate Prisma client
         run: |
