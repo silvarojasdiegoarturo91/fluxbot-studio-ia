@@ -10,11 +10,17 @@ if (!process.env.SHOPIFY_API_SECRET) {
 if (!process.env.SHOPIFY_APP_URL) {
   process.env.SHOPIFY_APP_URL = "https://test.ngrok.io";
 }
+if (!process.env.IA_BACKEND_URL) {
+  process.env.IA_BACKEND_URL = "http://localhost:3001";
+}
+if (!process.env.IA_BACKEND_API_KEY) {
+  process.env.IA_BACKEND_API_KEY = "test-backend-key-32chars-padded!!";
+}
 // Force deterministic baseline scopes for tests.
 process.env.SCOPES =
   "read_products,write_products,read_orders,read_customers,read_content,read_locales,read_online_store_pages";
 if (!process.env.DATABASE_URL) {
-  process.env.DATABASE_URL = "postgresql://test:test@localhost:5432/test_db";
+  process.env.DATABASE_URL = "postgresql://test:test@localhost:5433/test_db";
 }
 // Force local execution by default; specific tests override this when needed.
 process.env.IA_EXECUTION_MODE = "local";
@@ -23,7 +29,7 @@ process.env.NODE_ENV = "test";
 // Keep a hook for explicit test lifecycle clarity.
 beforeAll(() => {
   if (!process.env.DATABASE_URL) {
-    process.env.DATABASE_URL = "postgresql://test:test@localhost:5432/test_db";
+    process.env.DATABASE_URL = "postgresql://test:test@localhost:5433/test_db";
   }
 });
 

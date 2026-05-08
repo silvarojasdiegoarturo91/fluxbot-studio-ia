@@ -2,7 +2,7 @@
 
 client_id = "8c36112e98ce36be869eb0dc5efdd572"
 name = "fluxbot-studio"
-application_url = "https://unwishful-televisionally-leeann.ngrok-free.dev"
+application_url = "https://fluxbot-studio.example.com"
 embedded = true
 handle = "fluxbot-studio"
 
@@ -18,15 +18,15 @@ api_version = "2026-04"
 scopes = "read_products,write_products,read_orders,read_customers,read_content,read_locales,read_online_store_pages,read_themes"
 
 [app_proxy]
-url = "https://unwishful-televisionally-leeann.ngrok-free.dev"
+url = "https://fluxbot-studio.example.com"
 subpath = "fluxbot"
 prefix = "apps"
 
 [auth]
 redirect_urls = [
-  "https://unwishful-televisionally-leeann.ngrok-free.dev/auth/callback",
-  "https://unwishful-televisionally-leeann.ngrok-free.dev/auth/shopify/callback",
-  "https://unwishful-televisionally-leeann.ngrok-free.dev/api/auth/callback"
+  "https://fluxbot-studio.example.com/auth/callback",
+  "https://fluxbot-studio.example.com/auth/shopify/callback",
+  "https://fluxbot-studio.example.com/api/auth/callback"
 ]
 
 [pos]

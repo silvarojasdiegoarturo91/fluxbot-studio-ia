@@ -592,6 +592,8 @@ describe('Config Server - Environment Loading', () => {
       process.env.OPENAI_MODEL = 'gpt-4o';
       process.env.SESSION_SECRET = 'x'.repeat(64);
       process.env.NODE_ENV = 'production';
+      process.env.IA_BACKEND_URL = 'http://backend.internal:3001';
+      process.env.IA_BACKEND_API_KEY = 'prod-backend-key-32chars-padded!!';
       process.env.ENABLE_PROACTIVE_TRIGGERS = 'true';
       process.env.ENABLE_HUMAN_HANDOFF = 'true';
       process.env.ENABLE_ORDER_LOOKUP = 'true';
@@ -620,11 +622,6 @@ describe('Config Server - Environment Loading', () => {
         },
         ai: {
           provider: 'openai',
-          openai: {
-            apiKey: 'sk-prod-key',
-            model: 'gpt-4o',
-            embeddingModel: 'text-embedding-3-small',
-          },
         },
         session: {
           secret: 'x'.repeat(64),

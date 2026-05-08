@@ -3,6 +3,12 @@ import { PrismaClient } from '@prisma/client';
 
 const TEST_SHOP_DOMAIN = process.env.SHOPIFY_SHOP || 'quickstart-c8cc9986.myshopify.com';
 
+function resolveTestDatabaseUrl() {
+  const fallback = 'postgresql://test:test@localhost:5433/test_db?schema=public';
+  const raw = process.env.DATABASE_URL || fallback;
+  return raw.includes('localhost:5433') ? raw : fallback;
+}
+
 // adminSetup stored in Shop.metadata.adminSetup — this is what getMerchantAdminConfig reads
 const COMPLETED_ADMIN_SETUP = {
   onboardingCompleted: true,
@@ -32,13 +38,13 @@ const COMPLETED_ADMIN_SETUP = {
 };
 
 export default async function globalSetup(_config: FullConfig) {
-  const prisma = new PrismaClient({
-    datasources: {
-      db: {
-        url: process.env.DATABASE_URL || 'postgresql://test:test@localhost:5433/test_db?schema=public',
+    const prisma = new PrismaClient({
+      datasources: {
+        db: {
+          url: resolveTestDatabaseUrl(),
+        },
       },
-    },
-  });
+    });
 
   try {
     // Upsert the test shop with completed-onboarding metadata

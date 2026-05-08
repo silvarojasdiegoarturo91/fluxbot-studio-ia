@@ -17,7 +17,7 @@ import path from "path";
  */
 
 describe("Pre-Deployment: Database Migration Validation", () => {
-  const schemaPath = path.resolve(__dirname, "../../../infra/prisma/schema.prisma");
+  const schemaPath = path.resolve(__dirname, "../../../../infra/prisma/schema.prisma");
 
   describe("Migration Status Checks", () => {
     it("should validate that Prisma client is generated from current schema", async () => {
@@ -37,7 +37,7 @@ describe("Pre-Deployment: Database Migration Validation", () => {
     it("should ensure onboarding migration is included in migrations folder", () => {
       const migrationsPath = path.resolve(
         __dirname,
-        "../../../infra/prisma/migrations"
+        "../../../../infra/prisma/migrations"
       );
 
       try {
@@ -59,7 +59,7 @@ describe("Pre-Deployment: Database Migration Validation", () => {
       const fs = require("fs");
       const migrationPath = path.resolve(
         __dirname,
-        "../../../infra/prisma/migrations/20260506223346_add_onboarding_tracking/migration.sql"
+        "../../../../infra/prisma/migrations/20260506223346_add_onboarding_tracking/migration.sql"
       );
 
       try {
@@ -80,7 +80,7 @@ describe("Pre-Deployment: Database Migration Validation", () => {
       const fs = require("fs");
       const migrationPath = path.resolve(
         __dirname,
-        "../../../infra/prisma/migrations/20260506223346_add_onboarding_tracking/migration.sql"
+        "../../../../infra/prisma/migrations/20260506223346_add_onboarding_tracking/migration.sql"
       );
 
       try {
