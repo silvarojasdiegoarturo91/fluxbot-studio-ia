@@ -67,9 +67,9 @@ const ONBOARDING_COPY = {
     brandingTitle: "Estilo",
     reviewTitle: "Despegue",
     activateTitle: "Despegue",
-    reviewText: "Resumen visual y sincronizacion inicial antes de activar.",
+    reviewText: "Resumen visual y registro inicial de tienda antes de activar.",
     activateText:
-      "Sincronizaremos catalogo, politicas y capacidades base para que la primera conversacion ya se sienta util.",
+      "Al pulsar Activar, guardamos la configuracion y registramos tu tienda en el backend IA. La sincronizacion de catalogo y politicas se ejecuta desde el panel.",
     activatedMessage: "Fluxbot listo para atender en tu tienda.",
   },
   en: {
@@ -96,9 +96,9 @@ const ONBOARDING_COPY = {
     brandingTitle: "Style",
     reviewTitle: "Launch",
     activateTitle: "Launch",
-    reviewText: "Visual summary and initial sync before activation.",
+    reviewText: "Visual summary and initial shop registration before activation.",
     activateText:
-      "We will sync catalog, policies, and core capabilities so the very first chat already feels useful.",
+      "When you click Activate, we save your configuration and register your shop in the IA backend. Catalog and policy sync runs from the dashboard.",
     activatedMessage: "Fluxbot is ready for your storefront.",
   },
 } as const;
@@ -1138,13 +1138,22 @@ const ONBOARDING_STYLES = `
 .onb-sync-badge {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
+  gap: 6px;
+  border-radius: 6px;
+  padding: 0;
+  background: transparent;
+  color: #5f697a;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.onb-sync-badge::before {
+  content: "";
+  width: 8px;
+  height: 8px;
   border-radius: 999px;
-  padding: 6px 10px;
-  background: #111827;
-  color: #ffffff;
-  font-size: 0.74rem;
-  font-weight: 700;
+  background: #47657f;
+  flex: 0 0 auto;
 }
 
 .onb-summary-grid {
@@ -1738,14 +1747,14 @@ export async function action({ request }: ActionFunctionArgs): Promise<Response 
     currentConfig,
   });
 
-  // Update onboarding completion timestamp + trigger backend sync
+  // Update onboarding completion timestamp + trigger shop reference sync
   if (intent === "complete") {
     await prisma.shop.update({
       where: { id: shop.id },
       data: { onboardingCompletedAt: new Date() },
     });
 
-    // Trigger real backend sync in background WITHOUT waiting - user can navigate away
+    // Trigger shop reference sync in background WITHOUT waiting - user can navigate away
     syncShopReferenceToIABackend(
       {
         id: shop.id,
@@ -1754,8 +1763,8 @@ export async function action({ request }: ActionFunctionArgs): Promise<Response 
       { force: true }
     ).catch(error => {
       console.error("Sync failed during onboarding completion:", error);
-      // Don't block onboarding if sync fails - it can retry via webhook/worker
-    });
+      // Don't block onboarding if sync fails - it can retry later
+      });
   }
 
   const redirectTo = intent === "complete"
@@ -1975,7 +1984,7 @@ export default function OnboardingPage() {
   );
   const [launcherLabel, setLauncherLabel] = useState(config.widgetBranding.launcherLabel || initialBotName);
   const [isPreviewChatOpen, setIsPreviewChatOpen] = useState(true);
-  const [syncPreviewProgress, setSyncPreviewProgress] = useState(18);
+  const [syncPreviewProgress, setSyncPreviewProgress] = useState(0);
   const autoSaveRequestRef = useRef<XMLHttpRequest | null>(null);
 
   useEffect(() => {
@@ -2870,18 +2879,24 @@ export default function OnboardingPage() {
           <div className="onb-sync-head">
             <div>
               <p className="onb-note-title">
-                {adminLanguage === "es" ? "Sincronizando productos y politicas..." : "Syncing catalog and policies..."}
+                {syncPreviewProgress === 0
+                  ? (adminLanguage === "es" ? "Registro de tienda al activar" : "Shop registration on activation")
+                  : (adminLanguage === "es" ? "Registrando tienda en backend IA..." : "Registering shop in IA backend...")}
               </p>
               <p className="onb-note-text">
-                {adminLanguage === "es"
-                  ? "Tu asistente quedara listo para responder con contexto real de la tienda."
-                  : "Your assistant will be ready to answer with real store context."}
+                {syncPreviewProgress === 0
+                  ? (adminLanguage === "es"
+                    ? "Este paso solo registra la referencia de tu tienda. La sincronizacion de catalogo y politicas se inicia desde el panel."
+                    : "This step only registers your shop reference. Catalog and policy sync is started from the dashboard.")
+                  : (adminLanguage === "es"
+                    ? "Procesando activacion y registro de tienda."
+                    : "Processing activation and shop registration.")}
               </p>
             </div>
             <span className="onb-sync-badge">
               {syncPreviewProgress === 0
-                ? (adminLanguage === "es" ? "Listo para sincronizar" : "Ready to sync")
-                : (adminLanguage === "es" ? "Sincronizando..." : "Syncing...")}
+                ? (adminLanguage === "es" ? "Se ejecuta al pulsar Activar" : "Runs when you click Activate")
+                : (adminLanguage === "es" ? "Activando..." : "Activating...")}
             </span>
           </div>
           <ProgressBar progress={syncPreviewProgress} size="small" />

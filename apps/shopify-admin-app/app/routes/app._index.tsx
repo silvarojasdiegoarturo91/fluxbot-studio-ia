@@ -9,6 +9,7 @@ import {
   InlineGrid,
   List,
   Banner,
+  ProgressBar,
 } from "@shopify/polaris";
 import { redirect, type LoaderFunctionArgs } from "react-router";
 import { useLoaderData, useLocation } from "react-router";
@@ -39,6 +40,7 @@ interface DashboardLoaderData {
     totalSources: number;
     failedSyncJobs: number;
     runningSyncJobs: number;
+    hasCompletedSync: boolean;
     lastSyncLabel: string;
   };
   assistant: {
@@ -100,6 +102,7 @@ export const loader = async ({ request }: LoaderFunctionArgs): Promise<Dashboard
       totalSources: 0,
       failedSyncJobs: 0,
       runningSyncJobs: 0,
+      hasCompletedSync: false,
       lastSyncLabel: "No sync yet",
     },
     assistant: {
@@ -263,6 +266,7 @@ export const loader = async ({ request }: LoaderFunctionArgs): Promise<Dashboard
         totalSources,
         failedSyncJobs,
         runningSyncJobs,
+        hasCompletedSync: Boolean(lastCompletedSync?.completedAt),
         lastSyncLabel: lastCompletedSync?.completedAt
           ? `${lastCompletedSync.jobType} · ${new Date(lastCompletedSync.completedAt).toLocaleString()}`
           : isEs ? "Sin sincronizaciones" : "No sync yet",
@@ -296,6 +300,26 @@ export default function DashboardIndex() {
   const { shopConnection, business, assistant, alerts, showOnboardingSuccess } = useLoaderData<typeof loader>();
   const location = useLocation();
   const isEs = useIsSpanish();
+  const setupTaskTotal = 2;
+  const setupTaskCompleted = 1 + (business.hasCompletedSync ? 1 : 0);
+  const setupProgress = Math.round((setupTaskCompleted / setupTaskTotal) * 100);
+  const trainingTone = business.runningSyncJobs > 0 ? "attention" : business.hasCompletedSync ? "success" : "warning";
+  const trainingStatusLabel = business.runningSyncJobs > 0
+    ? (isEs ? "Sincronizando" : "Sync in progress")
+    : business.hasCompletedSync
+      ? (isEs ? "Realizada" : "Completed")
+      : (isEs ? "Pendiente" : "Pending");
+  const trainingStatusText = business.runningSyncJobs > 0
+    ? (isEs
+      ? "Hay jobs de sincronizacion en ejecucion. Puedes seguir trabajando mientras se completa."
+      : "Sync jobs are running now. You can continue working while this completes.")
+    : business.hasCompletedSync
+      ? (isEs
+        ? `Sincronizacion completada: ${business.lastSyncLabel}.`
+        : `Synchronization completed: ${business.lastSyncLabel}.`)
+      : (isEs
+        ? "Aun no se ha ejecutado una sincronizacion completa de catalogo/politicas."
+        : "No catalog/policy synchronization has been completed yet.");
 
   const withEmbeddedQuery = (path: string) => {
     return `${path}${location.search || ""}`;
@@ -376,6 +400,49 @@ export default function DashboardIndex() {
                 {isEs ? "No se pudieron obtener datos de la tienda desde Admin API" : "Could not fetch shop data from Admin API"}: {shopConnection.error || (isEs ? "Error desconocido" : "Unknown error")}
               </Text>
             )}
+          </AdminSectionCard>
+        </Layout.Section>
+
+        <Layout.Section>
+          <AdminSectionCard
+            title="Set up AI agent"
+            description={
+              isEs
+                ? "Despues del onboarding, este bloque centraliza el estado real de entrenamiento/sincronizacion del asistente."
+                : "After onboarding, this block centralizes the assistant's real training/synchronization status."
+            }
+            badge={<AdminStatusBadge tone={trainingTone}>{trainingStatusLabel}</AdminStatusBadge>}
+          >
+            <BlockStack gap="300">
+              <InlineStack align="space-between" blockAlign="center" wrap>
+                <BlockStack gap="100">
+                  <Text as="h3" variant="headingSm">{isEs ? "Entrenar IA" : "Train AI"}</Text>
+                  <Text as="p" variant="bodyMd" tone="subdued">
+                    {isEs
+                      ? "Ensenale a la IA sobre tu negocio para responder con precision preguntas de clientes."
+                      : "Teach AI about your business so it can answer customer questions with precision."}
+                  </Text>
+                  <Text as="p" variant="bodyMd" tone="subdued">{trainingStatusText}</Text>
+                  <InlineStack gap="200" wrap>
+                    <Button variant="plain" url={withEmbeddedQuery("/app/data-sources")}>
+                      {isEs ? "Mas informacion" : "More information"}
+                    </Button>
+                  </InlineStack>
+                </BlockStack>
+                <Button variant="primary" url={withEmbeddedQuery("/app/data-sources")}>
+                  {isEs ? "Ir a configuracion" : "Go to configuration"}
+                </Button>
+              </InlineStack>
+              <InlineStack align="space-between">
+                <Text as="p" variant="bodyMd">{isEs ? "Tareas completadas" : "Completed tasks"}</Text>
+                <Text as="p" variant="bodyMd">
+                  {isEs
+                    ? `${setupTaskCompleted} de ${setupTaskTotal} tareas completadas`
+                    : `${setupTaskCompleted} of ${setupTaskTotal} tasks completed`}
+                </Text>
+              </InlineStack>
+              <ProgressBar progress={setupProgress} size="small" />
+            </BlockStack>
           </AdminSectionCard>
         </Layout.Section>
 

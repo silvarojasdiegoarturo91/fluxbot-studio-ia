@@ -2,16 +2,9 @@ name: Unit Tests
 
 on:
   push:
-    branches: [main, develop]
-    paths:
-      - "apps/shopify-admin-app/**"
-      - "infra/prisma/**"
-      - ".github/workflows/unit.yml"
+    branches: ["**"]
   pull_request:
-    branches: [main, develop]
-    paths:
-      - "apps/shopify-admin-app/**"
-      - "infra/prisma/**"
+    branches: ["**"]
 
 concurrency:
   group: unit-${{ github.ref }}

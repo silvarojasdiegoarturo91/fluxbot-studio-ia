@@ -20,8 +20,8 @@ describe("getAdminRouteMeta", () => {
 
   it("returns metadata for /app/onboarding in English", () => {
     const meta = getAdminRouteMeta("/app/onboarding", "en");
-    expect(meta.title).toBe("Onboarding");
-    expect(meta.section).toBe("Setup");
+    expect(meta.title).toBe("Activation");
+    expect(meta.section).toBe("Activation");
   });
 
   it("returns metadata for /app/settings in Spanish", () => {
@@ -121,7 +121,7 @@ describe("getAdminNavGroups", () => {
   });
 
   it("Overview group includes Dashboard and Onboarding routes", () => {
-    const groups = getAdminNavGroups("en");
+    const groups = getAdminNavGroups("en", false);
     const overview = groups[0];
     const urls = overview.items.map((i) => i.url);
     expect(urls).toContain("/app");
@@ -158,11 +158,11 @@ describe("getAdminNavGroups", () => {
   });
 
   it("Spanish labels match expected translations", () => {
-    const groups = getAdminNavGroups("es");
+    const groups = getAdminNavGroups("es", false);
     const overviewItems = groups[0].items;
     const dashboard = overviewItems.find((i) => i.url === "/app");
     expect(dashboard?.label).toBe("Panel");
     const onboarding = overviewItems.find((i) => i.url === "/app/onboarding");
-    expect(onboarding?.label).toBe("Onboarding");
+    expect(onboarding?.label).toBe("Activación");
   });
 });

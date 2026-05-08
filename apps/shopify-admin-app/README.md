@@ -102,6 +102,18 @@ This will:
 - Launch Shopify CLI tunnel
 - Open your default browser to install the app
 
+### Local/Production target safety
+
+This repo is hard-locked to the **local Shopify app**:
+- Local app name: `fluxbot-studio`
+- Local app client ID: `8c36112e98ce36be869eb0dc5efdd572`
+
+Commands `npm run dev`, `npm run dev:ngrok`, `npm run dev:localhost`, and `npm run deploy` run a guard (`guard:local-target`) that fails fast if:
+- `shopify.app.toml` is not the local app
+- `SHOPIFY_API_KEY` does not match the local app client ID
+
+Use a separate production workspace/config for the production app (`fluxbot-studio-ia`) to avoid cross-deploys.
+
 ### 5. Install in Development Store
 
 - Follow the Shopify CLI prompts to install the app
@@ -192,6 +204,14 @@ Current repo-local snapshot:
 - ✅ Phase 2: proactive dispatch split, add-to-cart, handoff, remote intent/trigger decisioning, remote quality pipeline
 - ✅ Phase 3: omnichannel bridge/callback operations, `llms.txt` publication, campaign CRUD/dispatch surfaces
 - ✅ Phase 4/5: enterprise compliance, regional deployment controls, legal holds, SIEM export/connectors
+
+## UX Requirements (pending)
+
+- After the merchant completes onboarding, the app must redirect automatically to the home dashboard (`/app`, i.e. "Panel"), while store synchronization starts in the background without blocking navigation.
+- The dashboard shown after onboarding must explicitly display completed onboarding tasks (e.g., "X de Y tareas completadas") so progress is clear at first glance.
+- Onboarding step 4 must describe only real behavior: clicking **Activate** saves onboarding config and triggers asynchronous **shop reference registration** (`/api/v1/shops/sync`). It must not claim catalog/policy sync if that specific process is not started in this step.
+- In the dashboard right after onboarding, the **Set up AI agent** area must include the **Entrenar IA** task card (with "Más información" and "Ir a configuración"), and this is where synchronization/training status is communicated.
+- If that synchronization/training was already executed, the same panel task must appear as completed (not pending), so merchants immediately see it as done.
 
 ## Testing
 

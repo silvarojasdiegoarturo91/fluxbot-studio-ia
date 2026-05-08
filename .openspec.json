@@ -800,6 +800,45 @@
           "apps/shopify-admin-app/app/routes/app._index.tsx: dashboard next-step guidance aligned with the updated admin language",
           "Validated with typecheck, targeted eslint, and existing @fluxbot/shopify-admin-app test suite"
         ]
+      },
+      {
+        "id": "REQ-OPEN-007",
+        "title": "Post-onboarding redirect and completion visibility",
+        "description": "Once onboarding is completed, redirect merchants automatically to the home dashboard (/app, i.e. Panel) and run only the real background action for this step (shop reference registration). Onboarding copy must not claim catalog/policy sync unless that specific sync is triggered at this point; the dashboard must clearly show completed onboarding tasks.",
+        "priority": "high",
+        "status": "completed",
+        "owner": "frontend",
+        "components": [
+          "apps/shopify-admin-app/app/routes/app.onboarding.tsx",
+          "apps/shopify-admin-app/app/routes/app._index.tsx",
+          "apps/shopify-admin-app/app/routes/app.tsx",
+          "apps/shopify-admin-app/app/services/shop-backend-sync.server.ts"
+        ],
+        "acceptance_criteria": [
+          "When onboarding is marked complete, the user is redirected automatically to /app (Panel) with no extra click",
+          "Shop reference registration starts asynchronously in the background and does not block the redirect",
+          "Onboarding step 4 copy explicitly describes shop reference registration and avoids claiming catalog/policy sync unless triggered there",
+          "The dashboard quick-start area explicitly communicates completed onboarding tasks (for example, X de Y tareas completadas)",
+          "The dashboard quick-start area includes the 'Entrenar IA' task card under 'Set up AI agent' as the place where synchronization/training status is shown",
+          "If synchronization/training was already completed, the same panel task is rendered as completed state instead of pending",
+          "Merchants can identify at a glance what has already been completed and what the next step is"
+        ],
+        "dependencies": [
+          "REQ-P1-001",
+          "REQ-OPEN-006"
+        ],
+        "metrics": {
+          "quality_score": 92,
+          "completion_rate": 100,
+          "velocity": 1
+        },
+        "completed_date": "2026-05-08",
+        "evidence": [
+          "apps/shopify-admin-app/app/routes/app.onboarding.tsx: step 4 copy now reflects real behavior (shop reference registration only), no catalog/policy sync claim",
+          "apps/shopify-admin-app/app/routes/app._index.tsx: dashboard now includes 'Set up AI agent' / 'Entrenar IA' card with sync/training status and completed-task counter",
+          "apps/shopify-admin-app/app/routes/app._index.tsx: task card shows completed state when prior sync jobs are completed and running state when jobs are active",
+          "apps/shopify-admin-app/app/services/shop-backend-sync.server.ts: onboarding completion path keeps async shop reference sync trigger"
+        ]
       }
     ],
     "documentation": [
