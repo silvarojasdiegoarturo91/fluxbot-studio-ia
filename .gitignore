@@ -18,3 +18,6 @@ coverage/
 playwright-report/
 test-results/
 .env.test
+
+# Local-only Shopify app config; different environments use different app URLs.
+apps/shopify-admin-app/shopify.app.toml
