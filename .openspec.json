@@ -5,7 +5,7 @@
     "description": "Shopify AI Chatbot App — Conversational Commerce Platform",
     "owner": "Fluxbot Team",
     "status": "in-development",
-    "last_updated": "2026-05-08T18:12:21.486Z",
+    "last_updated": "2026-05-08T20:10:25.121Z",
     "source_of_truth": "STATUS_MATRIX.md",
     "repos": {
       "frontend": "fluxbot-studio-ia",
@@ -961,6 +961,31 @@
           ".github/skills/zoom-out/SKILL.md",
           "AGENTS.md",
           "CLAUDE.md"
+        ],
+        "acceptance_criteria": [
+          "Documentation references remain synchronized",
+          "Agent instructions stay aligned with the latest docs",
+          "Follow-up work is tracked in OpenSpec"
+        ],
+        "dependencies": [],
+        "metrics": {
+          "quality_score": 90,
+          "completion_rate": 0,
+          "velocity": 1
+        }
+      },
+      {
+        "id": "DOC-8bd8fe8-2026-05-08T20-10-25-121Z",
+        "title": "Review documentation update (1 files)",
+        "description": "Documentation changed in: .junie/skills/shopify-admin/SKILL.md. Review and align agent instructions, references, and related docs.",
+        "priority": "medium",
+        "status": "planned",
+        "owner": "docs",
+        "components": [
+          ".junie/skills/shopify-admin/SKILL.md"
+        ],
+        "source_files": [
+          ".junie/skills/shopify-admin/SKILL.md"
         ],
         "acceptance_criteria": [
           "Documentation references remain synchronized",
