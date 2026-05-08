@@ -801,6 +801,36 @@
           "Validated with typecheck, targeted eslint, and existing @fluxbot/shopify-admin-app test suite"
         ]
       }
+    ],
+    "documentation": [
+      {
+        "id": "REQ-IA-DOC-001",
+        "title": "Synchronize agent guidance documentation",
+        "description": "Keep all agent instructions and documentation links aligned across AGENTS, Claude, Copilot, Cursor, and OpenSpec.",
+        "priority": "medium",
+        "status": "completed",
+        "completed_date": "2026-05-08",
+        "owner": "frontend_ia",
+        "components": [
+          "AGENTS.md",
+          ".github/copilot-instructions.md",
+          "CLAUDE.md",
+          ".cursor/rules",
+          "scripts/openspec-doc-hook.mjs",
+          ".githooks/post-commit"
+        ],
+        "acceptance_criteria": [
+          "All published guide links are reflected in repo instructions",
+          "Documentation changes create OpenSpec tasks via git hooks",
+          "OpenSpec reports include a documentation phase"
+        ],
+        "dependencies": [],
+        "metrics": {
+          "quality_score": 90,
+          "completion_rate": 100,
+          "velocity": 1
+        }
+      }
     ]
   }
 }
