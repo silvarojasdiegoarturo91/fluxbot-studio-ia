@@ -1,0 +1,22 @@
+.container {
+  width: 100%;
+}
+
+.tokenCard {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid #e1e1e1;
+  border-radius: 4px;
+  margin-bottom: 8px;
+}
+
+.tokenInfo {
+  flex: 1;
+}
+
+.tokenActions {
+  display: flex;
+  gap: 8px;
+}
