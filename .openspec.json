@@ -878,19 +878,25 @@
       {
         "id": "REQ-OPEN-008",
         "title": "Fix intermittent blank screen on 'Handling response' auth bounce",
-        "description": "When a session expires and Shopify requires a session-token bounce, the app must not get stuck on a white screen showing only 'Handling response'. Reauth redirects must always resolve back to /app or onboarding without nested bounce params.",
+        "description": "After install + OAuth grant (first install or reinstall), the embedded app must never remain stuck on the intermediate Shopify auth screen that shows only 'Handling response'. The auth bounce must resolve automatically to a usable Fluxbot app route without requiring manual browser refresh.",
         "priority": "high",
         "status": "completed",
         "owner": "frontend",
         "components": [
           "apps/shopify-admin-app/app/utils/authenticate-admin.server.ts",
-          "apps/shopify-admin-app/test/unit/authenticate-admin.server.test.ts"
+          "apps/shopify-admin-app/app/routes/auth.$.tsx",
+          "apps/shopify-admin-app/test/unit/authenticate-admin.server.test.ts",
+          "apps/shopify-admin-app/test/integration/webhooks-lifecycle.test.ts",
+          "apps/shopify-admin-app/tests/e2e/smoke/install-auth-flow.spec.ts",
+          "specs/features/auth-install-recovery/requirements.md",
+          "specs/features/auth-install-recovery/test-cases.md"
         ],
         "acceptance_criteria": [
           "Session-token bounce redirects remove stale id_token and previous shopify-reload before building a new bounce URL",
           "Generated shopify-reload points to the real app route and never contains nested shopify-reload recursion",
+          "Auth catch-all route exposes Shopify boundary ErrorBoundary/headers so intermediate auth responses are handled by App Bridge flow instead of rendering a raw 200-like screen",
           "Document requests with expired sessions recover to a usable app route instead of staying in a permanent handling screen",
-          "Unit tests cover normal bounce creation and stale shopify-reload recovery scenarios"
+          "Coverage includes: fresh install from zero, uninstall + reinstall, and session recovery bounce scenarios"
         ],
         "dependencies": [
           "REQ-P1-001"
@@ -903,9 +909,50 @@
         "completed_date": "2026-05-11",
         "evidence": [
           "authenticate-admin.server.ts now deletes shopify-reload before constructing /auth/session-token redirect",
-          "authenticate-admin.server.test.ts adds regression test that prevents nested shopify-reload recursion and validates clean bounce URL"
+          "auth.$.tsx now includes ErrorBoundary to handle Shopify auth responses correctly",
+          "authenticate-admin.server.test.ts adds regression tests for clean bounce URL across install/reinstall paths",
+          "webhooks-lifecycle.test.ts covers uninstall state reset required for reinstall onboarding",
+          "install-auth-flow.spec.ts covers smoke-level install entry routes and onboarding route availability after lifecycle transitions"
         ],
-        "user_story": "Como merchant de Shopify usando Fluxbot, quiero que la app recupere mi sesion sin quedarse en 'Handling response', para poder volver al panel sin pantalla en blanco."
+        "user_story": "Como merchant de Shopify usando Fluxbot, quiero que tras instalar o reinstalar la app me lleve automaticamente al panel u onboarding sin quedarme en 'Handling response', para no tener que recargar manualmente y poder empezar a usar la app de inmediato.",
+        "use_cases": [
+          {
+            "id": "UC-REQ-OPEN-008-01",
+            "title": "Instalacion inicial desde 0",
+            "actor": "Merchant",
+            "flow": [
+              "El merchant instala la app por primera vez",
+              "Autoriza scopes en Shopify",
+              "Shopify redirige al embed de Fluxbot",
+              "La app termina en /app o /app/onboarding sin pantalla intermedia bloqueada"
+            ],
+            "expected_result": "No aparece pantalla permanente con 'Handling response' y no se requiere refresh manual"
+          },
+          {
+            "id": "UC-REQ-OPEN-008-02",
+            "title": "Reinstalacion despues de desinstalar",
+            "actor": "Merchant",
+            "flow": [
+              "El merchant desinstala la app",
+              "Fluxbot resetea estado de onboarding y marca tienda cancelada",
+              "El merchant reinstala y autoriza nuevamente",
+              "La app redirige al onboarding requerido sin quedar bloqueada"
+            ],
+            "expected_result": "Onboarding reaparece correctamente y la UI sigue navegable"
+          },
+          {
+            "id": "UC-REQ-OPEN-008-03",
+            "title": "Recuperacion de sesion expirada",
+            "actor": "Merchant",
+            "flow": [
+              "La sesion embebida expira",
+              "Shopify exige bounce /auth/session-token",
+              "Fluxbot genera shopify-reload limpio",
+              "Shopify/App Bridge devuelve al recurso original"
+            ],
+            "expected_result": "Recuperacion transparente sin loops ni pantalla de bloqueo"
+          }
+        ]
       }
     ],
     "documentation": [
