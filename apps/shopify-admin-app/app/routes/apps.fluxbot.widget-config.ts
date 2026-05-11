@@ -33,6 +33,23 @@ function preflight() {
   return new Response(null, { status: 204, headers: CORS_HEADERS });
 }
 
+function buildSafeWidgetBranding(adminLanguage: "es" | "en") {
+  const isEnglish = adminLanguage === "en";
+  return {
+    avatarStyle: "assistant" as const,
+    launcherLabel: isEnglish ? "Assistant" : "Asistente",
+    primaryColor: "#008060",
+    launcherPosition: "bottom-right" as const,
+    welcomeMessage: isEnglish
+      ? "Hi, I'm here to help with products, orders, and common questions."
+      : "Hola, estoy aqui para ayudarte con productos, pedidos y dudas frecuentes.",
+    botName: isEnglish ? "AI Assistant" : "Asistente IA",
+    botGoal: "SALES_SUPPORT" as const,
+    adminLanguage,
+    onboardingCompleted: false,
+  };
+}
+
 export async function loader({ request }: LoaderFunctionArgs) {
   if (!verifyShopifyProxyRequest(request, { allowUnsignedInDevelopment: true })) {
     return json({ error: "Unauthorized" }, { status: 401 });
@@ -58,9 +75,19 @@ export async function loader({ request }: LoaderFunctionArgs) {
   }
 
   const config = await getMerchantAdminConfig(shop.id);
+  const configVersion = config.updatedAt;
+
+  if (!config.onboardingCompleted) {
+    return json({
+      success: true,
+      configVersion,
+      widgetBranding: buildSafeWidgetBranding(config.adminLanguage),
+    });
+  }
 
   return json({
     success: true,
+    configVersion,
     widgetBranding: {
       avatarStyle: config.widgetBranding.avatarStyle,
       launcherLabel: config.widgetBranding.launcherLabel,
@@ -70,6 +97,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
       botName: config.botName,
       botGoal: config.botGoal,
       adminLanguage: config.adminLanguage,
+      onboardingCompleted: true,
     },
   });
 }

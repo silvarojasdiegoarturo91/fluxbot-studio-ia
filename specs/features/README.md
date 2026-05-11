@@ -15,3 +15,4 @@ This directory stores requirements grouped by feature folder.
 
 - `onboarding/`
 - `shop-lifecycle/`
+- `admin-storefront-config-sync/`

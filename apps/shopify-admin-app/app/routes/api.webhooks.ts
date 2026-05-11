@@ -33,6 +33,23 @@ function asRecord(value: unknown): Record<string, unknown> {
     : {};
 }
 
+function resetAdminSetupOnUninstall(metadata: unknown): Prisma.InputJsonValue {
+  const root = asRecord(metadata);
+  const adminSetup = asRecord(root.adminSetup);
+
+  const nextAdminSetup = {
+    ...adminSetup,
+    onboardingCompleted: false,
+    onboardingStep: 1,
+    updatedAt: new Date().toISOString(),
+  };
+
+  return {
+    ...root,
+    adminSetup: nextAdminSetup,
+  } as Prisma.InputJsonValue;
+}
+
 async function handleOrderPaid(shopId: string, payload: any): Promise<void> {
   const orderId = String(payload.id ?? "");
   const totalPrice = parseFloat(payload.total_price ?? "0");
@@ -83,15 +100,19 @@ async function handleOrderPaid(shopId: string, payload: any): Promise<void> {
 }
 
 async function handleAppUninstalled(shopId: string): Promise<void> {
-  await prisma.shop
-    .update({ 
-      where: { id: shopId }, 
-      data: { 
-        status: "CANCELLED",
-        onboardingCompletedAt: null,
-      } 
-    })
-    .catch(() => {});
+  const shop = await prisma.shop.findUnique({
+    where: { id: shopId },
+    select: { metadata: true },
+  });
+
+  await prisma.shop.update({
+    where: { id: shopId },
+    data: {
+      status: "CANCELLED",
+      onboardingCompletedAt: null,
+      metadata: resetAdminSetupOnUninstall(shop?.metadata),
+    },
+  });
   console.log("[Webhooks] Shop " + shopId + " uninstalled — marked CANCELLED and onboarding reset");
 }
 

@@ -324,6 +324,8 @@ describe("widget proxy routes", () => {
         metadata: {
           adminSetup: {
             adminLanguage: "es",
+            onboardingCompleted: true,
+            onboardingStep: 7,
             botName: "Flux Advisor",
             botGoal: "SALES_SUPPORT",
             welcomeMessage: "¡Hola! ¿En qué puedo ayudarte?",
@@ -360,6 +362,7 @@ describe("widget proxy routes", () => {
     });
     expect(data).toEqual({
       success: true,
+      configVersion: expect.any(String),
       widgetBranding: {
         launcherLabel: "Compra ahora",
         avatarStyle: "spark",
@@ -369,20 +372,36 @@ describe("widget proxy routes", () => {
         botName: "Flux Advisor",
         botGoal: "SALES_SUPPORT",
         adminLanguage: "es",
+        onboardingCompleted: true,
       },
     });
   });
 
-  it("falls back to safe launcher defaults when branding metadata is missing", async () => {
+  it("falls back to safe launcher defaults when onboarding is incomplete", async () => {
     // First call: from ensureShopRecord checking if it's a new/reinstall
     mockShopFindUnique.mockResolvedValueOnce({
       id: "shop-1",
       status: "ACTIVE",
     });
     // Second call: from getMerchantAdminConfig getting metadata
-    mockShopFindUnique.mockResolvedValueOnce({ metadata: {} });
+    mockShopFindUnique.mockResolvedValueOnce({
+      metadata: {
+        adminSetup: {
+          adminLanguage: "es",
+          onboardingCompleted: false,
+          onboardingStep: 2,
+          welcomeMessage: "Personalizado",
+          widgetBranding: {
+            launcherLabel: "Personalizado",
+            avatarStyle: "store",
+            primaryColor: "#ff0000",
+            launcherPosition: "bottom-left",
+          },
+        },
+      },
+    });
     mockChatbotConfigFindUnique.mockResolvedValue({
-      name: "Asistente IA",
+      name: "Bot Custom",
       tone: "friendly",
       language: "es",
     });
@@ -401,6 +420,7 @@ describe("widget proxy routes", () => {
 
     expect(data).toEqual({
       success: true,
+      configVersion: expect.any(String),
       widgetBranding: {
         launcherLabel: "Asistente",
         avatarStyle: "assistant",
@@ -410,6 +430,7 @@ describe("widget proxy routes", () => {
         botName: "Asistente IA",
         botGoal: "SALES_SUPPORT",
         adminLanguage: "es",
+        onboardingCompleted: false,
       },
     });
   });

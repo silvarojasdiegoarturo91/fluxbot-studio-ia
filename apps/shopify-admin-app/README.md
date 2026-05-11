@@ -231,6 +231,7 @@ Baseline examples:
 
 - `../../specs/features/onboarding/requirements.md`
 - `../../specs/features/shop-lifecycle/requirements.md`
+- `../../specs/features/admin-storefront-config-sync/requirements.md`
 
 Keep `STATUS_MATRIX.md` as canonical status source, and use feature folders for detailed capability requirements.
 
@@ -242,6 +243,7 @@ Keep `STATUS_MATRIX.md` as canonical status source, and use feature folders for 
 - Onboarding step 4 must describe only real behavior: clicking **Activate** saves onboarding config and triggers asynchronous **shop reference registration** (`/api/v1/shops/sync`). It must not claim catalog/policy sync if that specific process is not started in this step.
 - In the dashboard right after onboarding, the **Set up AI agent** area must include the **Entrenar IA** task card (with "Más información" and "Ir a configuración"), and this is where synchronization/training status is communicated.
 - If that synchronization/training was already executed, the same panel task must appear as completed (not pending), so merchants immediately see it as done.
+- Admin widget settings and storefront widget rendering must stay in parity: any admin change (for example brand color, launcher position, texts, icon/avatar style) must be reflected consistently in storefront output.
 
 ## Testing
 

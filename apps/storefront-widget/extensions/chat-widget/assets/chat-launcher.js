@@ -283,6 +283,7 @@
   var scrollDepthReported = {};
   var launcherLabelText = '';
   var launcherAvatarStyle = 'assistant';
+  var lastAppliedConfigVersion = '';
 
   // W6 — Rate limiting
   var msgTimestamps  = [];
@@ -492,6 +493,24 @@
   function applyRemoteWidgetConfig(config) {
     if (!config || typeof config !== 'object') return;
 
+    if (config.onboardingCompleted === false) {
+      launcherLabelText = '';
+      launcherAvatarStyle = 'assistant';
+      document.documentElement.style.setProperty('--fluxbot-primary-color', '#008060');
+      launcher.classList.remove('fluxbot-launcher--bottom-right', 'fluxbot-launcher--bottom-left');
+      launcher.classList.add('fluxbot-launcher--bottom-right');
+      applyLauncherPresentation();
+      return;
+    }
+
+    var configVersion = typeof config.configVersion === 'string' ? config.configVersion : '';
+    if (configVersion) {
+      if (lastAppliedConfigVersion && configVersion <= lastAppliedConfigVersion) {
+        return;
+      }
+      lastAppliedConfigVersion = configVersion;
+    }
+
     var nextLabel = sanitizeAttr(config.launcherLabel);
     launcherLabelText = nextLabel ? nextLabel.slice(0, 64) : '';
 
@@ -542,7 +561,10 @@
       })
       .then(function (payload) {
         if (!payload || payload.success !== true || !payload.widgetBranding) return;
-        applyRemoteWidgetConfig(payload.widgetBranding);
+        var mergedConfig = Object.assign({}, payload.widgetBranding, {
+          configVersion: payload.configVersion,
+        });
+        applyRemoteWidgetConfig(mergedConfig);
       })
       .catch(function () {});
   }
