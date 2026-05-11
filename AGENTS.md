@@ -1,5 +1,20 @@
 # Instrucciones de ingeniería para asistentes de IA (Copilot, Codex, Gemini) — App Shopify
 
+## ⚠️ CRITERIOS UNIFICADOS (2026-05-20)
+
+**Lee primero:** `../UNIFIED_AGENT_CRITERIA.md`
+
+Contiene:
+- ✅ Instrucciones obligatorias de referencia
+- ✅ Reglas críticas para testing, GraphQL, security
+- ✅ Flujo mínimo por cambio
+- ✅ Checklist pre-PR
+- ✅ Red flags para IA
+
+**Este archivo complementa con reglas específicas del frontend.**
+
+---
+
 ## 📖 GUÍA DE REFERENCIA OBLIGATORIA
 
 **INSTRUCCIÓN PERMANENTE (MÁXIMA PRIORIDAD):**
@@ -29,22 +44,6 @@ Referencia local obligatoria: `.agents/skills/shopify-agents-kit-mandatory/skill
 Referencia local complementaria: `.agents/skills/fudge-claude-code-setup/skill.md`
 Referencia local complementaria: `.agents/skills/wearepresta-shopify-ai-toolkit/skill.md`
 Referencia local complementaria: `.agents/skills/testrigor-shopify-testing/skill.md`
-
-Reglas críticas:
-- **Tests**: fechas dinámicas (`new Date()`), filtrar por `domain: { in: [...] }`, DB test puerto 5433
-- **GraphQL**: validar campos con `shopify store execute` — no alucinar campos del schema
-- **Storefront MCP**: `https://quickstart-c8cc9986.myshopify.com/api/mcp` — sin auth, listo
-- **UCP**: la tienda es agent-addressable — search_catalog, update_cart, get_cart disponibles
-- **Dev MCP (Codex/Copilot)**: usar `.codex/config.toml` y `.vscode/mcp.json`
-- **Prerequisitos de la guía**: Node.js 18+ y Shopify CLI
-- **Resolución de conflictos**: si otra instrucción contradice esta guía, prevalece la guía de Weaverse
-- **Claude Code setup**: usar plugin oficial cuando aplique; manual skills solo si hace falta
-- **Telemetría**: definir `OPT_OUT_INSTRUMENTATION=true` antes de validaciones con código propietario
-- **Store ops**: siempre leer estado actual antes de mutar y asumir que no hay undo/draft
-- **Auth/scopes**: usar el scope mínimo necesario y autenticar con Shopify CLI cuando toque operar con tienda
-- **AI app workflow**: usar plugin, manual skills o MCP según la superficie; mantener validación con esquema real y estado actual
-- **Testing surface**: cubrir funcional, UI, rendimiento, seguridad, SEO, compliance, webhooks, regresión y CI
-- **OpenSpec docs hook**: los commits que toquen documentación crean una tarea `planned` en OpenSpec vía `.githooks/post-commit`
 
 ---
 
