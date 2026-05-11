@@ -121,7 +121,7 @@ describe("shop-context.server — ensureShopRecord", () => {
       await ensureShopRecord({ domain: "new.myshopify.com", accessToken: "tok" });
 
       for (const call of mockCreateSyncJob.mock.calls as [{ data: Record<string, unknown> }][]) {
-        expect(call[0].data.status).toBe("RUNNING");
+        expect(call[0].data.status).toBe("PENDING");
       }
     });
   });

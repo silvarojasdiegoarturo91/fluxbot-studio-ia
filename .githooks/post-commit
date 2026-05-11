@@ -1,4 +1,12 @@
-#!/bin/sh
+#!/usr/bin/env sh
 set -eu
 
-node ./scripts/openspec-doc-hook.mjs post-commit
+branch="$(git rev-parse --abbrev-ref HEAD)"
+
+if [ "$branch" = "HEAD" ]; then
+  echo "[post-commit] Detached HEAD detected; skipping auto-push."
+  exit 0
+fi
+
+echo "[post-commit] Auto-pushing branch '$branch'..."
+git push --set-upstream origin "$branch"

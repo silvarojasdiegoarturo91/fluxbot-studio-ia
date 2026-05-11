@@ -16,6 +16,7 @@ import {
   type PolicyDocument,
   type PageDocument,
 } from "../services/sync-service.server";
+import { mergeProductAdminMetadata } from "../services/product-faqs.server";
 
 const ADMIN_API_VERSION = "2026-01";
 const PAGE_SIZE = 50;
@@ -96,6 +97,12 @@ async function fetchAllProducts(shopDomain: string, accessToken: string): Promis
             vendor
             productType
             handle
+            tags
+            collections(first: 10) {
+              nodes {
+                title
+              }
+            }
             variants(first: 20) {
               nodes {
                 id
@@ -158,6 +165,12 @@ async function fetchAllProducts(shopDomain: string, accessToken: string): Promis
       const imagesContainer = toObject(node.images);
       const imagesNodes = Array.isArray(imagesContainer.nodes) ? imagesContainer.nodes : [];
 
+      const collectionsContainer = toObject(node.collections);
+      const collectionsNodes = Array.isArray(collectionsContainer.nodes) ? collectionsContainer.nodes : [];
+      const collections = collectionsNodes.map((c: any) => String(toObject(c).title || "")).filter(Boolean);
+
+      const tags = Array.isArray(node.tags) ? node.tags.map(String).filter(Boolean) : [];
+
       products.push({
         id: productId,
         title: String(node.title || "Untitled"),
@@ -165,6 +178,8 @@ async function fetchAllProducts(shopDomain: string, accessToken: string): Promis
         vendor: String(node.vendor || ""),
         productType: String(node.productType || ""),
         handle: String(node.handle || ""),
+        collections,
+        tags,
         variants: variantsNodes.map((variantRaw: any) => {
           const variant = toObject(variantRaw);
           const variantId = String(
@@ -432,6 +447,17 @@ async function syncProducts(jobId: string, shopId: string, shopDomain: string, a
   const chunkCount = chunks.length > 0 ? await SyncService.ingestChunks(shopId, chunks) : 0;
 
   for (const product of products) {
+    // Fetch existing metadata to preserve FAQs already added
+    const existing = await prisma.productProjection.findUnique({
+      where: { shopId_productId: { shopId, productId: product.id } },
+      select: { metadata: true },
+    });
+
+    const updatedMetadata = mergeProductAdminMetadata(existing?.metadata ?? null, {
+      collections: product.collections,
+      tags: product.tags,
+    });
+
     await prisma.productProjection.upsert({
       where: {
         shopId_productId: {
@@ -449,7 +475,7 @@ async function syncProducts(jobId: string, shopId: string, shopDomain: string, a
         productType: product.productType,
         variants: product.variants,
         images: product.images,
-        metadata: { source: "sync-worker" },
+        metadata: updatedMetadata,
         syncedAt: new Date(),
       },
       update: {
@@ -460,7 +486,7 @@ async function syncProducts(jobId: string, shopId: string, shopDomain: string, a
         productType: product.productType,
         variants: product.variants,
         images: product.images,
-        metadata: { source: "sync-worker" },
+        metadata: updatedMetadata,
         deletedAt: null,
         syncedAt: new Date(),
       },

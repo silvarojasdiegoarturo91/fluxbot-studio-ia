@@ -42,6 +42,8 @@ export interface ProductDocument {
   variants: Array<{ id: string; title: string; sku: string; price: string }>;
   images: Array<{ id: string; url: string; altText: string }>;
   handle: string;
+  collections: string[];
+  tags: string[];
 }
 
 export interface PolicyDocument {
@@ -344,7 +346,7 @@ export class SyncService {
   }
 
   /**
-   * Create a sync job to track progress
+   * Create a sync job that is already running.
    */
   static async createSyncJob(shopId: string, type: SyncJobType, sourceCount: number) {
     return prisma.syncJob.create({
@@ -356,6 +358,22 @@ export class SyncService {
         processedItems: 0,
         totalItems: sourceCount,
         startedAt: new Date(),
+      },
+    });
+  }
+
+  /**
+   * Queue a sync job so the worker can claim it later.
+   */
+  static async queueSyncJob(shopId: string, type: SyncJobType, sourceCount: number) {
+    return prisma.syncJob.create({
+      data: {
+        shopId,
+        jobType: type,
+        status: "PENDING",
+        progress: 0,
+        processedItems: 0,
+        totalItems: sourceCount,
       },
     });
   }
@@ -491,6 +509,14 @@ function normalizeProduct(payload: Record<string, any>): ProductDocument {
     vendor: normalizeText(payload.vendor),
     productType: normalizeText(payload.product_type || payload.productType),
     handle: normalizeText(payload.handle),
+    collections: Array.isArray(payload.collections)
+      ? payload.collections.map((c: any) => normalizeText(typeof c === "string" ? c : c?.title)).filter(Boolean)
+      : [],
+    tags: Array.isArray(payload.tags)
+      ? payload.tags.map(String).filter(Boolean)
+      : typeof payload.tags === "string"
+        ? payload.tags.split(",").map((t: string) => t.trim()).filter(Boolean)
+        : [],
     variants: Array.isArray(payload.variants)
       ? payload.variants.map((v: any) => ({
           id: String(v.id || ""),

@@ -1,0 +1,65 @@
+#!/usr/bin/env sh
+set -eu
+
+echo ""
+echo "╔══════════════════════════════════════════════════════════════╗"
+echo "║              QA GATE — verificando antes de commit           ║"
+echo "╠══════════════════════════════════════════════════════════════╣"
+echo "║  1. OpenSpec requirements + user stories + conflictos        ║"
+echo "║  2. Build (detecta imports rotos y componentes faltantes)    ║"
+echo "║  3. Lint                                                     ║"
+echo "║  4. TypeCheck                                                ║"
+echo "║  5. Unit + integration tests                                 ║"
+echo "╚══════════════════════════════════════════════════════════════╝"
+echo ""
+
+fail() {
+  echo ""
+  echo "╔══════════════════════════════════════════════════════════════╗"
+  echo "║  ❌ QA GATE FALLIDO — commit bloqueado                      ║"
+  echo "║  Corrige los errores anteriores antes de hacer commit.      ║"
+  echo "╚══════════════════════════════════════════════════════════════╝"
+  exit 1
+}
+
+echo "→ [1/5] Validando requisitos OpenSpec..."
+npm run --silent openspec:validate:strict || { echo "❌ OpenSpec: requisitos inválidos o sin historia de usuario"; fail; }
+echo "✓ OpenSpec validado"
+
+# Si .openspec.json está en el staging area, verificar conflictos
+if git diff --cached --name-only | grep -q ".openspec.json"; then
+  echo "→ [1b] Verificando conflictos en OpenSpec (archivo modificado)..."
+  node ./scripts/check-openspec-conflicts.mjs
+  CONFLICT_EXIT=$?
+  if [ $CONFLICT_EXIT -eq 1 ]; then
+    echo "❌ Conflictos en OpenSpec: hay requisitos contradictorios."
+    echo "   Consulta la salida anterior y resuelve los conflictos antes de hacer commit."
+    fail
+  elif [ $CONFLICT_EXIT -eq 2 ]; then
+    echo "⚠️  Avisos en OpenSpec (posibles duplicados) — revisa si es intencional."
+  else
+    echo "✓ Sin conflictos en OpenSpec"
+  fi
+fi
+
+echo "→ [2/5] Build (react-router build)..."
+npm run --silent build || { echo "❌ Build fallido: hay imports rotos, componentes faltantes o errores de compilación"; fail; }
+echo "✓ Build OK"
+
+echo "→ [3/5] Lint..."
+npm run --silent lint || { echo "❌ Lint fallido: corrige los errores de estilo/calidad"; fail; }
+echo "✓ Lint OK"
+
+echo "→ [4/5] TypeCheck..."
+npm run --silent typecheck || { echo "❌ TypeCheck fallido: hay errores de tipos"; fail; }
+echo "✓ TypeCheck OK"
+
+echo "→ [5/5] Tests (unit + integration)..."
+npm --workspace @fluxbot/shopify-admin-app run test --silent || { echo "❌ Tests fallidos: hay tests rotos"; fail; }
+echo "✓ Tests OK"
+
+echo ""
+echo "╔══════════════════════════════════════════════════════════════╗"
+echo "║  ✅ QA GATE PASADO — procediendo con el commit              ║"
+echo "╚══════════════════════════════════════════════════════════════╝"
+echo ""

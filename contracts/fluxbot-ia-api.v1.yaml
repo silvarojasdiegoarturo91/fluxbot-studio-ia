@@ -1,0 +1,368 @@
+openapi: 3.0.3
+info:
+  title: FluxBot IA Shared API
+  version: 1.0.0
+  description: Contratos compartidos entre fluxbot-studio-ia y fluxbot-studio-back-ia
+servers:
+  - url: http://localhost:3001
+security:
+  - bearerAuth: []
+paths:
+  /api/v1/chat:
+    post:
+      summary: Process chat message
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatRequest'
+      responses:
+        '200':
+          description: Chat response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatEnvelope'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /api/v1/intent/analyze:
+    post:
+      summary: Analyze session intent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IntentAnalyzeRequest'
+      responses:
+        '200':
+          description: Intent analysis
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IntentAnalyzeEnvelope'
+  /api/v1/triggers/evaluate:
+    post:
+      summary: Evaluate proactive triggers
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TriggerEvaluateRequest'
+      responses:
+        '200':
+          description: Trigger evaluation result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TriggerEvaluateEnvelope'
+  /api/v1/embeddings/search:
+    post:
+      summary: Search relevant chunks by embedding vector
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmbeddingSearchRequest'
+      responses:
+        '200':
+          description: Search result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmbeddingSearchEnvelope'
+  /api/v1/llms-txt/generate:
+    post:
+      summary: Generate llms.txt content
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LlmsGenerateRequest'
+      responses:
+        '200':
+          description: llms.txt content
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LlmsGenerateEnvelope'
+  /api/v1/commerce/orders/{orderId}:
+    get:
+      summary: Lookup order by id
+      parameters:
+        - in: path
+          name: orderId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Order details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderEnvelope'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /api/v1/commerce/cart/add:
+    post:
+      summary: Add item to cart
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CartAddRequest'
+      responses:
+        '200':
+          description: Cart updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CartEnvelope'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+  schemas:
+    EnvelopeMeta:
+      type: object
+      properties:
+        requestId:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+      required: [requestId, timestamp]
+    ErrorBody:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+          additionalProperties: true
+      required: [code, message]
+    ErrorEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/EnvelopeMeta'
+        - type: object
+          properties:
+            error:
+              $ref: '#/components/schemas/ErrorBody'
+          required: [error]
+    ChatContext:
+      type: object
+      properties:
+        shopId:
+          type: string
+        locale:
+          type: string
+        channel:
+          type: string
+          enum: [WEB_CHAT, WHATSAPP, INSTAGRAM, EMAIL, SMS]
+        customerId:
+          type: string
+        visitorId:
+          type: string
+      required: [shopId]
+    ChatHistoryItem:
+      type: object
+      properties:
+        role:
+          type: string
+          enum: [user, assistant, system]
+        content:
+          type: string
+      required: [role, content]
+    ChatRequest:
+      type: object
+      properties:
+        message:
+          type: string
+        conversationId:
+          type: string
+        context:
+          $ref: '#/components/schemas/ChatContext'
+        history:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChatHistoryItem'
+      required: [message, context]
+    ChatData:
+      type: object
+      properties:
+        message:
+          type: string
+        conversationId:
+          type: string
+        confidence:
+          type: number
+        metadata:
+          type: object
+          additionalProperties: true
+      required: [message, conversationId]
+    ChatEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/EnvelopeMeta'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/ChatData'
+          required: [data]
+    IntentAnalyzeRequest:
+      type: object
+      properties:
+        sessionId:
+          type: string
+        visitorId:
+          type: string
+        context:
+          type: object
+          additionalProperties: true
+      required: [sessionId]
+    IntentAnalyzeEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/EnvelopeMeta'
+        - type: object
+          properties:
+            data:
+              type: object
+              additionalProperties: true
+          required: [data]
+    TriggerEvaluateRequest:
+      type: object
+      properties:
+        sessionId:
+          type: string
+        visitorId:
+          type: string
+        context:
+          type: object
+          additionalProperties: true
+      required: [sessionId, context]
+    TriggerEvaluateEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/EnvelopeMeta'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                evaluations:
+                  type: array
+                  items:
+                    type: object
+                    additionalProperties: true
+                recommendation:
+                  type: object
+                  nullable: true
+                  additionalProperties: true
+              required: [evaluations]
+          required: [data]
+    EmbeddingSearchRequest:
+      type: object
+      properties:
+        queryEmbedding:
+          type: array
+          minItems: 1
+          items:
+            type: number
+        options:
+          type: object
+          properties:
+            limit:
+              type: integer
+              minimum: 1
+              maximum: 100
+            threshold:
+              type: number
+              minimum: 0
+              maximum: 1
+            filter:
+              type: object
+              additionalProperties: true
+      required: [queryEmbedding]
+    EmbeddingSearchEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/EnvelopeMeta'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                results:
+                  type: array
+                  items:
+                    type: object
+                    additionalProperties: true
+              required: [results]
+          required: [data]
+    LlmsGenerateRequest:
+      type: object
+      additionalProperties: true
+    LlmsGenerateEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/EnvelopeMeta'
+        - type: object
+          properties:
+            data:
+              type: object
+              additionalProperties: true
+          required: [data]
+    CartAddRequest:
+      type: object
+      properties:
+        cartId:
+          type: string
+        lines:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            properties:
+              merchandiseId:
+                type: string
+              quantity:
+                type: integer
+                minimum: 1
+            required: [merchandiseId, quantity]
+      required: [cartId, lines]
+    CartEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/EnvelopeMeta'
+        - type: object
+          properties:
+            data:
+              type: object
+              additionalProperties: true
+          required: [data]
+    OrderEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/EnvelopeMeta'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                order:
+                  type: object
+                  additionalProperties: true
+              required: [order]
+          required: [data]

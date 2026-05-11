@@ -221,9 +221,23 @@ Current repo-local snapshot:
 - ✅ Phase 3: omnichannel bridge/callback operations, `llms.txt` publication, campaign CRUD/dispatch surfaces
 - ✅ Phase 4/5: enterprise compliance, regional deployment controls, legal holds, SIEM export/connectors
 
+## Feature-Folder Specifications
+
+Requirements can also be maintained per feature folder (front/shared), using:
+
+- `../../specs/features/<feature-slug>/requirements.md`
+
+Baseline examples:
+
+- `../../specs/features/onboarding/requirements.md`
+- `../../specs/features/shop-lifecycle/requirements.md`
+
+Keep `STATUS_MATRIX.md` as canonical status source, and use feature folders for detailed capability requirements.
+
 ## UX Requirements (pending)
 
 - After the merchant completes onboarding, the app must redirect automatically to the home dashboard (`/app`, i.e. "Panel"), while store synchronization starts in the background without blocking navigation.
+- If the merchant uninstalls and then reinstalls the app, onboarding is required again before returning to normal operation (the uninstall webhook resets onboarding state).
 - The dashboard shown after onboarding must explicitly display completed onboarding tasks (e.g., "X de Y tareas completadas") so progress is clear at first glance.
 - Onboarding step 4 must describe only real behavior: clicking **Activate** saves onboarding config and triggers asynchronous **shop reference registration** (`/api/v1/shops/sync`). It must not claim catalog/policy sync if that specific process is not started in this step.
 - In the dashboard right after onboarding, the **Set up AI agent** area must include the **Entrenar IA** task card (with "Más información" and "Ir a configuración"), and this is where synchronization/training status is communicated.

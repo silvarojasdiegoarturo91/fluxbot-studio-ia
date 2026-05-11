@@ -7,7 +7,7 @@
   ],
   "exclude": ["build/**"],
   "compilerOptions": {
-    "ignoreDeprecations": "5.0",
+    "ignoreDeprecations": "6.0",
     "lib": ["DOM", "DOM.Iterable", "ES2022"],
     "strict": true,
     "skipLibCheck": true,

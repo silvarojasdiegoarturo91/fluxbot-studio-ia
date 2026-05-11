@@ -56,7 +56,7 @@ export function extractShopContextFromSession(session: unknown): ShopContext | n
 async function queueInitialSyncJobs(shopId: string): Promise<void> {
   try {
     for (const jobType of INITIAL_SYNC_JOBS) {
-      await SyncService.createSyncJob(shopId, jobType, 0);
+      await SyncService.queueSyncJob(shopId, jobType, 0);
     }
   } catch (err) {
     // Non-fatal: scheduler will retry. Log and continue.

@@ -829,6 +829,39 @@ describe('SyncService', () => {
     });
   });
 
+  describe('queueSyncJob', () => {
+    it('should create a pending sync job', async () => {
+      vi.mocked(prisma.syncJob.create).mockResolvedValue({
+        id: 'job-2',
+        shopId: 'shop-123',
+        jobType: 'initial:pages',
+        status: 'PENDING',
+        progress: 0,
+        processedItems: 0,
+        totalItems: 0,
+        error: null,
+        startedAt: null,
+        completedAt: null,
+        createdAt: new Date('2026-03-10T10:00:00Z'),
+        updatedAt: new Date('2026-03-10T10:00:00Z'),
+      } as any);
+
+      const job = await SyncService.queueSyncJob('shop-123', 'initial:pages', 0);
+
+      expect(job.status).toBe('PENDING');
+      expect(prisma.syncJob.create).toHaveBeenCalledWith({
+        data: {
+          shopId: 'shop-123',
+          jobType: 'initial:pages',
+          status: 'PENDING',
+          progress: 0,
+          processedItems: 0,
+          totalItems: 0,
+        },
+      });
+    });
+  });
+
   describe('updateSyncJob', () => {
     it('should update job progress', async () => {
       vi.mocked(prisma.syncJob.update).mockResolvedValue({

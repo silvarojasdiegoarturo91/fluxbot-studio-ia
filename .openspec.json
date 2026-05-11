@@ -49,7 +49,8 @@
           "Shopify Admin GraphQL connection verified",
           "Required environment variables validated",
           "TypeScript build and project structure validated"
-        ]
+        ],
+        "user_story": "Como admin/merchant del panel de Fluxbot, quiero implementar Foundation regression contract (auth / navigation / env / build / Shopify connection) para core Phase 0 test suite that must remain green on every production change."
       },
       {
         "id": "REQ-P0-002",
@@ -68,7 +69,8 @@
           "No provider API keys (OpenAI, Anthropic, Gemini) in frontend .env",
           "IA_BACKEND_URL and IA_BACKEND_API_KEY are the only IA-related env vars",
           "Local fallback available via IA_EXECUTION_MODE=local for development only"
-        ]
+        ],
+        "user_story": "Como admin/merchant del panel de Fluxbot, quiero implementar Frontend configuration decoupled from provider secrets para config layer reads IA_BACKEND_URL / IA_BACKEND_API_KEY; provider API keys live only in backend repo."
       }
     ],
     "phase1": [
@@ -102,7 +104,8 @@
           "All admin pages render without errors",
           "OAuth flow completes and session is persisted",
           "Polaris layout applied consistently"
-        ]
+        ],
+        "user_story": "Como admin/merchant del panel de Fluxbot, quiero implementar Shopify embedded app shell + admin routes para full embedded admin with Polaris UI, App Bridge, OAuth and all admin pages."
       },
       {
         "id": "REQ-P1-002",
@@ -123,7 +126,8 @@
           "Contract tests validate request/response shapes",
           "Remote-first by default, local fallback for development",
           "Versioned endpoints (/api/v1/*) used consistently"
-        ]
+        ],
+        "user_story": "Como admin/merchant del panel de Fluxbot, quiero implementar HTTP gateway and contract toward fluxbot-studio-back-ia para typed client and server-side gateway that routes all IA calls to the backend repo over versioned /api/v1/* contracts."
       },
       {
         "id": "REQ-P1-003",
@@ -143,7 +147,8 @@
           "Chat route delegates to IAGateway, no direct LLM calls in frontend",
           "Backend orchestrates provider selection, retrieval and generation",
           "Guardrails applied in backend"
-        ]
+        ],
+        "user_story": "Como responsable del backend IA de Fluxbot, quiero implementar Chat orchestration and retrieval migrated to backend IA para api.chat.ts delegates to backend via gateway; no LLM calls in frontend."
       },
       {
         "id": "REQ-P1-004",
@@ -162,7 +167,8 @@
           "Order status returned for verified order reference",
           "No mutation of order data",
           "Route secured; PII not leaked"
-        ]
+        ],
+        "user_story": "Como admin/merchant del panel de Fluxbot, quiero implementar Order lookup — read-only commerce capability para customers can query order status; frontend owns the lookup, backend IA can invoke it as a tool."
       },
       {
         "id": "REQ-P1-005",
@@ -180,7 +186,8 @@
           "All migrations deployed",
           "shopId foreign key on all tenant-scoped models",
           "Prisma client generated and typed"
-        ]
+        ],
+        "user_story": "Como admin/merchant del panel de Fluxbot, quiero implementar PostgreSQL + Prisma ORM — multi-tenant schema para full schema deployed; all frontend entities with tenant isolation."
       }
     ],
     "phase2": [
@@ -202,7 +209,8 @@
           "Single and batch event endpoints working",
           "BehaviorEvent model persisted in DB",
           "Events forwarded as inputs to backend IA for analysis"
-        ]
+        ],
+        "user_story": "Como admin/merchant del panel de Fluxbot, quiero implementar Behavioral event capture and conversion signal storage para frontend captures browser events (dwell, scroll, exit intent, cart, product view) and stores them for analysis."
       },
       {
         "id": "REQ-P2-002",
@@ -229,7 +237,8 @@
           "Trigger evaluation delegates to /api/v1/triggers/*",
           "No local fallback — backend IA is required",
           "Contract tests pass"
-        ]
+        ],
+        "user_story": "Como responsable del backend IA de Fluxbot, quiero implementar Intent detection and trigger decisioning — migrated to backend IA para intent classification and trigger evaluation are remote-only; frontend only proxies via gateway."
       },
       {
         "id": "REQ-P2-003",
@@ -249,7 +258,8 @@
           "Cart add action validated and executed via Shopify Storefront API",
           "HandoffRequest record persisted with full conversation context",
           "Both routes secured and audited"
-        ]
+        ],
+        "user_story": "Como admin/merchant del panel de Fluxbot, quiero implementar Commerce execution layer (add-to-cart, handoff persistence) para frontend owns cart mutation and handoff record; backend IA can invoke these as tools."
       },
       {
         "id": "REQ-P2-004",
@@ -272,7 +282,8 @@
           "Proactive trigger evaluation proxied to backend",
           "Dispatch and frequency capping handled in frontend",
           "ProactiveMessage records persisted"
-        ]
+        ],
+        "user_story": "Como equipo de producto y plataforma de Fluxbot, quiero implementar Proactive messaging — decisioning in backend, dispatch in frontend para backend IA decides when and what to send; frontend dispatches and tracks cooldowns."
       },
       {
         "id": "REQ-P2-005",
@@ -296,7 +307,8 @@
           "RAG search uses /api/v1/rag/search with quality params",
           "Reranking strategy configurable per request",
           "Quality metadata returned and logged"
-        ]
+        ],
+        "user_story": "Como responsable del backend IA de Fluxbot, quiero implementar Advanced reranking and RAG quality pipeline para rAG search delegated to backend via versioned contract with quality params (minScore, rerankStrategy, topK)."
       }
     ],
     "phase3": [
@@ -320,7 +332,8 @@
           "DeadLetterCallback model captures failed deliveries",
           "OmnichannelCallbackReceipt persisted per delivery"
         ],
-        "next_step": "Add provider-specific onboarding (WhatsApp Business API, Instagram DM) and merchant controls in admin UI"
+        "next_step": "Add provider-specific onboarding (WhatsApp Business API, Instagram DM) and merchant controls in admin UI",
+        "user_story": "Como admin/merchant del panel de Fluxbot, quiero implementar Omnichannel delivery and callback operations para whatsApp, Instagram, SMS, Email delivery surfaces with callback handling."
       },
       {
         "id": "REQ-P3-002",
@@ -342,7 +355,8 @@
           "GET /llms.txt returns valid structured content",
           "Admin page shows generation status",
           "Backend generation contract stable and versioned"
-        ]
+        ],
+        "user_story": "Como equipo de producto y plataforma de Fluxbot, quiero implementar llms.txt generation and publication para backend generates structured llms.txt content; frontend publishes it at the public endpoint."
       },
       {
         "id": "REQ-P3-003",
@@ -367,7 +381,8 @@
           "Dispatch endpoint triggers proactive message delivery",
           "Localization service resolves templates by locale",
           "Backend emits campaignId in trigger recommendation payloads"
-        ]
+        ],
+        "user_story": "Como equipo de producto y plataforma de Fluxbot, quiero implementar Marketing automations and multilingual campaigns para campaign CRUD, dispatch and multilingual template resolution; backend IA emits campaign metadata in trigger payloads."
       }
     ],
     "phase4": [
@@ -398,7 +413,8 @@
           "BreachNotificationService tracks 72h reporting window",
           "RetentionEnforcementService deletes data beyond retention thresholds",
           "Scheduler job enforces retention policies periodically"
-        ]
+        ],
+        "user_story": "Como admin/merchant del panel de Fluxbot, quiero implementar Enterprise compliance and governance para data residency, regional deployment controls, retention enforcement, legal holds, breach notifications, RGPD audit trail."
       }
     ],
     "phase5": [
@@ -419,7 +435,8 @@
           "Legal hold and deployment policy endpoints operational",
           "Retention exclusions scoped per data class"
         ],
-        "next_step": "Integrate external SIEM adapters (Datadog/Splunk) and persist legal holds in DB"
+        "next_step": "Integrate external SIEM adapters (Datadog/Splunk) and persist legal holds in DB",
+        "user_story": "Como admin/merchant del panel de Fluxbot, quiero implementar Enterprise connector hardening (SIEM, legal hold workflow, regional deployment) para extended governance infrastructure for enterprise merchants."
       }
     ],
     "phase6": [
@@ -443,7 +460,8 @@
           "Local compatibility path only active with IA_EXECUTION_MODE=local",
           "Contract-first gateway tests passing",
           "SEPARATION_PLAN.md documents all migrated capabilities"
-        ]
+        ],
+        "user_story": "Como admin/merchant del panel de Fluxbot, quiero implementar Architecture separation closure para all IA logic routed through IAGateway; legacy local IA services preserved only as controlled fallback."
       }
     ],
     "phase7": [
@@ -467,7 +485,8 @@
           "Widget config served via App Proxy",
           "Storefront widget routes (apps.fluxbot.*) accessible"
         ],
-        "next_step": "Replace manual confirmation with automatic Theme App Embed verification via Shopify Admin API"
+        "next_step": "Replace manual confirmation with automatic Theme App Embed verification via Shopify Admin API",
+        "user_story": "Como admin/merchant del panel de Fluxbot, quiero implementar Storefront widget publication admin surface para admin UI for publishing and managing the storefront chat widget via Theme App Embed."
       }
     ],
     "phase8": [
@@ -491,7 +510,8 @@
           "Contract test validates request/response shape",
           "Local JSON fallback only when IA_EXECUTION_MODE=local"
         ],
-        "next_step": "Migrate storage from JSON embeddings to pgvector or ANN index for production-scale retrieval"
+        "next_step": "Migrate storage from JSON embeddings to pgvector or ANN index for production-scale retrieval",
+        "user_story": "Como equipo de producto y plataforma de Fluxbot, quiero implementar Remote vector retrieval contract (/api/v1/embeddings/search) para frontend vector retrieval service uses backend IA as remote-first with local JSON fallback for development."
       }
     ],
     "backend_ia": [
@@ -513,7 +533,8 @@
           "JWT auth middleware validates IA_BACKEND_API_KEY",
           "Rate limiting active",
           "Structured logs emitted via winston"
-        ]
+        ],
+        "user_story": "Como responsable del backend IA de Fluxbot, quiero implementar Express API server with authentication and rate limiting para backend IA entrypoint with JWT auth middleware, helmet, cors, rate limiter and structured logging."
       },
       {
         "id": "REQ-BACK-002",
@@ -531,7 +552,8 @@
           "POST /api/v1/chat accepts message + conversationId + context",
           "Provider selected based on AIProviderConfig for the shop",
           "Guardrails applied before response is returned"
-        ]
+        ],
+        "user_story": "Como responsable del backend IA de Fluxbot, quiero implementar LLM orchestration — provider-agnostic chat para orchestration service selects provider (OpenAI/Anthropic/Gemini), composes context and generates responses."
       },
       {
         "id": "REQ-BACK-003",
@@ -551,7 +573,8 @@
           "Quality params (minScore, rerankStrategy, topK) supported",
           "KnowledgeChunk and EmbeddingRecord models in DB",
           "POST /api/v1/embeddings/search for vector retrieval"
-        ]
+        ],
+        "user_story": "Como responsable del backend IA de Fluxbot, quiero implementar RAG — retrieval augmented generation pipeline para hybrid search with embeddings + metadata filters + optional reranking."
       },
       {
         "id": "REQ-BACK-004",
@@ -570,7 +593,8 @@
           "POST /api/v1/intent/analyze returns intent classification",
           "POST /api/v1/triggers/evaluate returns trigger recommendation",
           "IntentSignal and ProactiveTrigger persisted in DB"
-        ]
+        ],
+        "user_story": "Como responsable del backend IA de Fluxbot, quiero implementar Intent detection and trigger decisioning para intent classifier and proactive trigger evaluation fully owned by backend IA."
       },
       {
         "id": "REQ-BACK-005",
@@ -590,7 +614,8 @@
           "Knowledge graph routes available",
           "Commerce tool service returns structured product/policy data",
           "IA analytics (tokens, cost, latency) tracked per conversation"
-        ]
+        ],
+        "user_story": "Como responsable del backend IA de Fluxbot, quiero implementar Knowledge graph, commerce tools and analytics para knowledge graph for product relationships, commerce tool service and IA analytics tracking."
       },
       {
         "id": "REQ-BACK-006",
@@ -608,7 +633,8 @@
           "Shop reference created/updated on first sync from frontend",
           "AIProviderConfig managed per shop with encrypted API keys",
           "Provider selection respects per-shop config"
-        ]
+        ],
+        "user_story": "Como responsable del backend IA de Fluxbot, quiero implementar Shop reference sync and AI provider config management para backend maintains Shop reference table and per-shop AI provider configuration."
       },
       {
         "id": "REQ-BACK-007",
@@ -624,7 +650,8 @@
           "GET /api/v1/llms-txt/:shopId returns structured content",
           "Content includes product summaries, policies and FAQs",
           "Frontend publication route calls this endpoint"
-        ]
+        ],
+        "user_story": "Como responsable del backend IA de Fluxbot, quiero implementar llms.txt content generation para backend generates structured llms.txt content; frontend publishes it."
       },
       {
         "id": "REQ-BACK-008",
@@ -641,7 +668,8 @@
         "acceptance_criteria": [
           "Compliance route exposes data residency and governance APIs",
           "Omnichannel route supports multi-channel delivery decisions"
-        ]
+        ],
+        "user_story": "Como responsable del backend IA de Fluxbot, quiero implementar Enterprise compliance and omnichannel routes in backend para backend-side compliance checks and omnichannel delivery support."
       }
     ],
     "open_items": [
@@ -659,7 +687,8 @@
           "Widget works on Online Store 2.0 themes"
         ],
         "completed_date": "2026-04-09",
-        "evidence": "Extension registered in shopify.app.toml. CSS changed to non-render-blocking (print media trick). 25 new tests in widget-extension-config.test.ts. symlink architecture preserved (storefront-widget is canonical). Total suite: 56/56 files, 1011 tests."
+        "evidence": "Extension registered in shopify.app.toml. CSS changed to non-render-blocking (print media trick). 25 new tests in widget-extension-config.test.ts. symlink architecture preserved (storefront-widget is canonical). Total suite: 56/56 files, 1011 tests.",
+        "user_story": "Como admin/merchant del panel de Fluxbot, quiero implementar Storefront widget — Theme App Extension (real embed) para actual Liquid/JS storefront widget installable via Theme App Embed Block; currently only admin publish UI exists."
       },
       {
         "id": "REQ-OPEN-002",
@@ -693,7 +722,8 @@
           "Monorepo service packages expose shared types and contracts",
           "10 unit tests for ensureShopRecord passing"
         ],
-        "completed_date": "2026-04-09"
+        "completed_date": "2026-04-09",
+        "user_story": "Como admin/merchant del panel de Fluxbot, quiero implementar Product & catalog synchronization (initial + incremental) para webhook listeners and bulk sync jobs for products, variants, collections, pages, policies."
       },
       {
         "id": "REQ-OPEN-003",
@@ -715,7 +745,8 @@
           "fluxbot-studio-back-ia src/services/pgvector-search.ts: ANN + fallback + shopId isolation",
           "fluxbot-studio-back-ia src/routes/embeddings.ts: /search uses pgvectorSearchService",
           "fluxbot-studio-back-ia tests/unit/pgvector-search.test.ts: 17 tests, 49/49 suite"
-        ]
+        ],
+        "user_story": "Como responsable del backend IA de Fluxbot, quiero implementar Vector store upgrade to pgvector / ANN index para replace current JSON-based embedding store with pgvector for production-scale retrieval."
       },
       {
         "id": "REQ-OPEN-004",
@@ -736,7 +767,8 @@
           "test/integration/enterprise-compliance.test.ts: ComplianceSIEMExportService and RetentionEnforcementService scoped tests",
           "test/integration/enterprise-compliance-route.test.ts: route-level export_siem_ndjson tests",
           "1011/1011 tests passing"
-        ]
+        ],
+        "user_story": "Como admin/merchant del panel de Fluxbot, quiero implementar External SIEM adapter integration (Datadog / Splunk) para enterprise compliance SIEM export pipeline for audit events."
       },
       {
         "id": "REQ-OPEN-005",
@@ -754,7 +786,8 @@
           "Test passes in CI with DB available",
           "Or test mocked to not require a live DB"
         ],
-        "evidence": "Implemented in-memory Prisma mock (test/mocks/prisma-in-memory.ts). All 15 E2E tests pass. Total suite: 55/55 files, 986/986 tests."
+        "evidence": "Implemented in-memory Prisma mock (test/mocks/prisma-in-memory.ts). All 15 E2E tests pass. Total suite: 55/55 files, 986/986 tests.",
+        "user_story": "Como admin/merchant del panel de Fluxbot, quiero implementar Phase 1 E2E chat test (needs running PostgreSQL) para test/phase1/chat-e2e.test.ts currently fails when DB is not available."
       },
       {
         "id": "REQ-OPEN-006",
@@ -799,7 +832,8 @@
           "apps/shopify-admin-app/app/routes/app.onboarding.tsx: responsive progress card, safer step grid, wrapped action footer, and more guided copy",
           "apps/shopify-admin-app/app/routes/app._index.tsx: dashboard next-step guidance aligned with the updated admin language",
           "Validated with typecheck, targeted eslint, and existing @fluxbot/shopify-admin-app test suite"
-        ]
+        ],
+        "user_story": "Como admin/merchant del panel de Fluxbot, quiero implementar Frontend admin alignment with local UI/UX skills para apply the behavioral and visual characteristics defined in responsive-layout-guard, visual-consistency-review, admin-ui-ux, onboarding-flow, and implementation-rules across the Shopify admin frontend without breaking embedded navigation or form interactions."
       },
       {
         "id": "REQ-OPEN-007",
@@ -838,7 +872,8 @@
           "apps/shopify-admin-app/app/routes/app._index.tsx: dashboard now includes 'Set up AI agent' / 'Entrenar IA' card with sync/training status and completed-task counter",
           "apps/shopify-admin-app/app/routes/app._index.tsx: task card shows completed state when prior sync jobs are completed and running state when jobs are active",
           "apps/shopify-admin-app/app/services/shop-backend-sync.server.ts: onboarding completion path keeps async shop reference sync trigger"
-        ]
+        ],
+        "user_story": "Como admin/merchant del panel de Fluxbot, quiero implementar Post-onboarding redirect and completion visibility para once onboarding is completed, redirect merchants automatically to the home dashboard (/app, i.e. Panel) and run only the real background action for this step (shop reference registration). Onboarding copy must not claim catalog/policy sync unless that specific sync is triggered at this point; the dashboard must clearly show completed onboarding tasks."
       }
     ],
     "documentation": [
@@ -868,7 +903,8 @@
           "quality_score": 90,
           "completion_rate": 100,
           "velocity": 1
-        }
+        },
+        "user_story": "Como equipo de Fluxbot, quiero implementar Synchronize agent guidance documentation para keep all agent instructions and documentation links aligned across AGENTS, Claude, Copilot, Cursor, and OpenSpec."
       },
       {
         "id": "DOC-76404cc-2026-05-08T18-12-21-486Z",
@@ -1011,7 +1047,8 @@
           "quality_score": 90,
           "completion_rate": 0,
           "velocity": 1
-        }
+        },
+        "user_story": "Como equipo de Fluxbot, quiero implementar Review documentation update (60 files) para documentation changed in: .agents/skills/fudge-claude-code-setup/skill.md, .agents/skills/shopify-agents-kit-mandatory/skill.md, .agents/skills/testrigor-shopify-testing/skill.md, .agents/skills/wearepresta-shopify-ai-toolkit/skill.md, .claude/skills/shopify-admin/SKILL.md, .cursor/rules/shopify-ai-toolkit.mdc, .github/copilot-instructions.md, .github/skills/caveman/SKILL.md, .github/skills/diagnose/SKILL.md, .github/skills/grill-me/SKILL.md, .github/skills/grill-with-docs/ADR-FORMAT.md, .github/skills/grill-with-docs/CONTEXT-FORMAT.md, .github/skills/grill-with-docs/SKILL.md, .github/skills/improve-codebase-architecture/DEEPENING.md, .github/skills/improve-codebase-architecture/INTERFACE-DESIGN.md, .github/skills/improve-codebase-architecture/LANGUAGE.md, .github/skills/improve-codebase-architecture/SKILL.md, .github/skills/prototype/LOGIC.md, .github/skills/prototype/SKILL.md, .github/skills/prototype/UI.md, .github/skills/setup-matt-pocock-skills/SKILL.md, .github/skills/setup-matt-pocock-skills/domain.md, .github/skills/setup-matt-pocock-skills/issue-tracker-github.md, .github/skills/setup-matt-pocock-skills/issue-tracker-gitlab.md, .github/skills/setup-matt-pocock-skills/issue-tracker-local.md, .github/skills/setup-matt-pocock-skills/triage-labels.md, .github/skills/shopify-admin/SKILL.md, .github/skills/shopify-app-store-review/SKILL.md, .github/skills/shopify-custom-data/SKILL.md, .github/skills/shopify-customer/SKILL.md, .github/skills/shopify-dev/SKILL.md, .github/skills/shopify-functions/SKILL.md, .github/skills/shopify-hydrogen/SKILL.md, .github/skills/shopify-liquid/SKILL.md, .github/skills/shopify-onboarding-dev/SKILL.md, .github/skills/shopify-onboarding-merchant/SKILL.md, .github/skills/shopify-partner/SKILL.md, .github/skills/shopify-payments-apps/SKILL.md, .github/skills/shopify-polaris-admin-extensions/SKILL.md, .github/skills/shopify-polaris-app-home/SKILL.md, .github/skills/shopify-polaris-checkout-extensions/SKILL.md, .github/skills/shopify-polaris-customer-account-extensions/SKILL.md, .github/skills/shopify-pos-ui/SKILL.md, .github/skills/shopify-storefront-graphql/SKILL.md, .github/skills/shopify-use-shopify-cli/SKILL.md, .github/skills/tdd/SKILL.md, .github/skills/tdd/deep-modules.md, .github/skills/tdd/interface-design.md, .github/skills/tdd/mocking.md, .github/skills/tdd/refactoring.md, .github/skills/tdd/tests.md, .github/skills/to-issues/SKILL.md, .github/skills/to-prd/SKILL.md, .github/skills/triage/AGENT-BRIEF.md, .github/skills/triage/OUT-OF-SCOPE.md, .github/skills/triage/SKILL.md, .github/skills/write-a-skill/SKILL.md, .github/skills/zoom-out/SKILL.md, AGENTS.md, CLAUDE.md. Review and align agent instructions, references, and related docs."
       },
       {
         "id": "DOC-8bd8fe8-2026-05-08T20-10-25-121Z",
@@ -1036,7 +1073,8 @@
           "quality_score": 90,
           "completion_rate": 0,
           "velocity": 1
-        }
+        },
+        "user_story": "Como equipo de Fluxbot, quiero implementar Review documentation update (1 files) para documentation changed in: .junie/skills/shopify-admin/SKILL.md. Review and align agent instructions, references, and related docs."
       },
       {
         "id": "DOC-99c5abd-2026-05-08T21-08-39-086Z",
@@ -1061,7 +1099,8 @@
           "quality_score": 90,
           "completion_rate": 0,
           "velocity": 1
-        }
+        },
+        "user_story": "Como equipo de Fluxbot, quiero implementar Review documentation update (1 files) para documentation changed in: apps/shopify-admin-app/README.md. Review and align agent instructions, references, and related docs."
       },
       {
         "id": "DOC-6cb1b0c-2026-05-08T21-20-47-473Z",
@@ -1086,7 +1125,8 @@
           "quality_score": 90,
           "completion_rate": 0,
           "velocity": 1
-        }
+        },
+        "user_story": "Como equipo de Fluxbot, quiero implementar Review documentation update (1 files) para documentation changed in: apps/shopify-admin-app/README.md. Review and align agent instructions, references, and related docs."
       }
     ]
   }

@@ -81,6 +81,24 @@ const response = await iaClient.chat.send({
 }, shopDomain);
 ```
 
+### Regla de contratos compartidos (obligatoria)
+
+Este repo NO define el contrato HTTP con `fluxbot-studio-back-ia`.
+
+Fuente de verdad:
+
+- `contracts/fluxbot-ia-api.v1.yaml` (sincronizado desde `fluxbot-studio-contracts`)
+
+Antes de modificar llamadas a `/api/v1/*`:
+
+1. Ejecutar `npm run contracts:pull`.
+2. Leer contrato local actualizado.
+3. Si el cambio altera rutas, payloads o responses:
+   - no inventar contratos en este repo
+   - proponer primero el cambio en `fluxbot-studio-contracts`
+4. Usar tipos/cliente generados desde OpenAPI.
+5. No duplicar interfaces manuales "parecidas" al contrato.
+
 ### Variables de Entorno
 
 **Frontend** (`apps/shopify-admin-app/.env`):

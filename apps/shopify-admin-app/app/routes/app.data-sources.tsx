@@ -12,15 +12,22 @@ import {
   Select,
   TextField,
   Banner,
+  Checkbox,
+  Modal,
+  Popover,
+  ActionList,
+  InlineStack,
 } from "@shopify/polaris";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
-import { Form, useActionData, useLoaderData, useLocation, useNavigation } from "react-router";
-import { useEffect, useMemo, useState } from "react";
-import type { KnowledgeSourceType } from "@prisma/client";
+import { Form, useActionData, useLoaderData, useLocation, useNavigate, useNavigation, useSubmit } from "react-router";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import type { KnowledgeSourceType, Prisma } from "@prisma/client";
 import prisma from "../db.server";
 import { ensureShopForSession } from "../services/shop-context.server";
 import { authenticateAdminRequest } from "../utils/authenticate-admin.server";
 import { getMerchantAdminConfig } from "../services/admin-config.server";
+import { SyncService, type SyncJobType } from "../services/sync-service.server";
+import { appendProductFaq, getProductAdminMetadata, setProductDisabled } from "../services/product-faqs.server";
 import { useIsSpanish } from "../hooks/use-admin-language";
 import { AdminPageHeader, AdminSectionCard, AdminStatCard, AdminStatusBadge } from "../components/admin-ui";
 
@@ -28,6 +35,17 @@ interface DataSourcesActionData {
   ok: boolean;
   message?: string;
   error?: string;
+}
+
+interface ManagedProductRow {
+  id: string;
+  productId: string;
+  title: string;
+  handle: string;
+  collections: string[];
+  tags: string[];
+  disabled: boolean;
+  faqCount: number;
 }
 
 const SOURCE_TYPE_OPTIONS: Array<{ label: string; value: KnowledgeSourceType }> = [
@@ -39,6 +57,19 @@ const SOURCE_TYPE_OPTIONS: Array<{ label: string; value: KnowledgeSourceType }> 
   { label: "Custom", value: "CUSTOM" },
 ];
 
+const SYNC_JOB_TYPES: SyncJobType[] = [
+  "initial:catalog",
+  "initial:policies",
+  "initial:pages",
+  "delta:products",
+  "delta:policies",
+  "delta:pages",
+];
+
+function isSyncJobType(value: string): value is SyncJobType {
+  return SYNC_JOB_TYPES.includes(value as SyncJobType);
+}
+
 export async function loader({ request }: LoaderFunctionArgs) {
   const { session } = await authenticateAdminRequest(request);
   const shop = await ensureShopForSession(session);
@@ -47,7 +78,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     throw new Response("Shop not found", { status: 404 });
   }
 
-  const [sources, syncJobs, projectionCounts, runningSyncJobs, failedSyncJobs] = await Promise.all([
+  const [sources, syncJobs, projectionCounts, runningSyncJobs, failedSyncJobs, productRowsRaw] = await Promise.all([
     prisma.knowledgeSource.findMany({
       where: { shopId: shop.id },
       orderBy: { updatedAt: "desc" },
@@ -80,14 +111,41 @@ export async function loader({ request }: LoaderFunctionArgs) {
     ]),
     prisma.syncJob.count({ where: { shopId: shop.id, status: { in: ["PENDING", "RUNNING"] } } }),
     prisma.syncJob.count({ where: { shopId: shop.id, status: "FAILED" } }),
+    prisma.productProjection.findMany({
+      where: { shopId: shop.id, deletedAt: null },
+      orderBy: { title: "asc" },
+      select: {
+        id: true,
+        productId: true,
+        title: true,
+        handle: true,
+        metadata: true,
+      },
+      take: 100,
+    }),
   ]);
 
   const [productsProjected, policiesProjected, ordersProjected] = projectionCounts;
+
+  const productRows: ManagedProductRow[] = productRowsRaw.map((product) => {
+    const metadata = getProductAdminMetadata(product.metadata as Prisma.JsonValue | null | undefined);
+    return {
+      id: product.id,
+      productId: product.productId,
+      title: product.title,
+      handle: product.handle,
+      collections: metadata.collections,
+      tags: metadata.tags,
+      disabled: metadata.disabled,
+      faqCount: metadata.faqs.length,
+    };
+  });
 
   return {
     shop,
     sources,
     syncJobs,
+    productRows,
     runningSyncJobs,
     failedSyncJobs,
     projections: {
@@ -172,17 +230,61 @@ export async function action({ request }: ActionFunctionArgs): Promise<DataSourc
   if (intent === "queue_sync") {
     const jobType = String(formData.get("jobType") || "initial:catalog").trim();
 
-    await prisma.syncJob.create({
-      data: {
-        shopId: shop.id,
-        jobType,
-        status: "PENDING",
-        progress: 0,
-        processedItems: 0,
-      },
-    });
+    if (!isSyncJobType(jobType)) {
+      return { ok: false, error: isEs ? "Tipo de job de sync invalido" : "Invalid sync job type" };
+    }
+
+    await SyncService.queueSyncJob(shop.id, jobType, 0);
 
     return { ok: true, message: isEs ? `Job de sync en cola (${jobType}).` : `Sync job queued (${jobType}).` };
+  }
+
+  if (intent === "add_product_faq") {
+    const productProjectionId = String(formData.get("productProjectionId") || "").trim();
+    const category = String(formData.get("category") || "").trim();
+    const question = String(formData.get("question") || "").trim();
+    const answer = String(formData.get("answer") || "").trim();
+
+    if (!productProjectionId || !question || !answer) {
+      return {
+        ok: false,
+        error: isEs
+          ? "Producto, pregunta y respuesta son obligatorios."
+          : "Product, question, and answer are required.",
+      };
+    }
+
+    await appendProductFaq({
+      shopId: shop.id,
+      productProjectionId,
+      category,
+      question,
+      answer,
+    });
+
+    return {
+      ok: true,
+      message: isEs ? "Pregunta frecuente agregada." : "FAQ added.",
+    };
+  }
+
+  if (intent === "disable_product") {
+    const productProjectionId = String(formData.get("productProjectionId") || "").trim();
+
+    if (!productProjectionId) {
+      return { ok: false, error: isEs ? "Producto invalido." : "Invalid product." };
+    }
+
+    await setProductDisabled({
+      shopId: shop.id,
+      productProjectionId,
+      disabled: true,
+    });
+
+    return {
+      ok: true,
+      message: isEs ? "Producto deshabilitado." : "Product disabled.",
+    };
   }
 
   return { ok: false, error: isEs ? "Accion no soportada" : "Unsupported action" };
@@ -190,8 +292,10 @@ export async function action({ request }: ActionFunctionArgs): Promise<DataSourc
 
 export default function DataSourcesPage() {
   const location = useLocation();
+  const navigate = useNavigate();
+  const submit = useSubmit();
   const isEs = useIsSpanish();
-  const { sources, syncJobs, runningSyncJobs, failedSyncJobs, projections } = useLoaderData<typeof loader>();
+  const { sources, syncJobs, productRows, runningSyncJobs, failedSyncJobs, projections } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
   const backToDashboardUrl = `/app${location.search || ""}`;
@@ -200,13 +304,29 @@ export default function DataSourcesPage() {
   const [sourceName, setSourceName] = useState("");
   const [sourceEndpoint, setSourceEndpoint] = useState("");
   const [jobType, setJobType] = useState("initial:catalog");
+  const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
+  const [activeActionMenuProductId, setActiveActionMenuProductId] = useState<string | null>(null);
+  const [faqModalProduct, setFaqModalProduct] = useState<ManagedProductRow | null>(null);
+  const [disableModalProduct, setDisableModalProduct] = useState<ManagedProductRow | null>(null);
+  const [faqCategory, setFaqCategory] = useState("");
+  const [faqQuestion, setFaqQuestion] = useState("");
+  const [faqAnswer, setFaqAnswer] = useState("");
 
   useEffect(() => {
     if (actionData?.ok) {
       setSourceName("");
       setSourceEndpoint("");
+      setFaqModalProduct(null);
+      setDisableModalProduct(null);
+      setFaqCategory("");
+      setFaqQuestion("");
+      setFaqAnswer("");
     }
   }, [actionData]);
+
+  useEffect(() => {
+    setSelectedProductIds((current) => current.filter((id) => productRows.some((row) => row.id === id)));
+  }, [productRows]);
 
   const isSubmitting = navigation.state === "submitting";
   const activeSources = useMemo(() => sources.filter((source) => source.isActive).length, [sources]);
@@ -235,6 +355,104 @@ export default function DataSourcesPage() {
     job.createdAt ? new Date(job.createdAt).toLocaleString() : "-",
     job.completedAt ? new Date(job.completedAt).toLocaleString() : "-",
     job.errorMessage || "-",
+  ]);
+
+  const allProductsSelected = productRows.length > 0 && selectedProductIds.length === productRows.length;
+
+  const toggleSelectAllProducts = useCallback((checked: boolean) => {
+    setSelectedProductIds(checked ? productRows.map((product) => product.id) : []);
+  }, [productRows]);
+
+  const toggleProductSelection = useCallback((productId: string, checked: boolean) => {
+    setSelectedProductIds((current) => {
+      if (checked) {
+        if (current.includes(productId)) return current;
+        return [...current, productId];
+      }
+      return current.filter((id) => id !== productId);
+    });
+  }, []);
+
+  const openFaqManagementPage = useCallback((productProjectionId: string) => {
+    navigate(`/app/data-sources/products/${productProjectionId}/faq${location.search || ""}`);
+  }, [location.search, navigate]);
+
+  const openFaqModal = useCallback((product: ManagedProductRow) => {
+    setActiveActionMenuProductId(null);
+    setFaqModalProduct(product);
+  }, []);
+
+  const openDisableModal = useCallback((product: ManagedProductRow) => {
+    setActiveActionMenuProductId(null);
+    setDisableModalProduct(product);
+  }, []);
+
+  const submitAddFaq = useCallback(() => {
+    if (!faqModalProduct) return;
+    const formData = new FormData();
+    formData.append("intent", "add_product_faq");
+    formData.append("productProjectionId", faqModalProduct.id);
+    formData.append("category", faqCategory.trim());
+    formData.append("question", faqQuestion.trim());
+    formData.append("answer", faqAnswer.trim());
+    submit(formData, { method: "POST" });
+  }, [faqAnswer, faqCategory, faqModalProduct, faqQuestion, submit]);
+
+  const submitDisableProduct = useCallback(() => {
+    if (!disableModalProduct) return;
+    const formData = new FormData();
+    formData.append("intent", "disable_product");
+    formData.append("productProjectionId", disableModalProduct.id);
+    submit(formData, { method: "POST" });
+  }, [disableModalProduct, submit]);
+
+  const productRowsTable = productRows.map((product) => [
+    <Checkbox
+      key={`check-${product.id}`}
+      label=""
+      labelHidden
+      checked={selectedProductIds.includes(product.id)}
+      onChange={(checked) => toggleProductSelection(product.id, checked)}
+    />,
+    product.title,
+    product.collections.length > 0 ? product.collections.join(", ") : "-",
+    product.tags.length > 0 ? product.tags.join(", ") : "-",
+    product.disabled
+      ? <Badge tone="attention">{isEs ? "Deshabilitado" : "Disabled"}</Badge>
+      : <Badge tone="success">{isEs ? "Activo" : "Active"}</Badge>,
+    `${product.faqCount}`,
+    <Popover
+      key={`actions-${product.id}`}
+      active={activeActionMenuProductId === product.id}
+      activator={(
+        <Button
+          variant="plain"
+          onClick={() => setActiveActionMenuProductId((current) => current === product.id ? null : product.id)}
+          accessibilityLabel={isEs ? "Abrir acciones del producto" : "Open product actions"}
+        >
+          ...
+        </Button>
+      )}
+      onClose={() => setActiveActionMenuProductId(null)}
+    >
+      <ActionList
+        items={[
+          {
+            content: isEs ? "Agregar preguntas frecuentes" : "Add frequently asked questions",
+            onAction: () => openFaqModal(product),
+          },
+          {
+            content: isEs ? "Disable" : "Disable",
+            onAction: () => openDisableModal(product),
+            disabled: product.disabled,
+          },
+          {
+            content: isEs ? "Gestionar preguntas frecuentes" : "Manage frequently asked questions",
+            onAction: () => openFaqManagementPage(product.id),
+          },
+        ]}
+      />
+    </Popover>,
   ]);
 
   return (
@@ -271,6 +489,43 @@ export default function DataSourcesPage() {
             <AdminStatCard label={isEs ? "Sync jobs en ejecucion" : "Running sync jobs"} value={runningSyncJobs} />
             <AdminStatCard label={isEs ? "Sync jobs fallidos" : "Failed sync jobs"} value={failedSyncJobs} badge={<AdminStatusBadge tone={failedSyncJobs > 0 ? "warning" : "success"}>{failedSyncJobs > 0 ? (isEs ? "Revisar" : "Review") : "OK"}</AdminStatusBadge>} />
           </InlineGrid>
+        </Layout.Section>
+
+        <Layout.Section>
+          <AdminSectionCard
+            title={isEs ? "Productos aprendidos" : "Learned products"}
+            description={isEs
+              ? "Administra productos, estado y preguntas frecuentes para el agente IA."
+              : "Manage products, status, and frequently asked questions for the AI agent."}
+            badge={<AdminStatusBadge tone="info">{`${productRows.length} ${isEs ? "productos" : "products"}`}</AdminStatusBadge>}
+          >
+            {productRowsTable.length === 0 ? (
+              <EmptyState heading={isEs ? "No hay productos sincronizados" : "No synced products"} image="">
+                <Text as="p" variant="bodySm">
+                  {isEs
+                    ? "Ejecuta una sincronizacion de catalogo para gestionar preguntas frecuentes por producto."
+                    : "Run a catalog sync to manage product frequently asked questions."}
+                </Text>
+              </EmptyState>
+            ) : (
+              <BlockStack gap="300">
+                <InlineStack align="start">
+                  <Checkbox
+                    label={isEs ? "Seleccionar todos los productos" : "Select all products"}
+                    checked={allProductsSelected}
+                    onChange={toggleSelectAllProducts}
+                  />
+                </InlineStack>
+                <DataTable
+                  columnContentTypes={["text", "text", "text", "text", "text", "numeric", "text"]}
+                  headings={isEs
+                    ? ["Sel", "Producto", "Colecciones", "Etiquetas", "Estado", "Preguntas frecuentes", "Acciones"]
+                    : ["Sel", "Product", "Collections", "Tags", "Status", "FAQs", "Actions"]}
+                  rows={productRowsTable}
+                />
+              </BlockStack>
+            )}
+          </AdminSectionCard>
         </Layout.Section>
 
         <Layout.Section>
@@ -414,6 +669,80 @@ export default function DataSourcesPage() {
           </AdminSectionCard>
         </Layout.Section>
       </Layout>
+
+      <Modal
+        open={Boolean(faqModalProduct)}
+        onClose={() => setFaqModalProduct(null)}
+        title={isEs ? "Agregar preguntas frecuentes del producto" : "Add product frequently asked questions"}
+        primaryAction={{
+          content: isEs ? "Guardar" : "Save",
+          onAction: submitAddFaq,
+          disabled: faqQuestion.trim().length === 0 || faqAnswer.trim().length === 0 || isSubmitting,
+          loading: isSubmitting,
+        }}
+        secondaryActions={[{
+          content: isEs ? "Cancelar" : "Cancel",
+          onAction: () => setFaqModalProduct(null),
+        }]}
+      >
+        <Modal.Section>
+          <BlockStack gap="300">
+            <Text variant="bodySm" as="p">
+              {isEs
+                ? "Gestiona las preguntas frecuentes de tus productos."
+                : "Manage frequently asked questions for your products."}
+            </Text>
+            <Text variant="bodySm" as="p">
+              <strong>{faqModalProduct?.title || "-"}</strong>
+            </Text>
+            <TextField
+              label={isEs ? "Categoria" : "Category"}
+              value={faqCategory}
+              onChange={setFaqCategory}
+              autoComplete="off"
+              placeholder={isEs ? "ej. dimensiones, material, ensamblaje" : "e.g. dimensions, material, assembly"}
+            />
+            <TextField
+              label={isEs ? "Pregunta" : "Question"}
+              value={faqQuestion}
+              onChange={setFaqQuestion}
+              autoComplete="off"
+            />
+            <TextField
+              label={isEs ? "Responder" : "Answer"}
+              value={faqAnswer}
+              onChange={setFaqAnswer}
+              autoComplete="off"
+              multiline={5}
+              maxLength={1000}
+            />
+          </BlockStack>
+        </Modal.Section>
+      </Modal>
+
+      <Modal
+        open={Boolean(disableModalProduct)}
+        onClose={() => setDisableModalProduct(null)}
+        title={isEs ? "Deshabilitar producto aprendido" : "Disable learned product"}
+        primaryAction={{
+          content: isEs ? "Confirmar" : "Confirm",
+          tone: "critical",
+          onAction: submitDisableProduct,
+          loading: isSubmitting,
+        }}
+        secondaryActions={[{
+          content: isEs ? "Cancelar" : "Cancel",
+          onAction: () => setDisableModalProduct(null),
+        }]}
+      >
+        <Modal.Section>
+          <Text as="p" variant="bodySm">
+            {isEs
+              ? `¿Seguro que quieres deshabilitar "${disableModalProduct?.title || ""}" para el agente IA?`
+              : `Are you sure you want to disable "${disableModalProduct?.title || ""}" for the AI agent?`}
+          </Text>
+        </Modal.Section>
+      </Modal>
     </Page>
   );
 }

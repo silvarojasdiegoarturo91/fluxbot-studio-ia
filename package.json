@@ -30,7 +30,20 @@
     "openspec:trace": "node ./scripts/openspec-cli.mjs trace --bidirectional",
     "openspec:risks": "node ./scripts/openspec-cli.mjs risks",
     "openspec:metrics": "node ./scripts/openspec-cli.mjs metrics",
-    "openspec:watch": "node ./scripts/openspec-cli.mjs watch"
+    "openspec:watch": "node ./scripts/openspec-cli.mjs watch",
+    "openspec:validate:user-story": "node ./scripts/validate-openspec-user-story.mjs",
+    "openspec:validate:strict": "npm run openspec:validate && npm run openspec:validate:user-story",
+    "openspec:conflicts": "node ./scripts/check-openspec-conflicts.mjs",
+    "openspec:add-req": "node ./scripts/add-requirement.mjs",
+    "qa:verify": "node ./scripts/verify-feature.mjs",
+    "qa:gate": "npm run contracts:check && npm run openspec:validate:strict && npm run build && npm run lint && npm run typecheck && npm --workspace @fluxbot/shopify-admin-app run test",
+    "qa:gate:full": "npm run qa:gate && npm --workspace @fluxbot/shopify-admin-app run test:e2e:smoke:ci",
+    "qa:smoke": "npm --workspace @fluxbot/shopify-admin-app run test:e2e:smoke:ci",
+    "githooks:install": "git config core.hooksPath .githooks",
+    "contracts:pull": "node ./scripts/pull-contracts.mjs",
+    "contracts:check": "node ./scripts/check-contract-version.mjs",
+    "api:generate": "npx --yes @hey-api/openapi-ts@0.80.0 -i contracts/fluxbot-ia-api.v1.yaml -o apps/shopify-admin-app/app/generated/ia-api",
+    "api:sync": "npm run contracts:pull && npm run api:generate"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0"
