@@ -5,7 +5,7 @@
     "description": "Shopify AI Chatbot App — Conversational Commerce Platform",
     "owner": "Fluxbot Team",
     "status": "in-development",
-    "last_updated": "2026-05-08T21:20:47.473Z",
+    "last_updated": "2026-05-11T21:37:03.833Z",
     "source_of_truth": "STATUS_MATRIX.md",
     "repos": {
       "frontend": "fluxbot-studio-ia",
@@ -874,6 +874,38 @@
           "apps/shopify-admin-app/app/services/shop-backend-sync.server.ts: onboarding completion path keeps async shop reference sync trigger"
         ],
         "user_story": "Como admin/merchant del panel de Fluxbot, quiero implementar Post-onboarding redirect and completion visibility para once onboarding is completed, redirect merchants automatically to the home dashboard (/app, i.e. Panel) and run only the real background action for this step (shop reference registration). Onboarding copy must not claim catalog/policy sync unless that specific sync is triggered at this point; the dashboard must clearly show completed onboarding tasks."
+      },
+      {
+        "id": "REQ-OPEN-008",
+        "title": "Fix intermittent blank screen on 'Handling response' auth bounce",
+        "description": "When a session expires and Shopify requires a session-token bounce, the app must not get stuck on a white screen showing only 'Handling response'. Reauth redirects must always resolve back to /app or onboarding without nested bounce params.",
+        "priority": "high",
+        "status": "completed",
+        "owner": "frontend",
+        "components": [
+          "apps/shopify-admin-app/app/utils/authenticate-admin.server.ts",
+          "apps/shopify-admin-app/test/unit/authenticate-admin.server.test.ts"
+        ],
+        "acceptance_criteria": [
+          "Session-token bounce redirects remove stale id_token and previous shopify-reload before building a new bounce URL",
+          "Generated shopify-reload points to the real app route and never contains nested shopify-reload recursion",
+          "Document requests with expired sessions recover to a usable app route instead of staying in a permanent handling screen",
+          "Unit tests cover normal bounce creation and stale shopify-reload recovery scenarios"
+        ],
+        "dependencies": [
+          "REQ-P1-001"
+        ],
+        "metrics": {
+          "quality_score": 93,
+          "completion_rate": 100,
+          "velocity": 1
+        },
+        "completed_date": "2026-05-11",
+        "evidence": [
+          "authenticate-admin.server.ts now deletes shopify-reload before constructing /auth/session-token redirect",
+          "authenticate-admin.server.test.ts adds regression test that prevents nested shopify-reload recursion and validates clean bounce URL"
+        ],
+        "user_story": "Como merchant de Shopify usando Fluxbot, quiero que la app recupere mi sesion sin quedarse en 'Handling response', para poder volver al panel sin pantalla en blanco."
       }
     ],
     "documentation": [

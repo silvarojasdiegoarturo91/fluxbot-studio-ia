@@ -95,6 +95,7 @@ export function isShopifyReauthResponse(error: Response) {
 export function buildSessionTokenBounceRedirectPath(requestUrl: URL) {
   const searchParams = new URLSearchParams(requestUrl.search);
   searchParams.delete("id_token");
+  searchParams.delete("shopify-reload");
 
   const appUrl = process.env.SHOPIFY_APP_URL || requestUrl.origin;
   const reloadUrl = new URL(requestUrl.pathname, appUrl);
