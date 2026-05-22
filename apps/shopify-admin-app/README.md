@@ -112,7 +112,7 @@ Commands `npm run dev`, `npm run dev:ngrok`, `npm run dev:localhost`, and `npm r
 - `shopify.app.toml` is not the local app
 - `SHOPIFY_API_KEY` does not match the local app client ID
 
-Use a separate production workspace/config for the production app (`fluxbot-studio-ia`) to avoid cross-deploys.
+Use a separate production workspace/config for the production app (`fluxbot-studio-ia-shopify`) to avoid cross-deploys.
 
 ### Dedicated Shopify app for CI
 
@@ -283,8 +283,8 @@ npm run deploy
 npm run setup && npm start
 
 # Or use Docker
-docker build -t fluxbot-studio-ia .
-docker run -p 3000:3000 --env-file .env fluxbot-studio-ia
+docker build -t fluxbot-studio-ia-shopify .
+docker run -p 3000:3000 --env-file .env fluxbot-studio-ia-shopify
 \`\`\`
 
 ## Troubleshooting

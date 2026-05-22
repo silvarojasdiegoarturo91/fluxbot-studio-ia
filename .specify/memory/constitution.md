@@ -3,7 +3,7 @@
 ## Core Principles
 
 ### I. Separated Architecture (NON-NEGOTIABLE)
-This repository (`fluxbot-studio-ia`) owns **only** the Shopify frontend layer: embedded admin app, storefront widget, Shopify data projections, compliance, and sync pipelines. All LLM orchestration, embeddings, RAG, and intent detection live in the separate backend repo (`fluxbot-studio-back-ia`). No provider API keys (OpenAI, Anthropic, Gemini) ever enter this repo. Communication is exclusively via `IAGateway` HTTP client pointing to `IA_BACKEND_URL`.
+This repository (`fluxbot-studio-ia-shopify`) owns **only** the Shopify frontend layer: embedded admin app, storefront widget, Shopify data projections, compliance, and sync pipelines. All LLM orchestration, embeddings, RAG, and intent detection live in the separate backend repo (`fluxbot-studio-back-ia`). No provider API keys (OpenAI, Anthropic, Gemini) ever enter this repo. Communication is exclusively via `IAGateway` HTTP client pointing to `IA_BACKEND_URL`.
 
 ### II. Shopify-First Platform Integration
 All Shopify data access goes through Admin GraphQL API with an explicit versioned client. Theme App Extensions / App Embed Blocks are the required mechanism for storefront integration — script tags are explicitly forbidden as a primary approach. Webhooks drive all incremental sync. Bulk operations are used when catalog volume justifies it.

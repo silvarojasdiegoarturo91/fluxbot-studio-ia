@@ -8,7 +8,7 @@
     "last_updated": "2026-05-11T21:37:03.833Z",
     "source_of_truth": "STATUS_MATRIX.md",
     "repos": {
-      "frontend": "fluxbot-studio-ia",
+      "frontend": "fluxbot-studio-ia-shopify",
       "backend_ia": "fluxbot-studio-back-ia"
     },
     "test_snapshot": {

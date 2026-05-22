@@ -2,10 +2,10 @@
 
 Last updated: 2026-03-14
 
-This is the only source of truth for implementation status in `fluxbot-studio-ia`.
+This is the only source of truth for implementation status in `fluxbot-studio-ia-shopify`.
 
 Important scope rule:
-- This matrix now reflects the separated architecture between `fluxbot-studio-ia` and `fluxbot-studio-back-ia`.
+- This matrix now reflects the separated architecture between `fluxbot-studio-ia-shopify` and `fluxbot-studio-back-ia`.
 - When a capability is owned by `fluxbot-studio-back-ia`, the status here refers to the migration and integration state from the frontend repo, not the global completion of the backend repo.
 
 Rules:
@@ -24,7 +24,7 @@ Documentation audit snapshot (2026-03-14):
 
 ## Ownership Model
 
-Frontend repo (`fluxbot-studio-ia`) owns:
+Frontend repo (`fluxbot-studio-ia-shopify`) owns:
 - Shopify OAuth, sessions, Admin GraphQL integration
 - Embedded admin UI and storefront delivery surfaces
 - Shopify projections (`ProductProjection`, `PolicyProjection`, `OrderProjection`)
@@ -41,7 +41,7 @@ Backend repo (`fluxbot-studio-back-ia`) owns:
 
 ## Matrix
 
-| Phase | Capability | Final owner | Current runtime in this repo | Status in `fluxbot-studio-ia` | Evidence | Next step |
+| Phase | Capability | Final owner | Current runtime in this repo | Status in `fluxbot-studio-ia-shopify` | Evidence | Next step |
 | --- | --- | --- | --- | --- | --- | --- |
 | Phase 0 | Foundation regression contract (auth/navigation/env/build/shopify connection) | Frontend | Frontend | DONE | `apps/shopify-admin-app/test/phase0/` | Keep green on every production change with `npm test` |
 | Phase 0 | Frontend configuration decoupled from provider secrets | Frontend | Remote by default, local fallback | DONE | `apps/shopify-admin-app/app/config.server.ts`, `apps/shopify-admin-app/.env.example`, `apps/shopify-admin-app/test/unit/config-execution.test.ts` | Keep provider keys only for explicit `IA_EXECUTION_MODE=local` workflows |

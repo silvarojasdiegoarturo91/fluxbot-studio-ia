@@ -4,7 +4,7 @@
 
 Definir una especificacion tecnica unica para mantener y cerrar correctamente la separacion entre:
 
-- `fluxbot-studio-ia` (frontend Shopify + dominio Shopify/compliance)
+- `fluxbot-studio-ia-shopify` (frontend Shopify + dominio Shopify/compliance)
 - `fluxbot-studio-back-ia` (backend IA + orquestacion LLM + RAG + embeddings)
 
 Esta version reemplaza la version previa (2026-03-10) con una auditoria actualizada al estado real del codigo en 2026-03-14.
@@ -13,7 +13,7 @@ Esta version reemplaza la version previa (2026-03-10) con una auditoria actualiz
 
 ## 2. Resultado de Auditoria (2026-03-14)
 
-### 2.1 Hallazgos verificados en `fluxbot-studio-ia`
+### 2.1 Hallazgos verificados en `fluxbot-studio-ia-shopify`
 
 1. Existe capa gateway remota y versionada:
 - `apps/shopify-admin-app/app/services/ia-backend.server.ts`
@@ -85,7 +85,7 @@ Bloqueos operativos actuales:
 
 ## 5. Arquitectura Objetivo
 
-### 5.1 Frontend (`fluxbot-studio-ia`)
+### 5.1 Frontend (`fluxbot-studio-ia-shopify`)
 
 Responsable de:
 
@@ -323,7 +323,7 @@ Tras cambios de codigo de produccion frontend:
 
 ## 15. Checklist de Ejecucion (auditado)
 
-### Frontend (`fluxbot-studio-ia`)
+### Frontend (`fluxbot-studio-ia-shopify`)
 
 - [x] Introducir `IAGateway` y feature flags de migracion
 - [x] Migrar `api.chat.ts` a gateway remoto

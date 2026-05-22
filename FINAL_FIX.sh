@@ -16,7 +16,7 @@ echo "  ✓ KnowledgeDocument ya tiene @@unique([sourceId, externalId])"
 echo "  ✓ KnowledgeChunk ya tiene @@unique([documentId, sequence])"
 echo ""
 
-cd /home/diegos/Documents/fluxbot-studio-ia
+cd /home/diegos/Documents/fluxbot-studio-ia-shopify
 
 # Paso 1: Renombrar tabla session (si no está ya)
 echo "1/5 - Verificando tabla 'session'..."

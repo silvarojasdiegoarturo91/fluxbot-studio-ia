@@ -51,7 +51,7 @@ model KnowledgeChunk {
 ### Ejecutar AHORA en un terminal nuevo:
 
 ```bash
-cd /home/diegos/Documents/fluxbot-studio-ia
+cd /home/diegos/Documents/fluxbot-studio-ia-shopify
 bash FINAL_FIX.sh
 ```
 
@@ -101,7 +101,7 @@ Este script hará:
 
 ## 📝 Archivos Modificados
 
-- `/home/diegos/Documents/fluxbot-studio-ia/infra/prisma/schema.prisma`
+- `/home/diegos/Documents/fluxbot-studio-ia-shopify/infra/prisma/schema.prisma`
   - Línea ~378: PolicyProjection + campo `data`
   - Línea ~393: OrderProjection + campo `data`
 

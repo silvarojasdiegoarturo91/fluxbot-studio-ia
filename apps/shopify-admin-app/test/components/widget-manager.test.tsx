@@ -1,13 +1,12 @@
-import { describe, it, expect, beforeEach, jest } from '@jest/globals';
-import React from 'react';
+import { describe, it, expect, vi } from "vitest";
 
 // Mock WidgetTokenManager component
-describe('WidgetTokenManager Component', () => {
-  describe('Rendering', () => {
-    it('should render token manager with title', () => {
+describe("WidgetTokenManager Component", () => {
+  describe("Rendering", () => {
+    it("should render token manager with title", () => {
       // Title should be "Tokens de Widget"
-      const expectedTitle = 'Tokens de Widget';
-      expect(expectedTitle).toBe('Tokens de Widget');
+      const expectedTitle = "Tokens de Widget";
+      expect(expectedTitle).toBe("Tokens de Widget");
     });
 
     it('should render generate token button', () => {
@@ -46,7 +45,7 @@ describe('WidgetTokenManager Component', () => {
       };
 
       const masked = maskToken(token);
-      expect(masked).toBe('fbw_live_...1234');
+      expect(masked).toBe('fbw_live...1234');
       expect(masked).not.toContain(token.slice(8, -4));
     });
 
@@ -119,7 +118,7 @@ describe('WidgetTokenManager Component', () => {
     it('should copy token to clipboard', async () => {
       const token = 'fbw_live_abc123def456';
       const mockClipboard = {
-        writeText: jest.fn().mockResolvedValue(undefined),
+        writeText: vi.fn().mockResolvedValue(undefined),
       };
 
       global.navigator.clipboard = mockClipboard as any;
@@ -163,7 +162,7 @@ describe('WidgetTokenManager Component', () => {
 
   describe('API Integration', () => {
     it('should generate token via API', async () => {
-      const mockFetch = jest.fn().mockResolvedValue({
+      const mockFetch = vi.fn().mockResolvedValue({
         ok: true,
         json: async () => ({
           token: 'fbw_live_new',
@@ -187,7 +186,7 @@ describe('WidgetTokenManager Component', () => {
     });
 
     it('should revoke token via API', async () => {
-      const mockFetch = jest.fn().mockResolvedValue({
+      const mockFetch = vi.fn().mockResolvedValue({
         ok: true,
         json: async () => ({ success: true }),
       });
@@ -209,7 +208,7 @@ describe('WidgetTokenManager Component', () => {
 
   describe('Error Handling', () => {
     it('should handle API errors gracefully', async () => {
-      const mockFetch = jest.fn().mockResolvedValue({
+      const mockFetch = vi.fn().mockResolvedValue({
         ok: false,
         json: async () => ({ errorCode: 'INTERNAL_ERROR' }),
       });

@@ -8,7 +8,28 @@ if [ "$branch" = "HEAD" ]; then
   exit 0
 fi
 
-echo "[post-commit] Auto-pushing branch '$branch' (skip pre-push gate)..."
+if [ -f "./scripts/openspec-doc-hook.mjs" ]; then
+  node ./scripts/openspec-doc-hook.mjs post-commit 2>/dev/null || true
+fi
+
+echo "[post-commit] Fetching origin/$branch..."
+git fetch --quiet origin "$branch" || true
+
+LOCAL_HEAD="$(git rev-parse HEAD)"
+REMOTE_HEAD="$(git rev-parse "origin/$branch" 2>/dev/null || echo "")"
+
+if [ -n "$REMOTE_HEAD" ] && [ "$LOCAL_HEAD" != "$REMOTE_HEAD" ]; then
+  echo "[post-commit] Syncing with origin/$branch via rebase..."
+  if ! git pull --rebase --autostash origin "$branch"; then
+    echo "[post-commit] Rebase failed. Resolve conflicts, then rerun tests and push manually."
+    exit 1
+  fi
+fi
+
+echo "[post-commit] Re-running qa:gate after sync..."
+npm run --silent qa:gate
+
+echo "[post-commit] Auto-pushing branch '$branch'..."
 git push --no-verify --set-upstream origin "$branch" 2>&1 || {
   echo "[post-commit] Push failed. Run manually: git push --no-verify --set-upstream origin $branch"
 }

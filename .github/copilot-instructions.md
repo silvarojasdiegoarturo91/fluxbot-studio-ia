@@ -53,7 +53,7 @@ Este proyecto utiliza una **arquitectura separada** entre frontend y backend de 
 
 ### Repositorios
 
-1. **fluxbot-studio-ia** (este repositorio)
+1. **fluxbot-studio-ia-shopify** (este repositorio)
    - Frontend: App de Admin Shopify
    - UI: Shopify Polaris + React
    - Base de datos: PostgreSQL (solo datos de Shopify)

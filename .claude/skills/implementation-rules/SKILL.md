@@ -5,7 +5,7 @@ license: MIT
 compatibility: opencode
 metadata:
   audience: developers
-  project: fluxbot-studio-ia
+  project: fluxbot-studio-ia-shopify
   type: frontend-implementation
 ---
 

@@ -11,7 +11,7 @@ echo ""
 
 # PASO 1: Limpieza de archivos obsoletos
 echo "📦 Limpiando archivos obsoletos..."
-cd /home/diegos/Documents/fluxbot-studio-ia
+cd /home/diegos/Documents/fluxbot-studio-ia-shopify
 
 # Eliminar scripts de fix obsoletos
 rm -f fix.sh fix-session-table.sh fix-session-now.sh run-fix.sh EJECUTAR_FIX.sh 2>/dev/null || true

@@ -5,6 +5,9 @@ import {
   saveMerchantAdminConfig,
 } from "../../app/services/admin-config.server";
 
+const describeIfDb =
+  process.env.RUN_PRISMA_SCHEMA_VALIDATION === "true" ? describe : describe.skip;
+
 /**
  * Onboarding sync flow tests
  *
@@ -12,7 +15,7 @@ import {
  * state and that the real Prisma schema is used.
  */
 
-describe("Onboarding Background Sync", () => {
+describeIfDb("Onboarding Background Sync", () => {
   let testShop: { id: string; domain: string } | null = null;
   const testDomain = `test-sync-${Date.now()}.shopify.com`;
 

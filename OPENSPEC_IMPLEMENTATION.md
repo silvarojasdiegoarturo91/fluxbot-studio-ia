@@ -227,7 +227,7 @@ npm run openspec:trace
 ## 📂 Estructura Final del Proyecto
 
 ```
-/home/diegos/Documents/fluxbot-studio-ia/
+/home/diegos/Documents/fluxbot-studio-ia-shopify/
 ├── .openspec.json                 ← Especificación (CRITICAL)
 ├── openspec.config.js            ← Configuración
 ├── OPENSPEC_INDEX.md             ← Índice (LEER PRIMERO)

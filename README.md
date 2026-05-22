@@ -25,7 +25,7 @@ La documentacion historica/completada fue centralizada en `documentation/`.
 ## 🏗 Estructura del Proyecto
 
 ```
-/home/diegos/Documents/fluxbot-studio-ia/
+/home/diegos/Documents/fluxbot-studio-ia-shopify/
 ├── shopify-admin-app/          # Aplicación embebida de Shopify (Remix + Polaris)
 ├── storefront-widget/          # Widget de chat para storefront (Theme Extension)
 ├── services/                   # Servicios del backend

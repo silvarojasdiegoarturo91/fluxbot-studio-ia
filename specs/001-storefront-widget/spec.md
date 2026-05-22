@@ -5,7 +5,7 @@
 **Created**: 2026-04-09  
 **Status**: Draft  
 **Priority**: High  
-**Owner**: Frontend (`fluxbot-studio-ia`)
+**Owner**: Frontend (`fluxbot-studio-ia-shopify`)
 
 ## Context
 

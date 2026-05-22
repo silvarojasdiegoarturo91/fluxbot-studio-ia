@@ -2,7 +2,7 @@ openapi: 3.0.3
 info:
   title: FluxBot IA Shared API
   version: 1.0.0
-  description: Contratos compartidos entre fluxbot-studio-ia y fluxbot-studio-back-ia
+  description: Contratos compartidos entre fluxbot-studio-ia-shopify y fluxbot-studio-back-ia
 servers:
   - url: http://localhost:3001
 security:

@@ -5,7 +5,10 @@ import {
   saveMerchantAdminConfig,
 } from "../../app/services/admin-config.server";
 
-describe("4-Step Onboarding Flow", () => {
+const describeIfDb =
+  process.env.RUN_PRISMA_SCHEMA_VALIDATION === "true" ? describe : describe.skip;
+
+describeIfDb("4-Step Onboarding Flow", () => {
   let testShop: { id: string; domain: string } | null = null;
   const testDomain = `test-4step-${Date.now()}.shopify.com`;
 

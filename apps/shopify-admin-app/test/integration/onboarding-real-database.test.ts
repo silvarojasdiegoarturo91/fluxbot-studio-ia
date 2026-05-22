@@ -1,13 +1,16 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import prisma from "../../app/db.server";
 
+const describeIfDb =
+  process.env.RUN_PRISMA_SCHEMA_VALIDATION === "true" ? describe : describe.skip;
+
 /**
  * Comprehensive Integration Tests with Real Database
  * Tests all onboarding features against PostgreSQL database
  * Run with: ./scripts/test-db.sh start && npm run test
  */
 
-describe("Onboarding - Integration Tests (Real Database)", () => {
+describeIfDb("Onboarding - Integration Tests (Real Database)", () => {
   let testShop: any;
 
   beforeAll(async () => {

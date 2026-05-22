@@ -1,6 +1,9 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import prisma from "../../app/db.server";
 
+const describeIfDb =
+  process.env.RUN_PRISMA_SCHEMA_VALIDATION === "true" ? describe : describe.skip;
+
 /**
  * Schema Validation Tests
  * 
@@ -11,7 +14,7 @@ import prisma from "../../app/db.server";
  * 4. Onboarding-related operations work correctly
  */
 
-describe("Prisma Schema Validation", () => {
+describeIfDb("Prisma Schema Validation", () => {
   describe("Shop Model Schema", () => {
     it("should have onboardingCompletedAt field", async () => {
       // This test validates that the field exists by attempting a query

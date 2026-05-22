@@ -15,6 +15,17 @@ Contiene:
 
 ---
 
+## 🔁 Regla Git automática obligatoria
+
+Este repo debe tener hooks activos (`npm run githooks:install`) con este flujo:
+1. `pre-commit` ejecuta `qa:gate`.
+2. `post-commit` sincroniza (`fetch` + `pull --rebase --autostash` si aplica).
+3. `post-commit` re-ejecuta `qa:gate`.
+4. `post-commit` hace `push`.
+5. Si hay conflicto, resolver y repetir `qa:gate` antes de empujar.
+
+---
+
 ## 📖 GUÍA DE REFERENCIA OBLIGATORIA
 
 **INSTRUCCIÓN PERMANENTE (MÁXIMA PRIORIDAD):**
@@ -53,7 +64,7 @@ Este proyecto utiliza una **arquitectura separada** entre frontend y backend de 
 
 ### Repositorios
 
-1. **fluxbot-studio-ia** (este repositorio)
+1. **fluxbot-studio-ia-shopify** (este repositorio)
    - Frontend: App de Admin Shopify
    - UI: Shopify Polaris + React
    - Base de datos: PostgreSQL (solo datos de Shopify)

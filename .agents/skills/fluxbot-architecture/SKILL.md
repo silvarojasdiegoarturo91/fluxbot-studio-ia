@@ -12,7 +12,7 @@ metadata:
 
 ### Repositorios
 
-1. **fluxbot-studio-ia** (`~/Documents/fluxbot-studio-ia`)
+1. **fluxbot-studio-ia-shopify** (`~/Documents/fluxbot-studio-ia-shopify`)
    - Frontend: App de Admin Shopify
    - UI: Shopify Polaris + React
    - Lama llamadas al backend IA via HTTP

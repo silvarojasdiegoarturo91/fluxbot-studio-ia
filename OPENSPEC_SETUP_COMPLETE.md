@@ -11,7 +11,7 @@ npm install openspec --save-dev
 ### 2. **Specification Files Created**
 
 #### `.openspec.json` (Archivo Principal)
-- **Ubicación**: `/home/diegos/Documents/fluxbot-studio-ia/.openspec.json`
+- **Ubicación**: `/home/diegos/Documents/fluxbot-studio-ia-shopify/.openspec.json`
 - **Contenido**: Especificación completa del proyecto
 - **Secciones**:
   - 📌 Metadatos del proyecto
@@ -32,7 +32,7 @@ npm install openspec --save-dev
 ### 3. **Configuration Files**
 
 #### `openspec.config.js` (Configuración Avanzada)
-- **Ubicación**: `/home/diegos/Documents/fluxbot-studio-ia/openspec.config.js`
+- **Ubicación**: `/home/diegos/Documents/fluxbot-studio-ia-shopify/openspec.config.js`
 - **Configuración**:
   - Formatos de reporte (HTML, Markdown, JSON)
   - Reglas de validación
@@ -43,7 +43,7 @@ npm install openspec --save-dev
 ### 4. **Documentation**
 
 #### `OPENSPEC_GUIDE.md` (Guía de Usuario)
-- **Ubicación**: `/home/diegos/Documents/fluxbot-studio-ia/OPENSPEC_GUIDE.md`
+- **Ubicación**: `/home/diegos/Documents/fluxbot-studio-ia-shopify/OPENSPEC_GUIDE.md`
 - **Incluye**:
   - Descripción de requisitos por fase
   - Ciclo de vida de requisitos
@@ -272,7 +272,7 @@ OpenSpec verifica que requisitos marcados como "completed" tengan tests pasando.
 ## 📁 Estructura Actual
 
 ```
-/home/diegos/Documents/fluxbot-studio-ia/
+/home/diegos/Documents/fluxbot-studio-ia-shopify/
 ├── .openspec.json              ← Especificación principal
 ├── openspec.config.js          ← Configuración avanzada
 ├── OPENSPEC_GUIDE.md           ← Documentación

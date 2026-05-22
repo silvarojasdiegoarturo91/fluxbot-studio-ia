@@ -1,4 +1,4 @@
-# Plan de Separación: Frontend (fluxbot-studio-ia) / Backend (fluxbot-studio-back-ia)
+# Plan de Separación: Frontend (fluxbot-studio-ia-shopify) / Backend (fluxbot-studio-back-ia)
 
 ## Visión General
 
@@ -14,7 +14,7 @@ El estado canónico por fase/feature vive en `STATUS_MATRIX.md`.
 
 Los documentos historicos/completados de fases anteriores estan centralizados en `documentation/`.
 
-- **fluxbot-studio-ia** (este repo): App Shopify Frontend
+- **fluxbot-studio-ia-shopify** (este repo): App Shopify Frontend
 - **fluxbot-studio-back-ia** (~/Documents/): Backend de IA
 
 ---
@@ -55,7 +55,7 @@ Los documentos historicos/completados de fases anteriores estan centralizados en
 ## FASE 2: Configuración de Bases de Datos (✅ COMPLETADO)
 
 ### 2.1 Base de Datos Frontend (fluxbot_dev)
-**Propietario**: fluxbot-studio-ia
+**Propietario**: fluxbot-studio-ia-shopify
 **Contenido**: Datos de Shopify y frontend
 
 | Modelo | Descripción |
@@ -579,10 +579,10 @@ cd ~/Documents/fluxbot-studio-back-ia
 npm test
 
 # Sincronización inicial Shop -> backend IA
-cd /home/diegos/Documents/fluxbot-studio-ia
+cd /home/diegos/Documents/fluxbot-studio-ia-shopify
 npm run shops:sync:ia
 
 # Smoke release único (arranca ambos servicios y valida rutas clave)
-cd /home/diegos/Documents/fluxbot-studio-ia
+cd /home/diegos/Documents/fluxbot-studio-ia-shopify
 npm run smoke:release
 ```

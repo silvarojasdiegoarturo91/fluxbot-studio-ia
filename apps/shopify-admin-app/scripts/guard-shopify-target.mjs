@@ -9,7 +9,7 @@ const LOCAL_APP = {
 
 const PRODUCTION_APP = {
   clientId: "3e33f15eca7b32e62ea7137311172df5",
-  name: "fluxbot-studio-ia",
+  name: "fluxbot-studio-ia-shopify",
 };
 
 const __filename = fileURLToPath(import.meta.url);

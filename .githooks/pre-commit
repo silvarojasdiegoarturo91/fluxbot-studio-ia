@@ -29,8 +29,10 @@ echo "✓ OpenSpec validado"
 # Si .openspec.json está en el staging area, verificar conflictos
 if git diff --cached --name-only | grep -q ".openspec.json"; then
   echo "→ [1b] Verificando conflictos en OpenSpec (archivo modificado)..."
+  set +e
   node ./scripts/check-openspec-conflicts.mjs
   CONFLICT_EXIT=$?
+  set -e
   if [ $CONFLICT_EXIT -eq 1 ]; then
     echo "❌ Conflictos en OpenSpec: hay requisitos contradictorios."
     echo "   Consulta la salida anterior y resuelve los conflictos antes de hacer commit."

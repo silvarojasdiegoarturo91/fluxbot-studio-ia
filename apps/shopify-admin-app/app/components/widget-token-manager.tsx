@@ -160,7 +160,7 @@ export function WidgetTokenManager({ tenantId }: WidgetTokenManagerProps) {
                     {token.revokedAt ? (
                       <Badge>Revocado</Badge>
                     ) : (
-                      <Badge status="success">Activo</Badge>
+                      <Badge tone="success">Activo</Badge>
                     )}
                   </div>
 
@@ -214,6 +214,7 @@ export function WidgetTokenManager({ tenantId }: WidgetTokenManagerProps) {
               placeholder="ej: Production, Staging"
               value={tokenLabel}
               onChange={setTokenLabel}
+              autoComplete="off"
               helpText="Ayuda a identificar este token"
             />
           </Modal.Section>

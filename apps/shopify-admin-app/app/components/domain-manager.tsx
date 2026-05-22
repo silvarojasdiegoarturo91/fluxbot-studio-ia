@@ -138,6 +138,7 @@ export function DomainManager({ tenantId }: DomainManagerProps) {
                 placeholder="ejemplo: mydomain.com o *.mydomain.com"
                 value={newDomain}
                 onChange={setNewDomain}
+                autoComplete="off"
                 error={domainError ? true : false}
                 helpText={domainError || 'El widget solo funcionará en dominios permitidos'}
                 onBlur={() => {

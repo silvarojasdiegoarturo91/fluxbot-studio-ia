@@ -1,12 +1,15 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import prisma from "../../app/db.server";
 
+const describeIfDb =
+  process.env.RUN_PRISMA_SCHEMA_VALIDATION === "true" ? describe : describe.skip;
+
 /**
  * Advanced Onboarding Scenarios
  * Tests complex workflows and edge cases
  */
 
-describe("Onboarding - Advanced Scenarios", () => {
+describeIfDb("Onboarding - Advanced Scenarios", () => {
   describe("Multi-step Onboarding Flow", () => {
     let shop: any;
 

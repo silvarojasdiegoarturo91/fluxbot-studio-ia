@@ -1354,7 +1354,7 @@ export class ComplianceSIEMExportService {
     const payload = events.map((event) => ({
       message: JSON.stringify(event),
       service: "fluxbot-compliance",
-      ddsource: "fluxbot-studio-ia",
+      ddsource: "fluxbot-studio-ia-shopify",
       ddtags: `shop:${exportResult.shopId},export:${exportResult.exportId}`,
       hostname: exportResult.shopId,
       ...event,
@@ -1419,7 +1419,7 @@ export class ComplianceSIEMExportService {
         JSON.stringify({
           time: Math.floor(Date.now() / 1000),
           host: exportResult.shopId,
-          source: "fluxbot-studio-ia",
+          source: "fluxbot-studio-ia-shopify",
           sourcetype: "fluxbot:compliance",
           event,
         }),

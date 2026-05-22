@@ -1,6 +1,9 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import prisma from "../../app/db.server";
 
+const describeIfDb =
+  process.env.RUN_PRISMA_SCHEMA_VALIDATION === "true" ? describe : describe.skip;
+
 /**
  * Onboarding Action Tests
  * 
@@ -11,7 +14,7 @@ import prisma from "../../app/db.server";
  * PrismaClientValidationError: Unknown argument `onboardingCompletedAt`
  */
 
-describe("Onboarding Action - Database Operations", () => {
+describeIfDb("Onboarding Action - Database Operations", () => {
   let testShop: any;
 
   beforeAll(async () => {

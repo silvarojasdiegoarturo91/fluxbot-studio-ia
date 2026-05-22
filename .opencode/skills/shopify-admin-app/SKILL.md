@@ -5,7 +5,7 @@ license: MIT
 compatibility: opencode
 metadata:
   audience: developers
-  project: fluxbot-studio-ia
+  project: fluxbot-studio-ia-shopify
   type: frontend-shopify
 ---
 
@@ -16,7 +16,7 @@ Este proyecto es el **Frontend** de la aplicación Shopify FluxBot Studio. Se co
 ## Arquitectura
 
 ```
-fluxbot-studio-ia (Frontend) → HTTP REST → fluxbot-studio-back-ia (Backend IA)
+fluxbot-studio-ia-shopify (Frontend) → HTTP REST → fluxbot-studio-back-ia (Backend IA)
 ```
 
 ## Responsabilidades de ESTE proyecto

@@ -726,7 +726,7 @@ export default function DataSourcesPage() {
         title={isEs ? "Deshabilitar producto aprendido" : "Disable learned product"}
         primaryAction={{
           content: isEs ? "Confirmar" : "Confirm",
-          tone: "critical",
+          destructive: true,
           onAction: submitDisableProduct,
           loading: isSubmitting,
         }}
