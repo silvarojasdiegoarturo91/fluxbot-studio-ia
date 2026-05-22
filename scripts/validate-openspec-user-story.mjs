@@ -19,6 +19,9 @@ for (const [phase, items] of Object.entries(requirements)) {
 
   for (const req of items) {
     const id = req?.id || "(without-id)";
+    if (typeof id === "string" && id.startsWith("DOC-")) {
+      continue;
+    }
     const userStory = typeof req?.user_story === "string" ? req.user_story.trim() : "";
 
     if (!userStory) {
