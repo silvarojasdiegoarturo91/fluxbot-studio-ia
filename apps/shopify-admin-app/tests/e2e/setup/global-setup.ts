@@ -2,6 +2,13 @@ import type { FullConfig } from '@playwright/test';
 import { PrismaClient } from '@prisma/client';
 
 const TEST_SHOP_DOMAIN = process.env.SHOPIFY_SHOP || 'quickstart-c8cc9986.myshopify.com';
+const SMOKE_PRODUCT_ID = 'gid://shopify/Product/999999999999';
+const SMOKE_PRODUCT_METADATA = {
+  collections: ['Smoke tests'],
+  tags: ['e2e'],
+  disabled: false,
+  faqs: [],
+};
 
 function resolveTestDatabaseUrl() {
   const fallback = 'postgresql://test:test@localhost:5433/test_db?schema=public';
@@ -85,6 +92,36 @@ export default async function globalSetup(_config: FullConfig) {
     }
 
     console.log('[global-setup] ChatbotConfig seeded with onboarding complete');
+
+    await prisma.productProjection.upsert({
+      where: {
+        shopId_productId: {
+          shopId: shop.id,
+          productId: SMOKE_PRODUCT_ID,
+        },
+      },
+      update: {
+        handle: 'e2e-smoke-product',
+        title: 'E2E Smoke Product',
+        description: 'Seed product used by Data Sources smoke tests.',
+        vendor: 'FluxBot',
+        productType: 'Test',
+        deletedAt: null,
+        metadata: SMOKE_PRODUCT_METADATA,
+      },
+      create: {
+        shopId: shop.id,
+        productId: SMOKE_PRODUCT_ID,
+        handle: 'e2e-smoke-product',
+        title: 'E2E Smoke Product',
+        description: 'Seed product used by Data Sources smoke tests.',
+        vendor: 'FluxBot',
+        productType: 'Test',
+        metadata: SMOKE_PRODUCT_METADATA,
+      },
+    });
+
+    console.log('[global-setup] ProductProjection seeded for Data Sources smoke tests');
   } catch (error) {
     console.error('[global-setup] Failed to seed test shop:', error);
     // Don't throw — smoke tests (which don't need DB auth) should still run
