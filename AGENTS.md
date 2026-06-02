@@ -130,6 +130,32 @@ DATABASE_URL=postgresql://.../fluxbot_ia
 Si necesitas hacer pruebas en la tienda de desarrollo de Shopify:
 - **Contraseña de la tienda**: `sialte`
 
+### Levantar todo el entorno local
+
+Desde la raiz del workspace `fluxbot-studio-app`, usar:
+
+```bash
+scripts/dev-all.sh
+```
+
+Este comando arranca backend IA, Shopify Admin con el tunel nativo de Shopify CLI, frontend externo, backoffice/panel, widget externo y comprueba la base de datos dev. Usar este launcher cuando se necesite validar la integracion completa.
+
+### Levantar solo Shopify Admin visible en Shopify Admin
+
+Desde la raiz del workspace `fluxbot-studio-app`, usar siempre:
+
+```bash
+scripts/dev-shopify-admin-local.sh
+```
+
+El wrapper prepara Prisma/migraciones de `fluxbot-studio-back-ia` y este repo, luego ejecuta `npm run dev:fullstack`, que arranca el backend IA si no esta sano y abre Shopify Admin con el tunel nativo de Shopify CLI. La terminal imprime el enlace `Install app`/`Using URL`; ese es el enlace que se abre en navegador para ver la app en `admin.shopify.com`. Para otra tienda, usar `scripts/dev-shopify-admin-local.sh --shop=tu-tienda.myshopify.com` o definir `SHOPIFY_SHOP` / `SHOPIFY_DEV_STORE_URL`.
+
+Para reiniciar sin migraciones:
+
+```bash
+scripts/dev-shopify-admin-local.sh --skip-migrations
+```
+
 ---
 
 ## Propósito del archivo

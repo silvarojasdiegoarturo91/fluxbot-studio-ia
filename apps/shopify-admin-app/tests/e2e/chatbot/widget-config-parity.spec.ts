@@ -4,7 +4,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const TEST_SHOP_DOMAIN =
-  process.env.SHOPIFY_SHOP || "quickstart-c8cc9986.myshopify.com";
+  process.env.SHOPIFY_SHOP ||
+  process.env.SHOPIFY_DEV_STORE_URL ||
+  "quickstart-c8cc9986.myshopify.com";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

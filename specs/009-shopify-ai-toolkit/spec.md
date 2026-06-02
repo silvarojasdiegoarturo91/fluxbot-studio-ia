@@ -27,7 +27,7 @@ Para desarrolladores con asistentes de IA:
 Para agentes de compra que interactúan con la tienda:
 
 ```
-https://quickstart-c8cc9986.myshopify.com/api/mcp
+https://<active-dev-store>.myshopify.com/api/mcp
 ```
 
 **Tools disponibles (verificados ✅):**
@@ -39,10 +39,12 @@ https://quickstart-c8cc9986.myshopify.com/api/mcp
 
 **Test:**
 ```bash
-curl -s -X POST "https://quickstart-c8cc9986.myshopify.com/api/mcp" \
+curl -s -X POST "https://<active-dev-store>.myshopify.com/api/mcp" \
   -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
 ```
+
+When running local development, the active dev store is resolved from `SHOPIFY_SHOP` or `SHOPIFY_DEV_STORE_URL` and the launcher rewrites the app config before starting Shopify CLI.
 
 ### Capa 3 — Admin MCP (benwmerritt/shopify-mcp)
 Para operaciones de tienda desde el asistente de IA:

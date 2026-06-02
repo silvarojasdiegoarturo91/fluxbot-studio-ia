@@ -2,7 +2,10 @@ import { redirect } from "react-router";
 import { authenticate } from "../shopify.server";
 
 function buildE2EAuthResult() {
-  const shopDomain = process.env.SHOPIFY_SHOP || 'quickstart-c8cc9986.myshopify.com';
+  const shopDomain =
+    process.env.SHOPIFY_SHOP ||
+    process.env.SHOPIFY_DEV_STORE_URL ||
+    "quickstart-c8cc9986.myshopify.com";
 
   const mockSession = {
     id: `e2e-test-session`,

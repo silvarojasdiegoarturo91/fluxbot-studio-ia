@@ -51,14 +51,14 @@ Esta guía es la referencia principal para:
 
 ### GraphQL Admin API
 ```
-- Validar campos con: shopify store execute --store quickstart-c8cc9986.myshopify.com --query '...'
+- Validar campos con: shopify store execute --store ${SHOPIFY_SHOP:-tu-tienda.myshopify.com} --query '...'
 - Dev MCP disponible en todos los configs MCP (.mcp.json en raíz del proyecto)
 - NO alucinés campos — introspecciona el esquema real
 ```
 
 ### Storefront MCP (agente de compra)
 ```
-- Endpoint: https://quickstart-c8cc9986.myshopify.com/api/mcp
+- Endpoint: https://<active-dev-store>.myshopify.com/api/mcp
 - Tools: search_catalog, get_cart, update_cart, search_shop_policies_and_faqs, get_product_details
 - Sin autenticación requerida
 ```

@@ -13,9 +13,12 @@ export interface TestShop {
 
 export function buildTestShop(overrides: Partial<TestShop> = {}): TestShop {
   return {
-    domain: "quickstart-c8cc9986.myshopify.com",
+    domain:
+      process.env.SHOPIFY_SHOP ||
+      process.env.SHOPIFY_DEV_STORE_URL ||
+      "quickstart-c8cc9986.myshopify.com",
     accessToken: "test_access_token_e2e",
-    name: "Quickstart C8CC9986",
+    name: "FluxBot Test Store",
     ...overrides,
   };
 }

@@ -5,7 +5,7 @@
     "description": "Shopify AI Chatbot App — Conversational Commerce Platform",
     "owner": "Fluxbot Team",
     "status": "in-development",
-    "last_updated": "2026-05-22T08:11:11.190Z",
+    "last_updated": "2026-05-30T00:00:00.000Z",
     "source_of_truth": "STATUS_MATRIX.md",
     "repos": {
       "frontend": "fluxbot-studio-ia-shopify",
@@ -984,6 +984,39 @@
           "velocity": 1
         },
         "user_story": "Como equipo de Fluxbot, quiero implementar Synchronize agent guidance documentation para keep all agent instructions and documentation links aligned across AGENTS, Claude, Copilot, Cursor, and OpenSpec."
+      },
+      {
+        "id": "REQ-IA-DOC-002",
+        "title": "Local Shopify dev launcher uses native CLI and store override",
+        "description": "Agent instructions and local docs MUST describe the unified launcher, native Shopify CLI tunnel, and dynamic dev-store override via SHOPIFY_SHOP or SHOPIFY_DEV_STORE_URL instead of hardcoded quickstart.",
+        "priority": "high",
+        "status": "completed",
+        "completed_date": "2026-05-30",
+        "owner": "frontend",
+        "components": [
+          "README.md",
+          "copilot-instructions.md",
+          "documentation/QUICK_START.md",
+          "scripts/dev-all.sh",
+          "scripts/dev-shopify-admin-local.sh",
+          "apps/shopify-admin-app/scripts/dev-shopify-cli.sh",
+          "apps/shopify-admin-app/scripts/sync-dev-store-url.mjs",
+          "apps/shopify-admin-app/shopify.app.toml",
+          "apps/shopify-admin-app/app/utils/authenticate-admin.server.ts"
+        ],
+        "acceptance_criteria": [
+          "The unified launcher starts the full local workspace from one command",
+          "Shopify CLI dev uses the current dev store resolved from --shop, --shops, SHOPIFY_SHOP, or SHOPIFY_DEV_STORE_URL",
+          "The docs no longer describe quickstart as the only supported dev store",
+          "The instructions point to the native Shopify CLI flow instead of ngrok by default"
+        ],
+        "dependencies": [],
+        "metrics": {
+          "quality_score": 90,
+          "completion_rate": 100,
+          "velocity": 1
+        },
+        "user_story": "Como equipo de Fluxbot, quiero que las instrucciones y la documentacion del desarrollo local expliquen el arranque unificado y el selector dinamico de tienda para no depender de quickstart fijo."
       },
       {
         "id": "DOC-76404cc-2026-05-08T18-12-21-486Z",

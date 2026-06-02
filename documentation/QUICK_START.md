@@ -70,7 +70,7 @@ Edit `.env.local`:
 # Required: From Shopify Partner Dashboard
 SHOPIFY_API_KEY=your_api_key
 SHOPIFY_API_SECRET=your_api_secret
-SHOPIFY_APP_URL=https://your-ngrok-url.ngrok-free.app
+SHOPIFY_APP_URL=https://your-tunnel-url.example.com
 SHOPIFY_SHOP=your-dev-store.myshopify.com
 
 # Required: From PostgreSQL
@@ -100,7 +100,7 @@ LOG_LEVEL=info
 | --- | --- |
 | `SHOPIFY_API_KEY` | Partner Dashboard → Your Apps → App Setup |
 | `SHOPIFY_API_SECRET` | Same location, copy "Admin API credentials" |
-| `SHOPIFY_APP_URL` | Run `npm run dev` first, Shopify CLI will print ngrok URL |
+| `SHOPIFY_APP_URL` | Run `npm run dev` first, Shopify CLI will print the tunnel URL |
 | `DATABASE_URL` | PostgreSQL connection string (set in step 1) |
 | `SESSION_SECRET` | Run: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` |
 | `OPENAI_API_KEY` | OpenAI Developer Dashboard → API Keys |
@@ -127,6 +127,27 @@ Expected output:
 
 ### STEP 4: Start Development Server (1 min)
 
+From the Shopify repo root, prefer the shared workspace launcher used by IA agents:
+
+```bash
+cd ..
+scripts/dev-shopify-admin-local.sh
+```
+
+It generates Prisma clients, applies pending migrations for the IA backend and Shopify Admin databases, starts the IA backend if needed, and then starts Shopify Admin dev mode with the native Shopify CLI tunnel.
+
+For a quick restart when migrations are already applied:
+
+```bash
+cd ..
+scripts/dev-shopify-admin-local.sh --skip-migrations
+```
+
+The Shopify CLI output prints the `Install app` or `Using URL` link. Open that link in the browser to complete OAuth/install and view the embedded app in `admin.shopify.com`.
+To target a different store, run `scripts/dev-shopify-admin-local.sh --shop=your-store.myshopify.com` from the workspace root, or set `SHOPIFY_SHOP=your-store.myshopify.com` / `SHOPIFY_DEV_STORE_URL=your-store.myshopify.com` before running the launcher.
+
+Legacy direct app-only startup:
+
 ```bash
 # Still in apps/shopify-admin-app directory
 npm run dev
@@ -134,7 +155,7 @@ npm run dev
 
 Expected output:
 ```
-Your app URL: https://..."ngrok-url"...ngrok-free.app/
+Your app URL: https://..."tunnel-url"...example.com/
 ```
 
 This opens the Shopify admin embedded app.
@@ -182,7 +203,7 @@ Once dev server is running:
 ### "Cannot find module from @fluxbot/*"
 → Run: `npm install --workspaces` from `/apps/` root
 
-### "ngrok error: auth token required"
+### "tunnel error: auth token required"
 → Shopify CLI will guide you. Run `npm run dev` again after auth.
 
 ### "Prisma schema error"

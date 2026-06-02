@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "build": "react-router build",
-    "dev": "npm run guard:local-target && bash ./scripts/dev-ngrok.sh",
+    "dev": "npm run guard:local-target && bash ./scripts/dev-shopify-cli.sh",
+    "dev:shopify-cli": "npm run guard:local-target && bash ./scripts/dev-shopify-cli.sh",
     "dev:localhost": "npm run guard:local-target && bash ./scripts/dev-localhost.sh",
     "dev:ngrok": "npm run guard:local-target && bash ./scripts/dev-ngrok.sh",
     "deploy": "npm run deploy:local",

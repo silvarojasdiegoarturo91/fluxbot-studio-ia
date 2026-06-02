@@ -1,7 +1,10 @@
 import type { FullConfig } from '@playwright/test';
 import { PrismaClient } from '@prisma/client';
 
-const TEST_SHOP_DOMAIN = process.env.SHOPIFY_SHOP || 'quickstart-c8cc9986.myshopify.com';
+const TEST_SHOP_DOMAIN =
+  process.env.SHOPIFY_SHOP ||
+  process.env.SHOPIFY_DEV_STORE_URL ||
+  'quickstart-c8cc9986.myshopify.com';
 const SMOKE_PRODUCT_ID = 'gid://shopify/Product/999999999999';
 const SMOKE_PRODUCT_METADATA = {
   collections: ['Smoke tests'],

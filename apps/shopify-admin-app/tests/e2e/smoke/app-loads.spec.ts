@@ -8,6 +8,11 @@
  */
 import { expect, test } from "../fixtures";
 
+const TEST_SHOP_DOMAIN =
+  process.env.SHOPIFY_SHOP ||
+  process.env.SHOPIFY_DEV_STORE_URL ||
+  "quickstart-c8cc9986.myshopify.com";
+
 test.describe("App smoke — server health", () => {
   test("root URL responds (not 5xx)", async ({ request }) => {
     // The root redirects to Shopify OAuth — any non-5xx status is acceptable
@@ -31,7 +36,7 @@ test.describe("App smoke — server health", () => {
     // Supply the shop param so the route processes the request.
     // In test mode the IA backend may not be available, so we accept 200 or 502.
     const response = await request.get(
-      "/llms.txt?shop=quickstart-c8cc9986.myshopify.com",
+      `/llms.txt?shop=${TEST_SHOP_DOMAIN}`,
     );
     expect([200, 400, 502, 503]).toContain(response.status());
   });
@@ -41,7 +46,7 @@ test.describe("App smoke — server health", () => {
   }) => {
     // The storefront chat endpoints are public (no Shopify session needed)
     const response = await request.get(
-      "/widget-config?shop=quickstart-c8cc9986.myshopify.com",
+      `/widget-config?shop=${TEST_SHOP_DOMAIN}`,
       { maxRedirects: 0 },
     );
     // Any non-5xx means routing is working

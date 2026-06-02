@@ -10,6 +10,7 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 APP_DIR="$REPO_ROOT/apps/shopify-admin-app"
 
 MODE="${1:-all}"
+E2E_SHOP="${SHOPIFY_SHOP:-${SHOPIFY_DEV_STORE_URL:-quickstart-c8cc9986.myshopify.com}}"
 
 echo "🐳  Starting test database..."
 "$REPO_ROOT/scripts/test-db.sh" start
@@ -19,14 +20,14 @@ cd "$APP_DIR"
 DATABASE_URL="postgresql://test:test@localhost:5433/test_db?schema=public" \
   npx prisma migrate deploy --schema ../../infra/prisma/schema.prisma
 
-echo "🚀  Starting app server on :3002..."
+echo "🚀  Starting app server on :3002 for ${E2E_SHOP}..."
 NODE_ENV=test \
 E2E_TEST_MODE=true \
 DATABASE_URL="postgresql://test:test@localhost:5433/test_db?schema=public" \
 SHOPIFY_APP_URL="http://localhost:3002" \
 SHOPIFY_API_KEY="${SHOPIFY_API_KEY:-8c36112e98ce36be869eb0dc5efdd572}" \
 SHOPIFY_API_SECRET="${SHOPIFY_API_SECRET:-}" \
-SHOPIFY_SHOP="quickstart-c8cc9986.myshopify.com" \
+SHOPIFY_SHOP="${E2E_SHOP}" \
 REDIS_URL="redis://localhost:6380" \
 IA_BACKEND_URL="http://localhost:3001" \
 IA_BACKEND_API_KEY="dev_master_key" \
@@ -58,19 +59,19 @@ case "$MODE" in
   smoke)
     E2E_SKIP_SERVER=1 E2E_BASE_URL=http://localhost:3002 \
       DATABASE_URL="postgresql://test:test@localhost:5433/test_db?schema=public" \
-      SHOPIFY_SHOP="quickstart-c8cc9986.myshopify.com" \
+      SHOPIFY_SHOP="${E2E_SHOP}" \
       npx playwright test tests/e2e/smoke/ --reporter=list
     ;;
   ui)
     E2E_SKIP_SERVER=1 E2E_BASE_URL=http://localhost:3002 \
       DATABASE_URL="postgresql://test:test@localhost:5433/test_db?schema=public" \
-      SHOPIFY_SHOP="quickstart-c8cc9986.myshopify.com" \
+      SHOPIFY_SHOP="${E2E_SHOP}" \
       npx playwright test --ui
     ;;
   *)
     E2E_SKIP_SERVER=1 E2E_BASE_URL=http://localhost:3002 \
       DATABASE_URL="postgresql://test:test@localhost:5433/test_db?schema=public" \
-      SHOPIFY_SHOP="quickstart-c8cc9986.myshopify.com" \
+      SHOPIFY_SHOP="${E2E_SHOP}" \
       npx playwright test --reporter=list
     ;;
 esac
