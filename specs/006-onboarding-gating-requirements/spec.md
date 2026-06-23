@@ -4,6 +4,12 @@
 **Version:** 1.0.0  
 **Last Updated:** 2026-05-07
 
+## OpenSpec Trace
+
+- Root requirement: `REQ-ROOT-001`
+- Shopify requirement: `REQ-OPEN-009`
+- Covered behavior: after the final onboarding action succeeds, the merchant must be redirected automatically to `/app` (Panel).
+
 ## Executive Summary
 
 The Fluxbot Studio application implements strict onboarding gating to ensure merchants complete all setup steps before accessing core features. Incomplete users see **only** the onboarding flow with no navigation menu or access to other app features.
@@ -53,7 +59,7 @@ The Fluxbot Studio application implements strict onboarding gating to ensure mer
 - User completes all 4 steps
 - `onboardingCompletedAt` timestamp is set
 - Backend sync triggered in background
-- User redirected to dashboard
+- User redirected automatically to `/app` (Panel) without requiring a manual refresh or an additional click
 - Menu becomes visible
 - User cannot return to onboarding
 
@@ -105,6 +111,16 @@ When they reinstall the app
 Then ensureShopRecord() detects the previous uninstall
 And resets the onboarding state
 And the user must re-complete onboarding
+```
+
+### AC-005: Automatic Redirect After Completion
+```gherkin
+Given a merchant is on the final onboarding step
+When they click the final onboarding button
+And the completion action persists onboarding state
+Then the app redirects automatically to /app
+And the merchant sees the Panel without refreshing manually
+And required Shopify embedded app context is preserved
 ```
 
 ## Technical Implementation
@@ -165,6 +181,9 @@ if (intent === "complete") {
   // Trigger backend sync (fire-and-forget)
   syncShopReferenceToIABackend({...}, { force: true })
     .catch(error => console.error("Sync failed:", error));
+
+  // Redirect immediately after completion
+  return redirect("/app");
 }
 ```
 
@@ -179,6 +198,7 @@ if (intent === "complete") {
 ### Validation Points
 - ✅ Unit tests: `onboardingCompleted` flag properly passed through component tree
 - ✅ Integration tests: Routes properly redirect incomplete users
+- ✅ Regression tests: Final onboarding action redirects completed users to `/app`
 - ✅ E2E tests: Menu appears/disappears based on onboarding state
 - ✅ E2E tests: User cannot escape onboarding flow via URL manipulation
 
@@ -215,10 +235,12 @@ if (intent === "complete") {
 ### Integration Tests  
 - [ ] App loader redirects incomplete users away from non-onboarding routes
 - [ ] Menu renders conditionally based on `onboardingCompleted` prop
+- [ ] Onboarding completion action returns redirect to `/app`
 
 ### E2E Tests
 - [ ] New user sees only onboarding, no menu
 - [ ] After completing onboarding, menu appears
+- [ ] After clicking the final onboarding button, user lands on `/app`
 - [ ] Reinstalled user sees onboarding again
 - [ ] URL manipulation cannot bypass onboarding
 

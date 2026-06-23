@@ -5,7 +5,7 @@
     "description": "Shopify AI Chatbot App — Conversational Commerce Platform",
     "owner": "Fluxbot Team",
     "status": "in-development",
-    "last_updated": "2026-05-30T00:00:00.000Z",
+    "last_updated": "2026-06-02T07:33:12.853Z",
     "source_of_truth": "STATUS_MATRIX.md",
     "repos": {
       "frontend": "fluxbot-studio-ia-shopify",
@@ -953,6 +953,32 @@
             "expected_result": "Recuperacion transparente sin loops ni pantalla de bloqueo"
           }
         ]
+      },
+      {
+        "id": "REQ-OPEN-009",
+        "title": "Onboarding completion redirects automatically to Panel",
+        "description": "After the merchant finishes onboarding and clicks the final onboarding button, the Shopify admin app must mark onboarding as complete and redirect automatically to the Panel (/app). The current behavior leaves the merchant on onboarding after clicking the last button.",
+        "priority": "high",
+        "status": "planned",
+        "owner": "frontend",
+        "root_requirement": "REQ-ROOT-001",
+        "components": [
+          "apps/shopify-admin-app/app/routes/app.onboarding.tsx",
+          "apps/shopify-admin-app/app/routes/app.tsx",
+          "apps/shopify-admin-app/app/routes/app._index.tsx"
+        ],
+        "acceptance_criteria": [
+          "When the merchant clicks the final onboarding button, onboarding is marked complete",
+          "After onboarding completion, navigation redirects automatically to /app (Panel)",
+          "The merchant does not need to refresh manually or click another control to reach the Panel",
+          "The redirect preserves required Shopify embedded app context and does not break App Bridge navigation",
+          "Regression coverage exists for the final onboarding action and post-completion redirect"
+        ],
+        "dependencies": [
+          "REQ-P1-001",
+          "REQ-OPEN-007"
+        ],
+        "user_story": "Como merchant de Shopify usando Fluxbot, quiero que al terminar el onboarding y hacer click en el ultimo boton se me redirija automaticamente al Panel, para empezar a usar la app sin quedarme bloqueado en el onboarding."
       }
     ],
     "documentation": [
@@ -1314,6 +1340,41 @@
           "specs/001-storefront-widget/spec.md",
           "specs/004-siem-adapter/spec.md",
           "specs/005-e2e-chat-test/spec.md"
+        ],
+        "acceptance_criteria": [
+          "Documentation references remain synchronized",
+          "Agent instructions stay aligned with the latest docs",
+          "Follow-up work is tracked in OpenSpec"
+        ],
+        "dependencies": [],
+        "metrics": {
+          "quality_score": 90,
+          "completion_rate": 0,
+          "velocity": 1
+        }
+      },
+      {
+        "id": "DOC-a632e54-2026-06-02T07-33-12-853Z",
+        "title": "Review documentation update (6 files)",
+        "description": "Documentation changed in: AGENTS.md, CLAUDE.md, ERR_NGROK_3200_SOLUCION.md, documentation/QUICK_START.md, openspec-ngrok-tunnel.md, specs/009-shopify-ai-toolkit/spec.md. Review and align agent instructions, references, and related docs.",
+        "priority": "medium",
+        "status": "planned",
+        "owner": "docs",
+        "components": [
+          "AGENTS.md",
+          "CLAUDE.md",
+          "ERR_NGROK_3200_SOLUCION.md",
+          "documentation/QUICK_START.md",
+          "openspec-ngrok-tunnel.md",
+          "specs/009-shopify-ai-toolkit/spec.md"
+        ],
+        "source_files": [
+          "AGENTS.md",
+          "CLAUDE.md",
+          "ERR_NGROK_3200_SOLUCION.md",
+          "documentation/QUICK_START.md",
+          "openspec-ngrok-tunnel.md",
+          "specs/009-shopify-ai-toolkit/spec.md"
         ],
         "acceptance_criteria": [
           "Documentation references remain synchronized",

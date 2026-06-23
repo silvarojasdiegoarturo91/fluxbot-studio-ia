@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "name": "shopify-use-shopify-cli",
+  "owner": "Shopify",
+  "repo": "shopify-ai-toolkit",
+  "path": "skills/shopify-use-shopify-cli",
+  "branch": "main",
+  "sha": "300cd31ff0ee8e77e0cfffecfc8a20e8b97debe3",
+  "source": "manual"
+}

@@ -4,6 +4,12 @@
 **Version:** 2.0.0  
 **Last Updated:** 2026-05-07
 
+## OpenSpec Trace
+
+- Root requirement: `REQ-ROOT-001`
+- Shopify requirement: `REQ-OPEN-009`
+- Covered behavior: clicking the final onboarding button must complete onboarding and redirect the merchant automatically to `/app` (Panel).
+
 ## Executive Summary
 
 The "4-Step Magic Setup" is a complete redesign of the onboarding experience from 7 fragmentary steps into 4 logical chapters. This spec documents the implementation, testing strategy, and sync architecture.
@@ -59,7 +65,7 @@ The "4-Step Magic Setup" is a complete redesign of the onboarding experience fro
 │ • When activated:                                               │
 │   ✓ Form saved to DB                                           │
 │   ✓ Sync triggered (fire-and-forget)                           │
-│   ✓ User redirected to dashboard                               │
+│   ✓ User redirected automatically to /app (Panel)               │
 │   ✓ Background sync continues (catalog, policies, etc.)        │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -115,6 +121,11 @@ if (intent === "complete") {
 }
 ```
 
+**Redirect Contract:**
+- The final onboarding action MUST return a redirect to `/app` after completion state is persisted.
+- The redirect MUST happen without waiting for background shop reference sync.
+- The merchant MUST NOT remain on `/app/onboarding` after clicking the final onboarding button.
+
 **Sync Status Tracking:**
 - Sync state stored in `SyncJob` table (separate from onboarding)
 - User can navigate away while sync runs
@@ -131,6 +142,7 @@ if (intent === "complete") {
 - ✅ Step 2: Capabilities toggle, goal/tone validation
 - ✅ Step 3: Color format, avatar styles, launcher positions
 - ✅ Step 4: Completion marking, timestamp tracking
+- ✅ Step 4: Completion redirect to `/app`
 - ✅ State progression (forward, backward, partial updates)
 - ✅ Sync independence (doesn't interfere with onboarding state)
 - ✅ Data persistence (all data retained across steps)
