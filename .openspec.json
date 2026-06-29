@@ -5,7 +5,7 @@
     "description": "Shopify AI Chatbot App — Conversational Commerce Platform",
     "owner": "Fluxbot Team",
     "status": "in-development",
-    "last_updated": "2026-06-02T07:33:12.853Z",
+    "last_updated": "2026-06-29T18:33:49.683Z",
     "source_of_truth": "STATUS_MATRIX.md",
     "repos": {
       "frontend": "fluxbot-studio-ia-shopify",
@@ -1375,6 +1375,55 @@
           "documentation/QUICK_START.md",
           "openspec-ngrok-tunnel.md",
           "specs/009-shopify-ai-toolkit/spec.md"
+        ],
+        "acceptance_criteria": [
+          "Documentation references remain synchronized",
+          "Agent instructions stay aligned with the latest docs",
+          "Follow-up work is tracked in OpenSpec"
+        ],
+        "dependencies": [],
+        "metrics": {
+          "quality_score": 90,
+          "completion_rate": 0,
+          "velocity": 1
+        }
+      },
+      {
+        "id": "DOC-e15254a-2026-06-29T18-33-49-683Z",
+        "title": "Review documentation update (13 files)",
+        "description": "Documentation changed in: .agents/skills/fluxbot-shopify-cli/SKILL.md, .agents/skills/shopify-development/SKILL.md, .claude/skills/shopify-debugging/SKILL.md, .codex/skills/fluxbot-shopify-cli/SKILL.md, .codex/skills/shopify-cli/SKILL.md, .codex/skills/shopify-development/SKILL.md, .codex/skills/shopify-use-shopify-cli/SKILL.md, .github/skills/fluxbot-shopify-cli/SKILL.md, .github/skills/shopify-cli/SKILL.md, .github/skills/shopify-development/SKILL.md, specs/006-onboarding-gating-requirements/spec.md, specs/007-4step-onboarding-complete/spec.md, specs/features/onboarding/requirements.md. Review and align agent instructions, references, and related docs.",
+        "priority": "medium",
+        "status": "planned",
+        "owner": "docs",
+        "components": [
+          ".agents/skills/fluxbot-shopify-cli/SKILL.md",
+          ".agents/skills/shopify-development/SKILL.md",
+          ".claude/skills/shopify-debugging/SKILL.md",
+          ".codex/skills/fluxbot-shopify-cli/SKILL.md",
+          ".codex/skills/shopify-cli/SKILL.md",
+          ".codex/skills/shopify-development/SKILL.md",
+          ".codex/skills/shopify-use-shopify-cli/SKILL.md",
+          ".github/skills/fluxbot-shopify-cli/SKILL.md",
+          ".github/skills/shopify-cli/SKILL.md",
+          ".github/skills/shopify-development/SKILL.md",
+          "specs/006-onboarding-gating-requirements/spec.md",
+          "specs/007-4step-onboarding-complete/spec.md",
+          "specs/features/onboarding/requirements.md"
+        ],
+        "source_files": [
+          ".agents/skills/fluxbot-shopify-cli/SKILL.md",
+          ".agents/skills/shopify-development/SKILL.md",
+          ".claude/skills/shopify-debugging/SKILL.md",
+          ".codex/skills/fluxbot-shopify-cli/SKILL.md",
+          ".codex/skills/shopify-cli/SKILL.md",
+          ".codex/skills/shopify-development/SKILL.md",
+          ".codex/skills/shopify-use-shopify-cli/SKILL.md",
+          ".github/skills/fluxbot-shopify-cli/SKILL.md",
+          ".github/skills/shopify-cli/SKILL.md",
+          ".github/skills/shopify-development/SKILL.md",
+          "specs/006-onboarding-gating-requirements/spec.md",
+          "specs/007-4step-onboarding-complete/spec.md",
+          "specs/features/onboarding/requirements.md"
         ],
         "acceptance_criteria": [
           "Documentation references remain synchronized",
