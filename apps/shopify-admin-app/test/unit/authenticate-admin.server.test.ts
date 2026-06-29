@@ -107,6 +107,47 @@ describe("authenticateAdminRequest", () => {
     }
   });
 
+  it("redirects document requests with gone Shopify auth to the session token bounce path", async () => {
+    process.env.SHOPIFY_APP_URL = "https://app.example.com";
+
+    const authError = new Response("Gone", {
+      status: 410,
+      statusText: "Gone",
+    });
+    vi.mocked(authenticate.admin).mockRejectedValue(authError);
+
+    const request = new Request(
+      "http://localhost/app?shop=test-shop.myshopify.com&host=encoded-host&embedded=1",
+      {
+        headers: {
+          accept: "text/html",
+        },
+      },
+    );
+
+    try {
+      await authenticateAdminRequest(request);
+      throw new Error("Expected authenticateAdminRequest to redirect");
+    } catch (error) {
+      expect(error).toBeInstanceOf(Response);
+
+      const response = error as Response;
+      expect(response.status).toBe(302);
+
+      const location = response.headers.get("Location");
+      expect(location).toBeTruthy();
+
+      const redirectUrl = new URL(location!, "https://app.example.com");
+      expect(redirectUrl.pathname).toBe("/auth/session-token");
+      expect(redirectUrl.searchParams.get("shop")).toBe("test-shop.myshopify.com");
+      expect(redirectUrl.searchParams.get("host")).toBe("encoded-host");
+      expect(redirectUrl.searchParams.get("embedded")).toBe("1");
+      expect(redirectUrl.searchParams.get("shopify-reload")).toBe(
+        "https://app.example.com/app?shop=test-shop.myshopify.com&host=encoded-host&embedded=1",
+      );
+    }
+  });
+
   it("preserves Shopify retry responses for non-document requests", async () => {
     const authError = new Response("Unauthorized", {
       status: 401,

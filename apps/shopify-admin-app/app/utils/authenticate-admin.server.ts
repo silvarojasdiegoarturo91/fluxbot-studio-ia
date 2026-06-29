@@ -88,7 +88,7 @@ function headersHasTruthyValue(headers: Headers, headerName: string) {
 }
 
 export function isShopifyReauthResponse(error: Response) {
-  if (error.status === 401 || error.status === 403) {
+  if (error.status === 401 || error.status === 403 || error.status === 410) {
     return true;
   }
 
