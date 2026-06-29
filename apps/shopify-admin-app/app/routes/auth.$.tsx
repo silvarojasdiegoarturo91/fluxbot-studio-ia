@@ -8,6 +8,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   return null;
 };
 
+export default function AuthCallback() {
+  return null;
+}
+
 export const headers: HeadersFunction = (headersArgs) => {
   return boundary.headers(headersArgs);
 };

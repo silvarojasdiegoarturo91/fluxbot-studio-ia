@@ -237,6 +237,17 @@ function isCampaignSchedulerReady(): boolean {
  * Called once on application startup
  */
 export function startProactiveJobScheduler() {
+  const isAlreadyRunning =
+    schedulerState.evaluationJobHandle &&
+    schedulerState.cleanupJobHandle &&
+    schedulerState.retentionJobHandle &&
+    schedulerState.syncJobHandle &&
+    schedulerState.campaignJobHandle;
+
+  if (isAlreadyRunning) {
+    return;
+  }
+
   if (!isSchedulerPrismaReady()) {
     if (!schedulerState.startupBlockedLogged) {
       console.warn(
