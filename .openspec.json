@@ -5,39 +5,39 @@
     "description": "OpenSpec local para requisitos de fluxbot-studio-ia-shopify. Los requisitos aqui son espejo de los requisitos root que afectan este repositorio.",
     "owner": "frontend_shopify",
     "status": "in-development",
-    "last_updated": "2026-07-02T00:00:00Z",
+    "last_updated": "2026-07-02T01:26:21.851Z",
     "source_of_truth": ".openspec.json",
     "mirror_root": "../.openspec.json"
   },
   "requirements": {
     "local": [
       {
-      "id": "REQ-IA-SHOPIFY-001",
-      "mirror_of": "REQ-ROOT-004",
-      "title": "[BUG] Shopify Admin API fetch vulnerability — resolver error de conexion GraphQL y prevenir repeticion",
-      "description": "BUG CONFIRMADO (espejo de REQ-ROOT-004): El dashboard loader (app._index.tsx:121) llama a admin.graphql(SHOP_CONNECTION_QUERY) para obtener datos de la tienda. Cuando hay un error de red (DNS failure, timeout, conexion rechazada, proxy caido), el SDK de Shopify (@shopify/shopify-app-remix) lanza una excepcion del tipo 'Http request error, no response available: GraphQL Client: fetch failed'. Actualmente esta excepcion se captura generosamente (catch line 278) y se retorna shopConnection.connected=false con el mensaje de error plano. El usuario final ve 'No se pudieron obtener datos de la tienda desde Admin API: Http request error, no response available: GraphQL Client: fetch failed'. El fix debe: (1) implementar retry logic con backoff para el llamado admin.graphql(), (2) agregar timeout explicito a la peticion GraphQL, (3) cachear los datos de shop connection para servir datos caidos cuando la API no responda, (4) diferenciar claramente entre error de red, error de autenticacion y error GraphQL, (5) agregar logging estructurado con contexto (shopId, requestId) para poder diagnosticar futuros fallos, (6) agregar health check de conectividad Shopify antes de llamar a la API. Todo esto para que el error NO se vuelva a repetir y, si ocurre, el sistema sea resiliente y diagnostique automaticamente.",
-      "priority": "critical",
-      "status": "planned",
-      "components": [
-        "apps/shopify-admin-app/app/routes/app._index.tsx",
-        "apps/shopify-admin-app/app/services/shop-connection.server.ts",
-        "apps/shopify-admin-app/app/services/shop-connection-cache.server.ts",
-        "apps/shopify-admin-app/app/utils/shopify-graphql-client.server.ts"
-      ],
-      "acceptance_criteria": [
-        "[BUG] Actualmente admin.graphql() falla con 'Http request error, no response available: GraphQL Client: fetch failed' cuando hay error de red. El usuario ve 'No se pudieron obtener datos de la tienda desde Admin API: ...'.",
-        "Se implementa un wrapper robusto sobre admin.graphql() con retry automático (3 intentos con backoff exponencial: 500ms, 1s, 2s) solo para errores de red/transporte (no para errores GraphQL ni 4xx)",
-        "Cada peticion GraphQL tiene un timeout explicito de 10s configurable via variable de entorno SHOPIFY_GRAPHQL_TIMEOUT_MS",
-        "Los datos de shop connection (name, myshopifyDomain, primaryDomain, plan) se cachean en memoria con TTL de 5 minutos. Si la API no responde, se sirven datos cacheados como fallback.",
-        "El sistema diferencia claramente tres tipos de error: (a) error de red/transporte -> mensaje amigable 'No pudimos conectar con Shopify. Verifica tu conexion a internet.', (b) error de autenticacion -> 'La sesion con Shopify expiro. Recarga la pagina.', (c) error GraphQL -> muestra el error original sanitizado",
-        "Se implementa logging estructurado en cada intento fallido con: shopId, requestId, error type, attempt number, latency ms, error stack (omitido en respuesta al usuario)",
-        "Existe un health check de conectividad Shopify (/api/health/shopify-connectivity) que verifica que la Admin API responda antes de que el dashboard loader la consulte",
-        "El dashboard loader NUNCA lanza excepcion no capturada. Siempre retorna datos parciales con alerta si la shop connection falla.",
-        "Existe cobertura de test unitario que verifica: retry en error de red, timeout, cache hit, cache miss con API caida, diferenciacion de tipos de error, y logging.",
-        "El mensaje de error al usuario NO contiene detalles tecnicos internos (tipo de excepcion, stack trace, SDK internals). Solo muestra texto amigable."
-      ],
-      "dependencies": [],
-      "user_story": "Como merchant con Fluxbot instalado, quiero que el dashboard siempre cargue aunque haya problemas de red momentaneos con la API de Shopify, para no ver errores de conexion y poder seguir usando la app sin interrupciones."
+        "id": "REQ-IA-SHOPIFY-001",
+        "mirror_of": "REQ-ROOT-004",
+        "title": "[BUG] Shopify Admin API fetch vulnerability — resolver error de conexion GraphQL y prevenir repeticion",
+        "description": "BUG CONFIRMADO (espejo de REQ-ROOT-004): El dashboard loader (app._index.tsx:121) llama a admin.graphql(SHOP_CONNECTION_QUERY) para obtener datos de la tienda. Cuando hay un error de red (DNS failure, timeout, conexion rechazada, proxy caido), el SDK de Shopify (@shopify/shopify-app-remix) lanza una excepcion del tipo 'Http request error, no response available: GraphQL Client: fetch failed'. Actualmente esta excepcion se captura generosamente (catch line 278) y se retorna shopConnection.connected=false con el mensaje de error plano. El usuario final ve 'No se pudieron obtener datos de la tienda desde Admin API: Http request error, no response available: GraphQL Client: fetch failed'. El fix debe: (1) implementar retry logic con backoff para el llamado admin.graphql(), (2) agregar timeout explicito a la peticion GraphQL, (3) cachear los datos de shop connection para servir datos caidos cuando la API no responda, (4) diferenciar claramente entre error de red, error de autenticacion y error GraphQL, (5) agregar logging estructurado con contexto (shopId, requestId) para poder diagnosticar futuros fallos, (6) agregar health check de conectividad Shopify antes de llamar a la API. Todo esto para que el error NO se vuelva a repetir y, si ocurre, el sistema sea resiliente y diagnostique automaticamente.",
+        "priority": "critical",
+        "status": "planned",
+        "components": [
+          "apps/shopify-admin-app/app/routes/app._index.tsx",
+          "apps/shopify-admin-app/app/services/shop-connection.server.ts",
+          "apps/shopify-admin-app/app/services/shop-connection-cache.server.ts",
+          "apps/shopify-admin-app/app/utils/shopify-graphql-client.server.ts"
+        ],
+        "acceptance_criteria": [
+          "[BUG] Actualmente admin.graphql() falla con 'Http request error, no response available: GraphQL Client: fetch failed' cuando hay error de red. El usuario ve 'No se pudieron obtener datos de la tienda desde Admin API: ...'.",
+          "Se implementa un wrapper robusto sobre admin.graphql() con retry automático (3 intentos con backoff exponencial: 500ms, 1s, 2s) solo para errores de red/transporte (no para errores GraphQL ni 4xx)",
+          "Cada peticion GraphQL tiene un timeout explicito de 10s configurable via variable de entorno SHOPIFY_GRAPHQL_TIMEOUT_MS",
+          "Los datos de shop connection (name, myshopifyDomain, primaryDomain, plan) se cachean en memoria con TTL de 5 minutos. Si la API no responde, se sirven datos cacheados como fallback.",
+          "El sistema diferencia claramente tres tipos de error: (a) error de red/transporte -> mensaje amigable 'No pudimos conectar con Shopify. Verifica tu conexion a internet.', (b) error de autenticacion -> 'La sesion con Shopify expiro. Recarga la pagina.', (c) error GraphQL -> muestra el error original sanitizado",
+          "Se implementa logging estructurado en cada intento fallido con: shopId, requestId, error type, attempt number, latency ms, error stack (omitido en respuesta al usuario)",
+          "Existe un health check de conectividad Shopify (/api/health/shopify-connectivity) que verifica que la Admin API responda antes de que el dashboard loader la consulte",
+          "El dashboard loader NUNCA lanza excepcion no capturada. Siempre retorna datos parciales con alerta si la shop connection falla.",
+          "Existe cobertura de test unitario que verifica: retry en error de red, timeout, cache hit, cache miss con API caida, diferenciacion de tipos de error, y logging.",
+          "El mensaje de error al usuario NO contiene detalles tecnicos internos (tipo de excepcion, stack trace, SDK internals). Solo muestra texto amigable."
+        ],
+        "dependencies": [],
+        "user_story": "Como merchant con Fluxbot instalado, quiero que el dashboard siempre cargue aunque haya problemas de red momentaneos con la API de Shopify, para no ver errores de conexion y poder seguir usando la app sin interrupciones."
       },
       {
         "id": "REQ-IA-SHOPIFY-002",
@@ -63,6 +63,43 @@
         ],
         "dependencies": [],
         "user_story": "Como merchant en Shopify Admin, quiero que los jobs de sincronizacion no se queden atascados y poder reprocesarlos desde la UI para mantener mi asistente actualizado."
+      }
+    ],
+    "documentation": [
+      {
+        "id": "DOC-70216cf-2026-07-02T01-26-21-849Z",
+        "title": "Review documentation update (6 files)",
+        "description": "Documentation changed in: apps/shopify-admin-app/README.md, specs/006-onboarding-gating-requirements/spec.md, specs/007-4step-onboarding-complete/spec.md, specs/features/onboarding/decisions.md, specs/features/onboarding/requirements.md, specs/features/onboarding/test-cases.md. Review and align agent instructions, references, and related docs.",
+        "priority": "medium",
+        "status": "planned",
+        "owner": "docs",
+        "components": [
+          "apps/shopify-admin-app/README.md",
+          "specs/006-onboarding-gating-requirements/spec.md",
+          "specs/007-4step-onboarding-complete/spec.md",
+          "specs/features/onboarding/decisions.md",
+          "specs/features/onboarding/requirements.md",
+          "specs/features/onboarding/test-cases.md"
+        ],
+        "source_files": [
+          "apps/shopify-admin-app/README.md",
+          "specs/006-onboarding-gating-requirements/spec.md",
+          "specs/007-4step-onboarding-complete/spec.md",
+          "specs/features/onboarding/decisions.md",
+          "specs/features/onboarding/requirements.md",
+          "specs/features/onboarding/test-cases.md"
+        ],
+        "acceptance_criteria": [
+          "Documentation references remain synchronized",
+          "Agent instructions stay aligned with the latest docs",
+          "Follow-up work is tracked in OpenSpec"
+        ],
+        "dependencies": [],
+        "metrics": {
+          "quality_score": 90,
+          "completion_rate": 0,
+          "velocity": 1
+        }
       }
     ]
   }
