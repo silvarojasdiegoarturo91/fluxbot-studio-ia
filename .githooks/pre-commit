@@ -9,7 +9,8 @@ echo "║  1. OpenSpec requirements + user stories + conflictos        ║"
 echo "║  2. Build (detecta imports rotos y componentes faltantes)    ║"
 echo "║  3. Lint                                                     ║"
 echo "║  4. TypeCheck                                                ║"
-echo "║  5. Unit + integration tests                                 ║"
+echo "║  5. Shopify App Store compliance baseline                    ║"
+echo "║  6. Unit + integration tests                                 ║"
 echo "╚══════════════════════════════════════════════════════════════╝"
 echo ""
 
@@ -56,7 +57,11 @@ echo "→ [4/5] TypeCheck..."
 npm run --silent typecheck || { echo "❌ TypeCheck fallido: hay errores de tipos"; fail; }
 echo "✓ TypeCheck OK"
 
-echo "→ [5/5] Tests (unit + integration)..."
+echo "→ [5/6] Shopify App Store compliance baseline..."
+npm --workspace @fluxbot/shopify-admin-app run test:app-store-compliance --silent || { echo "❌ Compliance baseline falló: revisa App Store requirements y docs"; fail; }
+echo "✓ Compliance baseline OK"
+
+echo "→ [6/6] Tests (unit + integration)..."
 npm --workspace @fluxbot/shopify-admin-app run test --silent || { echo "❌ Tests fallidos: hay tests rotos"; fail; }
 echo "✓ Tests OK"
 

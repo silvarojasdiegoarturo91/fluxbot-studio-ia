@@ -224,3 +224,15 @@ These tests are critical and MUST NOT break:
 - build-validation.test.ts (16 tests)
 
 **RULE**: Execute `npm test` after EVERY production code change.
+
+## Shopify App Store compliance gate
+
+Run the static compliance baseline with:
+
+```bash
+npm run test:app-store-compliance
+```
+
+This suite checks the app manifest, embedded admin shell, session-token bounce path, Shopify Billing usage, theme app extension wiring, privacy and retention flows, and the OpenSpec/SpecKit compliance docs. It also asserts that the unsupported review families are explicitly marked out of scope.
+
+The Shopify repo `qa:gate` now runs this baseline before the broader unit and integration suites, so a failing compliance check blocks commits and auto-pushes.

@@ -63,6 +63,44 @@
         ],
         "dependencies": [],
         "user_story": "Como merchant en Shopify Admin, quiero que los jobs de sincronizacion no se queden atascados y poder reprocesarlos desde la UI para mantener mi asistente actualizado."
+      },
+      {
+        "id": "REQ-IA-SHOPIFY-003",
+        "title": "Shopify App Store compliance matrix y gating automatizado",
+        "description": "El repositorio debe mantener una matriz viva de cumplimiento para los requisitos aplicables de Shopify App Store, con trazabilidad en OpenSpec y SpecKit, cobertura de tests para auth/install, embedded app, session tokens, Billing API, GraphQL Admin API, theme app extension, privacidad, onboarding y evidencia manual para items que no se pueden automatizar completamente.",
+        "priority": "high",
+        "status": "planned",
+        "owner": "frontend_shopify",
+        "affected_apps": [
+          "fluxbot-studio-ia-shopify"
+        ],
+        "components": [
+          "apps/shopify-admin-app/shopify.app.toml",
+          "apps/shopify-admin-app/app/root.tsx",
+          "apps/shopify-admin-app/app/shopify.server.ts",
+          "apps/shopify-admin-app/app/routes/app.tsx",
+          "apps/shopify-admin-app/app/routes/app._index.tsx",
+          "apps/shopify-admin-app/app/routes/app.billing.tsx",
+          "apps/shopify-admin-app/app/routes/app.privacy.tsx",
+          "apps/shopify-admin-app/app/routes/app.widget-publish.tsx",
+          "apps/storefront-widget/extensions/chat-widget/shopify.extension.toml",
+          "apps/shopify-admin-app/test/integration/shopify-app-store-compliance.test.ts",
+          "specs/features/shopify-app-store-compliance/",
+          "specs/010-shopify-app-store-compliance/"
+        ],
+        "acceptance_criteria": [
+          "Existe una feature de OpenSpec con requisitos agrupados por dominio y trazabilidad a la guia oficial de Shopify App Store best practices.",
+          "Existe un spec de SpecKit con plan, checklist y tareas para los mismos dominios.",
+          "Existe al menos una suite automatizada que verifica config Shopify, embedded auth, Billing API, theme app extension y rutas de privacidad/listing relevantes.",
+          "La documentacion marca claramente los grupos que no aplican al producto actual (payments, purchase option, payment facilitator, POS y otros casos fuera de alcance).",
+          "Los checks manuales de listing, support, screenshots y video quedan documentados como evidencia requerida antes de submission.",
+          "La suite de tests se puede ejecutar con el workflow normal del repo sin requerir una tienda real para los checks estaticos."
+        ],
+        "dependencies": [
+          "REQ-IA-SHOPIFY-001",
+          "REQ-IA-SHOPIFY-002"
+        ],
+        "user_story": "Como equipo de Fluxbot, quiero una matriz viva de cumplimiento para Shopify App Store con tests y trazabilidad documental, para poder preparar la app para produccion sin dejar requisitos ocultos ni evidencias dispersas."
       }
     ],
     "documentation": [
