@@ -41,6 +41,7 @@ const mockPrisma = {
   syncJob: {
     findMany: vi.fn(),
     count: vi.fn(),
+    updateMany: vi.fn(),
   },
   productProjection: {
     findMany: vi.fn(),
@@ -86,6 +87,7 @@ beforeEach(() => {
   mockPrisma.knowledgeSource.findMany.mockResolvedValue([]);
   mockPrisma.syncJob.findMany.mockResolvedValue([]);
   mockPrisma.syncJob.count.mockResolvedValue(0);
+  mockPrisma.syncJob.updateMany.mockResolvedValue({ count: 0 });
   mockPrisma.productProjection.count.mockResolvedValue(0);
   mockPrisma.policyProjection.count.mockResolvedValue(0);
   mockPrisma.orderProjection.count.mockResolvedValue(0);
@@ -273,6 +275,58 @@ describe("app.data-sources action — disable_product", () => {
       shopId: SHOP.id,
       productProjectionId: "proj-2",
       disabled: true,
+    });
+  });
+
+  describe("app.data-sources action — reprocess_sync_job", () => {
+    it("reencola el sync job cuando está en un estado elegible", async () => {
+      mockPrisma.syncJob.updateMany.mockResolvedValue({ count: 1 });
+      const { action } = await import("../../app/routes/app.data-sources");
+
+      const formData = new FormData();
+      formData.append("intent", "reprocess_sync_job");
+      formData.append("jobId", "sync-123");
+
+      const request = new Request("http://localhost/app/data-sources", {
+        method: "POST",
+        body: formData,
+      });
+
+      const result = await action({ request, params: {}, context: {} } as never);
+
+      expect(result.ok).toBe(true);
+      expect(mockPrisma.syncJob.updateMany).toHaveBeenCalledWith({
+        where: {
+          id: "sync-123",
+          shopId: SHOP.id,
+          status: { in: ["FAILED", "CANCELLED", "RUNNING", "COMPLETED"] },
+        },
+        data: {
+          status: "PENDING",
+          progress: 0,
+          processedItems: 0,
+          errorMessage: null,
+          startedAt: null,
+          completedAt: null,
+        },
+      });
+    });
+
+    it("devuelve error cuando falta jobId", async () => {
+      const { action } = await import("../../app/routes/app.data-sources");
+
+      const formData = new FormData();
+      formData.append("intent", "reprocess_sync_job");
+
+      const request = new Request("http://localhost/app/data-sources", {
+        method: "POST",
+        body: formData,
+      });
+
+      const result = await action({ request, params: {}, context: {} } as never);
+
+      expect(result.ok).toBe(false);
+      expect(result.error).toBeTruthy();
     });
   });
 });

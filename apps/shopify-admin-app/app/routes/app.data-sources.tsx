@@ -239,6 +239,29 @@ export async function action({ request }: ActionFunctionArgs): Promise<DataSourc
     return { ok: true, message: isEs ? `Job de sync en cola (${jobType}).` : `Sync job queued (${jobType}).` };
   }
 
+  if (intent === "reprocess_sync_job") {
+    const jobId = String(formData.get("jobId") || "").trim();
+
+    if (!jobId) {
+      return { ok: false, error: isEs ? "jobId es obligatorio" : "jobId is required" };
+    }
+
+    const requeued = await SyncService.requeueSyncJob(shop.id, jobId);
+    if (!requeued) {
+      return {
+        ok: false,
+        error: isEs
+          ? "No se pudo reprocesar el job (estado no elegible o no existe)."
+          : "Unable to reprocess job (job missing or status not eligible).",
+      };
+    }
+
+    return {
+      ok: true,
+      message: isEs ? "Job reprocesado y reenviado a la cola." : "Job reprocessed and requeued.",
+    };
+  }
+
   if (intent === "add_product_faq") {
     const productProjectionId = String(formData.get("productProjectionId") || "").trim();
     const category = String(formData.get("category") || "").trim();
@@ -355,6 +378,17 @@ export default function DataSourcesPage() {
     job.createdAt ? new Date(job.createdAt).toLocaleString() : "-",
     job.completedAt ? new Date(job.completedAt).toLocaleString() : "-",
     job.errorMessage || "-",
+    ["FAILED", "CANCELLED", "RUNNING", "COMPLETED"].includes(job.status)
+      ? (
+        <Form method="post" key={`reprocess-${job.id}`}>
+          <input type="hidden" name="intent" value="reprocess_sync_job" />
+          <input type="hidden" name="jobId" value={job.id} />
+          <Button submit loading={isSubmitting}>
+            {isEs ? "Reprocesar" : "Reprocess"}
+          </Button>
+        </Form>
+      )
+      : "-",
   ]);
 
   const allProductsSelected = productRows.length > 0 && selectedProductIds.length === productRows.length;
@@ -659,10 +693,10 @@ export default function DataSourcesPage() {
                 </EmptyState>
               ) : (
                 <DataTable
-                  columnContentTypes={["text", "text", "text", "text", "text", "text", "text"]}
+                  columnContentTypes={["text", "text", "text", "text", "text", "text", "text", "text"]}
                   headings={isEs
-                    ? ["Job", "Estado", "Progreso", "Items", "Creado", "Completado", "Error"]
-                    : ["Job", "Status", "Progress", "Items", "Created", "Completed", "Error"]}
+                    ? ["Job", "Estado", "Progreso", "Items", "Creado", "Completado", "Error", "Accion"]
+                    : ["Job", "Status", "Progress", "Items", "Created", "Completed", "Error", "Action"]}
                   rows={syncRows}
                 />
               )}

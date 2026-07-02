@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import prisma from "../db.server";
 import { syncShopReferenceToIABackend } from "./shop-backend-sync.server";
 import { SyncService, type SyncJobType } from "./sync-service.server";
@@ -73,6 +74,7 @@ export async function ensureShopRecord(context: ShopContext): Promise<{ id: stri
     scope?: string;
     isOnline?: boolean;
     onboardingCompletedAt?: null;
+    metadata?: Prisma.InputJsonValue;
   } = {
     status: "ACTIVE",
   };
@@ -92,7 +94,7 @@ export async function ensureShopRecord(context: ShopContext): Promise<{ id: stri
   // Detect whether this is a first-time install or a reinstall before upsert.
   const existingShop = await prisma.shop.findUnique({
     where: { domain: context.domain },
-    select: { id: true, status: true },
+    select: { id: true, status: true, metadata: true },
   });
   const isNewInstall = !existingShop;
   const isReinstall = existingShop && existingShop.status === "CANCELLED";
@@ -100,6 +102,16 @@ export async function ensureShopRecord(context: ShopContext): Promise<{ id: stri
   // Reset onboarding for new installs and reinstalls
   if (isNewInstall || isReinstall) {
     updateData.onboardingCompletedAt = null;
+    const metadata = asRecord(existingShop?.metadata) || {};
+    const adminSetup = asRecord(metadata.adminSetup) || {};
+    updateData.metadata = {
+      ...metadata,
+      adminSetup: {
+        ...adminSetup,
+        onboardingCompleted: false,
+        onboardingStep: 1,
+      },
+    } as Prisma.InputJsonValue;
   }
 
   const shop = await prisma.shop.upsert({

@@ -71,6 +71,16 @@ const DEFAULT_ADMIN_CONFIG: MerchantAdminConfig = {
   updatedAt: new Date().toISOString(),
 };
 
+export function getDefaultMerchantAdminConfig(): MerchantAdminConfig {
+  return {
+    ...DEFAULT_ADMIN_CONFIG,
+    enabledCapabilities: { ...DEFAULT_ADMIN_CONFIG.enabledCapabilities },
+    widgetBranding: { ...DEFAULT_ADMIN_CONFIG.widgetBranding },
+    supportedLanguages: [...DEFAULT_ADMIN_CONFIG.supportedLanguages],
+    updatedAt: new Date().toISOString(),
+  };
+}
+
 function asRecord(value: unknown): Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value)
     ? (value as Record<string, unknown>)
@@ -213,7 +223,7 @@ export async function getMerchantAdminConfig(shopId: string): Promise<MerchantAd
   const [shop, chatbotConfig] = await Promise.all([
     prisma.shop.findUnique({
       where: { id: shopId },
-      select: { metadata: true },
+      select: { metadata: true, onboardingCompletedAt: true },
     }),
     prisma.chatbotConfig.findUnique({
       where: { shopId },
@@ -229,6 +239,7 @@ export async function getMerchantAdminConfig(shopId: string): Promise<MerchantAd
   const metadata = asRecord(shop?.metadata);
   const configFromMetadata = normalizeAdminConfig(metadata.adminSetup);
   const globalLanguage = normalizeLanguage(chatbotConfig?.language, configFromMetadata.adminLanguage);
+  const onboardingCompleted = Boolean(configFromMetadata.onboardingCompleted || shop?.onboardingCompletedAt);
 
   return {
     ...configFromMetadata,
@@ -237,8 +248,8 @@ export async function getMerchantAdminConfig(shopId: string): Promise<MerchantAd
     supportedLanguages: [globalLanguage],
     botName: chatbotConfig?.name || configFromMetadata.botName,
     botTone: normalizeBotTone(chatbotConfig?.tone, configFromMetadata.botTone),
-    onboardingCompleted: configFromMetadata.onboardingCompleted,
-    onboardingStep: configFromMetadata.onboardingStep,
+    onboardingCompleted,
+    onboardingStep: onboardingCompleted ? 4 : configFromMetadata.onboardingStep,
   };
 }
 

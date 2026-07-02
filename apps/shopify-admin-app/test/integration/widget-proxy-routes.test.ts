@@ -358,7 +358,7 @@ describe("widget proxy routes", () => {
 
     expect(mockShopFindUnique).toHaveBeenNthCalledWith(2, {
       where: { id: "shop-1" },
-      select: { metadata: true },
+      select: { metadata: true, onboardingCompletedAt: true },
     });
     expect(data).toEqual({
       success: true,

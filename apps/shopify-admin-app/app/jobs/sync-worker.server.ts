@@ -27,6 +27,8 @@ type ProcessResult = {
   jobs: Array<{ id: string; status: "COMPLETED" | "FAILED"; message?: string }>;
 };
 
+type DispatchResult = ProcessResult["jobs"][number] | null;
+
 type GraphqlResponse<T> = {
   data?: T;
   errors?: Array<{ message?: string }>;
@@ -47,6 +49,11 @@ function extractNumericId(rawId: string | null | undefined): string | null {
 
   const fallbackMatch = rawId.match(/(\d+)(?!.*\d)/);
   return fallbackMatch?.[1] || null;
+}
+
+function isUnknownFieldGraphqlError(error: unknown, fieldName: string): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return message.includes(`Field '${fieldName}' doesn't exist`);
 }
 
 async function runShopifyGraphql<T>(params: {
@@ -242,14 +249,27 @@ async function fetchPolicies(shopDomain: string, accessToken: string): Promise<P
     }
   `;
 
-  const data = await runShopifyGraphql<{
+  let data: {
     shop?: {
       privacyPolicy?: Record<string, any> | null;
       refundPolicy?: Record<string, any> | null;
       shippingPolicy?: Record<string, any> | null;
       termsOfService?: Record<string, any> | null;
     };
-  }>({ shopDomain, accessToken, query });
+  };
+
+  try {
+    data = await runShopifyGraphql<typeof data>({ shopDomain, accessToken, query });
+  } catch (error) {
+    if (isUnknownFieldGraphqlError(error, "privacyPolicy")) {
+      console.warn(
+        `[SyncWorker] Policy sync skipped for ${shopDomain}: this Shopify Admin API version does not expose shop policy fields.`,
+      );
+      return [];
+    }
+
+    throw error;
+  }
 
   const shop = toObject(data.shop);
 
@@ -294,10 +314,6 @@ async function fetchAllPages(shopDomain: string, accessToken: string): Promise<P
             handle
             bodySummary
             body
-            seo {
-              title
-              description
-            }
           }
         }
         pageInfo {
@@ -335,7 +351,6 @@ async function fetchAllPages(shopDomain: string, accessToken: string): Promise<P
       );
       if (!id) continue;
 
-      const seo = toObject(node.seo);
       pages.push({
         id,
         title: String(node.title || "Untitled page"),
@@ -343,8 +358,8 @@ async function fetchAllPages(shopDomain: string, accessToken: string): Promise<P
         bodySummary: String(node.bodySummary || ""),
         body: String(node.body || ""),
         seo: {
-          title: String(seo.title || ""),
-          description: String(seo.description || ""),
+          title: "",
+          description: "",
         },
       });
     }
@@ -367,7 +382,6 @@ async function fetchRecentOrders(shopDomain: string, accessToken: string) {
             id
             legacyResourceId
             name
-            orderNumber
             email
             displayFinancialStatus
             displayFulfillmentStatus
@@ -747,6 +761,30 @@ async function processJob(job: Awaited<ReturnType<typeof claimNextPendingJob>>) 
 }
 
 /**
+ * Queue broker: claim one pending job and dispatch it for processing.
+ */
+export async function dispatchNextSyncQueueJob(): Promise<DispatchResult> {
+  const job = await claimNextPendingJob();
+  if (!job) {
+    return null;
+  }
+
+  try {
+    await processJob(job);
+    return { id: job.id, status: "COMPLETED" };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    await SyncService.updateSyncJob(job.id, {
+      status: "FAILED",
+      errorMessage: message,
+      completedAt: new Date(),
+    });
+    console.error(`[SyncWorker] Job ${job.id} failed:`, error);
+    return { id: job.id, status: "FAILED", message };
+  }
+}
+
+/**
  * Process pending sync jobs in FIFO order.
  */
 export async function processPendingSyncJobs(limit = 2): Promise<ProcessResult> {
@@ -755,23 +793,14 @@ export async function processPendingSyncJobs(limit = 2): Promise<ProcessResult> 
   const jobs: ProcessResult["jobs"] = [];
 
   for (let i = 0; i < limit; i++) {
-    const job = await claimNextPendingJob();
-    if (!job) break;
+    const dispatch = await dispatchNextSyncQueueJob();
+    if (!dispatch) break;
+    jobs.push(dispatch);
 
-    try {
-      await processJob(job);
+    if (dispatch.status === "COMPLETED") {
       processed++;
-      jobs.push({ id: job.id, status: "COMPLETED" });
-    } catch (error) {
+    } else {
       failed++;
-      const message = error instanceof Error ? error.message : String(error);
-      await SyncService.updateSyncJob(job.id, {
-        status: "FAILED",
-        errorMessage: message,
-        completedAt: new Date(),
-      });
-      jobs.push({ id: job.id, status: "FAILED", message });
-      console.error(`[SyncWorker] Job ${job.id} failed:`, error);
     }
   }
 

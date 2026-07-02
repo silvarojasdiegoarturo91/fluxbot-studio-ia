@@ -70,7 +70,14 @@ const shopify = shopifyApp({
   hooks: {
     afterAuth: async ({ session }) => {
       await ensureShopForSession(session);
-      await shopify.registerWebhooks({ session });
+      try {
+        await shopify.registerWebhooks({ session });
+      } catch (error) {
+        console.error("[shopify] Webhook registration failed after auth", {
+          shop: session.shop,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
     },
   },
 });

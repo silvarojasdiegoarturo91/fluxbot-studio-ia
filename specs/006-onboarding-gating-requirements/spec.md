@@ -8,7 +8,12 @@
 
 - Root requirement: `REQ-ROOT-001`
 - Shopify requirement: `REQ-OPEN-009`
-- Covered behavior: after the final onboarding action succeeds, the merchant must be redirected automatically to `/app` (Panel).
+- Covered behavior:
+  - Pre-onboarding gating: incomplete users cannot access any route except /app/onboarding
+  - Menu and controls hidden until onboarding is complete
+  - Final step button MUST say "Activar..." to signal activation moment
+  - After clicking "Activar...", onboarding marks complete, ALL app sections/pages/elements activate
+  - Merchant is redirected automatically to `/app` (Panel)
 
 ## Executive Summary
 
@@ -40,6 +45,30 @@ The Fluxbot Studio application implements strict onboarding gating to ensure mer
 - ❌ Only onboarding route `/app/onboarding` **ACCESSIBLE**
 - ❌ Cannot navigate to other routes (hard redirect)
 - ❌ All app options and controls **HIDDEN**
+
+### PRD-001a: "Activar..." Button Trigger
+**Goal:** The final onboarding step must have a clearly identifiable activation button.
+
+**User Stories:**
+- **USR-005:** As a merchant, I want the last onboarding button to say "Activar..." so I know this is the point of no return that activates the app
+- **USR-006:** As a merchant, clicking "Activar..." should immediately unlock all app features and take me to the dashboard
+
+**Button Requirements:**
+- The primary action button on the final onboarding step MUST start with "Activar..." text
+- Example: "Activar Fluxbot en mi tienda"
+- The button MUST signal to the merchant that this action activates the app and completes onboarding
+- After clicking, completion state is persisted, all app sections/pages/elements become active, and the merchant is redirected to /app
+
+### PRD-001b: Full App Activation Post-Onboarding
+**Goal:** All app pages, sections, navigation elements and controls must be inaccessible before completion and fully active after.
+
+**User Stories:**
+- **USR-007:** As a merchant with incomplete onboarding, I should not be able to see or reach any app feature, menu option, or page outside the onboarding flow
+- **USR-008:** As a merchant who just completed onboarding, I should immediately see the full navigation menu and all app sections
+
+**Activation Rules:**
+- Pre-onboarding: menu hidden, all routes (except /app/onboarding) redirect to onboarding, all controls invisible
+- Post-onboarding: menu visible, all routes accessible, all controls shown, dashboard is the landing page
 
 ### PRD-003: Onboarding Reset Scenarios
 
@@ -113,14 +142,60 @@ And resets the onboarding state
 And the user must re-complete onboarding
 ```
 
-### AC-005: Automatic Redirect After Completion
+### AC-005: [BUG] "Activar..." Button Must Trigger Auto-Redirect (Currently Broken)
 ```gherkin
+# BUG: Currently, clicking "Activar Fluxbot en mi tienda" does NOT redirect.
+# The merchant stays on /app/onboarding with no way to proceed.
+# This is a blocking bug that MUST be fixed.
+#
+# BUG 2: Even when the redirect DOES happen, the Panel content (dashboard, menu, stats,
+# cards, success banner) is NOT visible. The merchant sees a blank/incomplete page.
+# This is ALSO a blocking bug that MUST be fixed.
+
 Given a merchant is on the final onboarding step
-When they click the final onboarding button
+Then the primary button text starts with "Activar..."
+When they click the "Activar..." button
 And the completion action persists onboarding state
-Then the app redirects automatically to /app
-And the merchant sees the Panel without refreshing manually
+Then onboarding is marked complete
+And ALL app pages, sections, and navigation elements become active
+And the side navigation menu becomes visible
+And the app redirects AUTOMATICALLY to /app
+And the merchant sees the Panel WITHOUT clicking any other button, link, or control
+And the merchant does NOT refresh manually
+And the redirect happens immediately — no extra click, no manual navigation required
 And required Shopify embedded app context is preserved
+
+### NUEVO: Panel Content Visibility
+
+# BUG: Currently, even after the redirect is fixed, the Panel content (dashboard cards,
+# stats table, shop connection status, sidebar menu, success banner) is NOT rendering.
+# The user arrives at /app but sees no usable content. This is a blocking bug.
+
+Given the merchant is redirected to /app after clicking "Activar..."
+When the /app page loads
+Then the FULL dashboard content MUST be rendered immediately
+And the side navigation menu MUST be visible and fully functional
+And ALL dashboard data queries (shop connection, analytics, chatbotConfig, knowledgeSources, campaigns, syncJobs, handoffs) MUST load without error
+And the success banner "Asistente activado" / "Assistant activated" MUST be visible
+And the `onboarding=done` URL param MUST be preserved
+And the merchant MUST NOT be redirected back to /app/onboarding
+And if any data query fails, the dashboard MUST still render with partial data and an alert — NOT crash into an error boundary
+And the merchant MUST NOT see a blank page, a never-resolving spinner, or any intermediate error screen
+```
+
+### AC-006: Pre-Completion Gating
+```gherkin
+Given a merchant with incomplete onboarding
+When they try to access /app/dashboard or any route except /app/onboarding
+Then they are redirected to /app/onboarding
+And the redirect is permanent (cannot navigate back)
+And the side navigation menu is NOT visible
+And no app controls or sections are accessible
+
+Given a merchant with incomplete onboarding
+When the app shell renders
+Then the only visible UI is the onboarding flow
+And all app features are hidden
 ```
 
 ## Technical Implementation

@@ -135,6 +135,38 @@ describe("shop-context.server — ensureShopRecord", () => {
 
       expect(mockCreateSyncJob).not.toHaveBeenCalled();
     });
+
+    it("resets onboarding metadata when a cancelled shop reinstalls", async () => {
+      mockFindUnique.mockResolvedValue({
+        id: "shop-1",
+        status: "CANCELLED",
+        metadata: {
+          adminSetup: {
+            onboardingCompleted: true,
+            onboardingStep: 4,
+            botName: "Previous assistant",
+          },
+        },
+      });
+      const { ensureShopRecord } = await import("../../../app/services/shop-context.server");
+
+      await ensureShopRecord({ domain: "existing.myshopify.com", accessToken: "tok" });
+
+      expect(mockUpsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          update: expect.objectContaining({
+            onboardingCompletedAt: null,
+            metadata: expect.objectContaining({
+              adminSetup: expect.objectContaining({
+                onboardingCompleted: false,
+                onboardingStep: 1,
+                botName: "Previous assistant",
+              }),
+            }),
+          }),
+        }),
+      );
+    });
   });
 
   describe("ensureShopRecord — sync job failure is non-fatal", () => {

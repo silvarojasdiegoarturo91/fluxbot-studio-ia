@@ -23,6 +23,26 @@ function resolveAppUrl() {
     process.exit(1);
   }
 
+  const ephemeralTunnel = [
+    ".ngrok-free.dev",
+    ".ngrok.io",
+    ".trycloudflare.com",
+  ].some((suffix) => parsed.hostname.endsWith(suffix));
+
+  if (
+    ephemeralTunnel &&
+    process.env.FLUXBOT_ALLOW_EPHEMERAL_APP_URL !== "1"
+  ) {
+    console.error(
+      [
+        `Refusing to persist ephemeral tunnel URL: ${candidate}`,
+        "Use npm run dev and let Shopify CLI update dev preview URLs at runtime.",
+        "For one-off legacy tunnel tests, set FLUXBOT_ALLOW_EPHEMERAL_APP_URL=1 explicitly.",
+      ].join("\n"),
+    );
+    process.exit(1);
+  }
+
   return parsed.toString().replace(/\/$/, "");
 }
 

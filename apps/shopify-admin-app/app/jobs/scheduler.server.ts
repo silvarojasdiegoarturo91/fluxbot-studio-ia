@@ -16,6 +16,7 @@ import { evaluateAllShops, cleanupExpiredMessages } from "./evaluate-proactive.s
 import { deliverMessagesBatch } from "../services/delivery.server";
 import { RetentionEnforcementService } from "../services/enterprise-compliance.server";
 import { processPendingSyncJobs } from "./sync-worker.server";
+import { SyncService } from "../services/sync-service.server";
 import { dispatchCampaign } from "../services/campaign.server";
 import prisma from "../db.server";
 
@@ -46,6 +47,7 @@ interface RetentionStatsState {
 
 interface SyncStatsState {
   runs: number;
+  requeuedJobs: number;
   processedJobs: number;
   failedJobs: number;
   errors: number;
@@ -98,6 +100,18 @@ const SYNC_INTERVAL_MS = process.env.SYNC_WORKER_INTERVAL_MS
   ? parseInt(process.env.SYNC_WORKER_INTERVAL_MS)
   : 15000; // 15 seconds default
 
+const SYNC_RUNNING_STALE_MS = process.env.SYNC_RUNNING_STALE_MS
+  ? parseInt(process.env.SYNC_RUNNING_STALE_MS)
+  : 10 * 60 * 1000; // 10 minutes default
+
+const SYNC_STALE_REQUEUE_LIMIT = process.env.SYNC_STALE_REQUEUE_LIMIT
+  ? parseInt(process.env.SYNC_STALE_REQUEUE_LIMIT)
+  : 20;
+
+const SYNC_DISPATCH_LIMIT = process.env.SYNC_DISPATCH_LIMIT
+  ? parseInt(process.env.SYNC_DISPATCH_LIMIT)
+  : 2;
+
 const CAMPAIGN_INTERVAL_MS = process.env.CAMPAIGN_EVAL_INTERVAL_MS
   ? parseInt(process.env.CAMPAIGN_EVAL_INTERVAL_MS)
   : 60000; // 60 seconds default
@@ -143,6 +157,7 @@ const schedulerState: ProactiveSchedulerState =
     },
     syncStats: {
       runs: 0,
+      requeuedJobs: 0,
       processedJobs: 0,
       failedJobs: 0,
       errors: 0,
@@ -363,10 +378,15 @@ async function runSyncWorkerJob() {
   schedulerState.syncLastRun = now;
 
   try {
-    const result = await processPendingSyncJobs(2);
+    const requeued = await processStaleRunningSyncJobs();
+    const dispatchLimit = Number.isFinite(SYNC_DISPATCH_LIMIT) && SYNC_DISPATCH_LIMIT > 0
+      ? SYNC_DISPATCH_LIMIT
+      : 2;
+    const result = await processPendingSyncJobs(dispatchLimit);
 
     schedulerState.syncStats = {
       runs: schedulerState.syncStats.runs + 1,
+      requeuedJobs: schedulerState.syncStats.requeuedJobs + requeued,
       processedJobs: schedulerState.syncStats.processedJobs + result.processed,
       failedJobs: schedulerState.syncStats.failedJobs + result.failed,
       errors: schedulerState.syncStats.errors,
@@ -374,9 +394,9 @@ async function runSyncWorkerJob() {
       lastRunAt: new Date(),
     };
 
-    if (result.processed > 0 || result.failed > 0) {
+    if (requeued > 0 || result.processed > 0 || result.failed > 0) {
       console.log(
-        `[ProactiveJobScheduler] Sync worker processed: ${result.processed} completed, ${result.failed} failed`,
+        `[ProactiveJobScheduler] Sync worker: ${requeued} requeued, ${result.processed} completed, ${result.failed} failed`,
       );
     }
   } catch (error) {
@@ -389,6 +409,24 @@ async function runSyncWorkerJob() {
     };
     console.error(`[ProactiveJobScheduler] Sync worker failed:`, error);
   }
+}
+
+async function processStaleRunningSyncJobs(): Promise<number> {
+  if (!Number.isFinite(SYNC_RUNNING_STALE_MS) || SYNC_RUNNING_STALE_MS <= 0) {
+    return 0;
+  }
+
+  const requeueLimit =
+    Number.isFinite(SYNC_STALE_REQUEUE_LIMIT) && SYNC_STALE_REQUEUE_LIMIT > 0
+      ? SYNC_STALE_REQUEUE_LIMIT
+      : 20;
+
+  return process.env.SYNC_WATCHDOG_ENABLED === "false"
+    ? 0
+    : SyncService.requeueStaleRunningJobs({
+      maxAgeMs: SYNC_RUNNING_STALE_MS,
+      limit: requeueLimit,
+    });
 }
 
 /**

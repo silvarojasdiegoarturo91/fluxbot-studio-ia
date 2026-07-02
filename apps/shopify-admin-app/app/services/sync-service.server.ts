@@ -379,6 +379,78 @@ export class SyncService {
   }
 
   /**
+   * Move stale RUNNING jobs back to PENDING so the queue broker can dispatch them again.
+   */
+  static async requeueStaleRunningJobs(params?: {
+    maxAgeMs?: number;
+    limit?: number;
+  }): Promise<number> {
+    const maxAgeMs = params?.maxAgeMs ?? 10 * 60 * 1000;
+    const limit = Math.max(1, Math.min(params?.limit ?? 20, 200));
+    const staleThreshold = new Date(Date.now() - maxAgeMs);
+
+    const staleJobs = await prisma.syncJob.findMany({
+      where: {
+        status: "RUNNING",
+        OR: [
+          { startedAt: { lte: staleThreshold } },
+          {
+            startedAt: null,
+            createdAt: { lte: staleThreshold },
+          },
+        ],
+      },
+      orderBy: { createdAt: "asc" },
+      select: { id: true },
+      take: limit,
+    });
+
+    if (staleJobs.length === 0) {
+      return 0;
+    }
+
+    let requeued = 0;
+    for (const job of staleJobs) {
+      const updated = await prisma.syncJob.updateMany({
+        where: { id: job.id, status: "RUNNING" },
+        data: {
+          status: "PENDING",
+          progress: 0,
+          startedAt: null,
+          completedAt: null,
+          errorMessage: "Job requeued by sync watchdog (stale RUNNING state).",
+        },
+      });
+      requeued += updated.count;
+    }
+
+    return requeued;
+  }
+
+  /**
+   * Requeue a sync job manually from admin so it can be dispatched again.
+   */
+  static async requeueSyncJob(shopId: string, jobId: string): Promise<boolean> {
+    const updated = await prisma.syncJob.updateMany({
+      where: {
+        id: jobId,
+        shopId,
+        status: { in: ["FAILED", "CANCELLED", "RUNNING", "COMPLETED"] },
+      },
+      data: {
+        status: "PENDING",
+        progress: 0,
+        processedItems: 0,
+        errorMessage: null,
+        startedAt: null,
+        completedAt: null,
+      },
+    });
+
+    return updated.count > 0;
+  }
+
+  /**
    * Update sync job progress
    */
   static async updateSyncJob(jobId: string, update: Partial<any>) {

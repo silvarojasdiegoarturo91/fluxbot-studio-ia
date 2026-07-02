@@ -9,6 +9,7 @@
 - Root requirement: `REQ-ROOT-001`
 - Shopify requirement: `REQ-OPEN-009`
 - Covered behavior: clicking the final onboarding button must complete onboarding and redirect the merchant automatically to `/app` (Panel).
+- **[BUG]** Currently, clicking "Activar Fluxbot en mi tienda" does NOT redirect — merchant stays stuck on `/app/onboarding`. Fix required: auto-redirect without any extra click.
 
 ## Executive Summary
 
@@ -20,6 +21,17 @@ The "4-Step Magic Setup" is a complete redesign of the onboarding experience fro
 - **Smart Defaults:** No empty fields; auto-populated where sensible
 - **Background Sync:** Catalog/policies sync without blocking user
 - **Session Resilience:** Handles long inactive sessions gracefully
+- **Transition Continuity:** Step changes keep the onboarding shell mounted and show a branded loading state instead of a blank refresh
+
+### Step Transition Contract
+
+The onboarding flow must behave like a single persistent surface while the merchant moves between steps.
+
+- The shell, header, and primary layout stay mounted across step changes.
+- The next step can stream/load asynchronously, but the user must always see a visible placeholder.
+- The placeholder should use the Fluxbot robot or equivalent animated skeleton treatment.
+- Width and height for the content area should remain stable to avoid layout shift.
+- The transition must not look like a navigation to an unrelated page.
 
 ---
 
@@ -122,9 +134,26 @@ if (intent === "complete") {
 ```
 
 **Redirect Contract:**
+- **[BUG]** Currently, clicking "Activar Fluxbot en mi tienda" does NOT redirect — the merchant stays stuck on `/app/onboarding`. This is a blocking bug that MUST be fixed.
 - The final onboarding action MUST return a redirect to `/app` after completion state is persisted.
 - The redirect MUST happen without waiting for background shop reference sync.
 - The merchant MUST NOT remain on `/app/onboarding` after clicking the final onboarding button.
+- The merchant MUST NOT need to click any other button, link, or control to leave the onboarding — the redirect to `/app` MUST be fully automatic.
+- The merchant MUST land on the Panel/dashboard (`/app`) — not a blank page, not an error state, not the onboarding page.
+
+**Panel Content Visibility Contract (CRITICO):**
+- **[BUG CONFIRMADO]** Actualmente, despues de hacer click en "Activar Fluxbot en mi tienda", el Panel NO muestra su contenido completo. El usuario se queda sin ver el dashboard, el menu o cualquier seccion de la app. Este bug debe ser corregido.
+- Inmediatamente despues de la redireccion automatica a `/app`, el Panel DEBE mostrar TODO su contenido: tarjetas del dashboard, estadisticas de 7 dias, conexion de tienda, configuracion del asistente, fuentes de conocimiento, campañas, tareas de sincronizacion y handoffs abiertos.
+- El menu lateral de navegacion DEBE estar visible y funcional desde el PRIMER renderizado de `/app`. No debe requerir recarga manual, clic adicional, ni ninguna otra accion.
+- El banner de exito "Asistente activado" / "Assistant activated" DEBE mostrarse en el primer renderizado, activado por el parametro `onboarding=done` en la URL.
+- NINGUNA consulta de datos del dashboard debe fallar silenciosamente o causar que el loader lance una excepcion no manejada. Si una consulta falla, el loader DEBE devolver datos parciales con una alerta visible, permitiendo que el resto del Panel se renderice.
+- El `onboardingCompleted` flag debe leerse como `true` en la PRIMERA consulta post-activacion. Si por alguna razon tecnica (race condition, replica lag, cache) el flag retorna `false`, los loaders NO deben redirigir al usuario de vuelta al onboarding — deben tolerar la discrepancia y permitir que el Panel se renderice.
+
+**Step Transition Contract:**
+- Moving between onboarding steps MUST preserve the onboarding shell and previously rendered context.
+- Loading the next step MUST show a skeleton, progress treatment, or branded placeholder instead of a blank screen.
+- The loading state SHOULD include an animated robot/icon to make the wait legible and polished.
+- The content container SHOULD keep its dimensions stable so the UI does not jump when the next step arrives.
 
 **Sync Status Tracking:**
 - Sync state stored in `SyncJob` table (separate from onboarding)
@@ -190,6 +219,23 @@ npm run test -- test/unit/onboarding-4step.test.ts
 ### Component Tests (test/components/*.test.tsx)
 
 **Legacy Test:** `test/components/app.onboarding.test.tsx` (7-step version, needs update)
+
+### Bug Fix — Auto-Redirect Regression Test
+
+- [BUG] Clicking "Activar Fluxbot en mi tienda" does NOT redirect — user stays stuck. Fix MUST be tested:
+  - Click "Activar..." -> redirect to /app happens automatically
+  - No additional click, manual refresh, or other user action required
+  - User lands on Panel/dashboard, not on onboarding, not on a blank page
+- Pre-onboarding gating: menu hidden, only /app/onboarding accessible
+- Post-activation: menu visible, all routes accessible
+
+### Transition Coverage to Add
+
+- Step navigation keeps the onboarding shell mounted
+- Skeleton appears while the next step resolves
+- Robot/icon placeholder renders during loading
+- No blank screen between steps
+- No visible layout shift when content swaps in
 
 ---
 

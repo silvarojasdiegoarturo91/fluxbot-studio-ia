@@ -48,6 +48,11 @@ if [[ -n "${DEV_STORE}" ]]; then
 elif [[ -n "${DEV_STORES}" ]]; then
   DEV_STORE="$(split_stores "${DEV_STORES}" | head -n 1)"
   DEV_STORE="$(normalize_store "${DEV_STORE}")"
+elif [[ -f "${APP_DIR}/shopify.app.toml" ]]; then
+  DEV_STORE="$(
+    sed -nE 's/^[[:space:]]*dev_store_url[[:space:]]*=[[:space:]]*"([^"]+)".*/\1/p' "${APP_DIR}/shopify.app.toml" | head -n 1
+  )"
+  DEV_STORE="$(normalize_store "${DEV_STORE}")"
 fi
 
 CLEAN_STORES=()
@@ -76,7 +81,7 @@ fi
 
 if [[ -n "${DEV_STORE}" ]]; then
   echo "Using dev store: ${DEV_STORE}"
-  if [[ "${SHOPIFY_CLEAN_DEV_PREVIEW:-0}" == "1" && "${#CLEAN_STORES[@]}" -gt 1 ]]; then
+  if [[ "${SHOPIFY_CLEAN_DEV_PREVIEW:-1}" == "1" && "${#CLEAN_STORES[@]}" -gt 1 ]]; then
     echo "Cleaning stale previews for stores: ${CLEAN_STORES[*]}"
   fi
 else
@@ -112,12 +117,14 @@ rm -rf "$APP_DIR/.react-router/types" >/dev/null 2>&1 || true
 echo "Starting Shopify CLI native dev flow."
 echo "Shopify CLI will create its default tunnel and update the dev preview URLs."
 
-if [[ "${SHOPIFY_CLEAN_DEV_PREVIEW:-0}" == "1" ]]; then
+if [[ "${SHOPIFY_CLEAN_DEV_PREVIEW:-1}" == "1" ]]; then
   for store in "${CLEAN_STORES[@]:-}"; do
     [[ -z "${store}" ]] && continue
     echo "Cleaning stale Shopify dev preview for ${store}..."
     shopify app dev clean --path "$APP_DIR" --store "$store" >/dev/null 2>&1 || true
   done
+else
+  echo "Skipping Shopify dev preview cleanup because SHOPIFY_CLEAN_DEV_PREVIEW=0."
 fi
 
 shopify "${SHOPIFY_DEV_ARGS[@]}"

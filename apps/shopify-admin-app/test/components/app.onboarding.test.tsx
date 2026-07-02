@@ -3,9 +3,21 @@ import { render, screen } from "@testing-library/react";
 import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+let navigationState: { state: "idle" | "loading" | "submitting"; location: { pathname: string; search: string } | null } = {
+  state: "idle",
+  location: null,
+};
+
+let locationState = {
+  pathname: "/app/onboarding",
+  search: "?step=1",
+};
+
+const navigateMock = vi.fn();
+
 const loaderData = {
   step: 1,
-  totalSteps: 7,
+  totalSteps: 4,
   shop: { id: "shop-1" },
   config: {
     adminLanguage: "es",
@@ -165,11 +177,14 @@ vi.mock("react-router", async () => {
     redirect: vi.fn(),
     useActionData: () => undefined,
     useLoaderData: () => loaderData,
-    useNavigation: () => ({ state: "idle" }),
+    useNavigation: () => navigationState,
+    useLocation: () => locationState,
+    useNavigate: () => navigateMock,
   };
 });
 
 vi.mock("../../app/services/admin-config.server", () => ({
+  getDefaultMerchantAdminConfig: vi.fn(() => loaderData.config),
   getMerchantAdminConfig: vi.fn(),
   saveMerchantAdminConfig: vi.fn(),
 }));
@@ -189,6 +204,9 @@ import OnboardingPage from "../../app/routes/app.onboarding";
 describe("OnboardingPage", () => {
   beforeEach(() => {
     vi.unstubAllGlobals();
+    navigateMock.mockReset();
+    navigationState = { state: "idle", location: null };
+    locationState = { pathname: "/app/onboarding", search: "?step=1" };
   });
 
   it("renders continue as a client navigation button", () => {
@@ -196,5 +214,28 @@ describe("OnboardingPage", () => {
 
     const button = screen.getByRole("button", { name: "Continuar" });
     expect(button).toHaveAttribute("type", "button");
+  });
+
+  it("navigates to the next onboarding step without a full reload", () => {
+    render(<OnboardingPage />);
+
+    screen.getByRole("button", { name: "Continuar" }).click();
+
+    expect(navigateMock).toHaveBeenCalledWith(
+      expect.stringContaining("step=2"),
+      expect.objectContaining({ preventScrollReset: true }),
+    );
+  });
+
+  it("shows a loading overlay while the next step is resolving", () => {
+    navigationState = {
+      state: "loading",
+      location: { pathname: "/app/onboarding", search: "?step=2" },
+    };
+
+    render(<OnboardingPage />);
+
+    expect(screen.getByRole("status")).toHaveTextContent("Cargando el paso 2");
+    expect(screen.getByText(/Cargando el siguiente paso del onboarding/i)).toBeInTheDocument();
   });
 });

@@ -13,8 +13,9 @@ import "@shopify/polaris/build/esm/styles.css";
  * Initialize server-side jobs on app startup
  */
 export async function loader(_: LoaderFunctionArgs) {
-  // Initialize proactive messaging scheduler only once
-  startProactiveJobScheduler();
+  if (process.env.ENABLE_PROACTIVE_TRIGGERS === "true") {
+    startProactiveJobScheduler();
+  }
 
   return null;
 }

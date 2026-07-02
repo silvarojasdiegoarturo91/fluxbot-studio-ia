@@ -4,6 +4,12 @@ set -euo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 APP_DIR="$(cd -- "$SCRIPT_DIR/.." && pwd)"
 
+if [[ "${FLUXBOT_ALLOW_LEGACY_NGROK:-0}" != "1" ]]; then
+  echo "dev:ngrok is disabled for normal FluxBot development because ephemeral ngrok URLs break reinstall flows."
+  echo "Use npm run dev, or set FLUXBOT_ALLOW_LEGACY_NGROK=1 only for an explicit ngrok test."
+  exit 1
+fi
+
 cleanup() {
   if [[ -n "${NGROK_PID:-}" ]]; then
     kill "$NGROK_PID" >/dev/null 2>&1 || true
@@ -56,7 +62,7 @@ if [[ -z "$DEV_URL" ]]; then
 fi
 
 echo "Using ngrok URL: $DEV_URL"
-node "$SCRIPT_DIR/set-app-url.mjs" "$DEV_URL"
+FLUXBOT_ALLOW_EPHEMERAL_APP_URL=1 node "$SCRIPT_DIR/set-app-url.mjs" "$DEV_URL"
 
 # Force Vite to resolve HMR against the ngrok public URL instead of localhost.
 export SHOPIFY_APP_URL="$DEV_URL"

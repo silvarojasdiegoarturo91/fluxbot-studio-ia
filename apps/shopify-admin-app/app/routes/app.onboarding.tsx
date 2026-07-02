@@ -14,13 +14,24 @@ import {
   Banner,
 } from "@shopify/polaris";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
-import { Form, redirect, useActionData, useLoaderData, useNavigation } from "react-router";
+import {
+  Form,
+  isRouteErrorResponse,
+  redirect,
+  useActionData,
+  useLoaderData,
+  useLocation,
+  useNavigation,
+  useNavigate,
+  useRouteError,
+} from "react-router";
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import {
   type AdminLanguage,
   type BotGoal,
   type BotTone,
   type ResponseStyle,
+  getDefaultMerchantAdminConfig,
   getMerchantAdminConfig,
   saveMerchantAdminConfig,
 } from "../services/admin-config.server";
@@ -351,6 +362,10 @@ const ONBOARDING_STYLES = `
 }
 
 .onb-step-pill {
+  appearance: none;
+  width: 100%;
+  font: inherit;
+  text-align: left;
   border: 1px solid var(--onb-border);
   border-radius: 12px;
   background: #ffffff;
@@ -920,6 +935,129 @@ const ONBOARDING_STYLES = `
   will-change: transform, opacity;
 }
 
+.onb-step-stage {
+  position: relative;
+}
+
+.onb-step-stage-loading .onb-step-frame {
+  opacity: 0.28;
+}
+
+.onb-step-loading-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  gap: 14px;
+  padding: 20px;
+  border: 1px solid #ddd1c4;
+  border-radius: 16px;
+  background:
+    linear-gradient(180deg, rgba(255, 251, 246, 0.96) 0%, rgba(246, 238, 228, 0.96) 100%);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.66);
+}
+
+.onb-step-loading-panel {
+  width: min(100%, 360px);
+  display: grid;
+  gap: 12px;
+  justify-items: center;
+  text-align: center;
+}
+
+.onb-step-loading-robot {
+  position: relative;
+  width: 74px;
+  height: 74px;
+  border-radius: 22px;
+  border: 1px solid #c6d3de;
+  background: linear-gradient(180deg, #f7fbfe 0%, #dfeaf3 100%);
+  box-shadow: 0 10px 24px rgba(71, 101, 127, 0.16);
+  animation: onbRobotBob 1.8s ease-in-out infinite;
+}
+
+.onb-step-loading-robot::before,
+.onb-step-loading-robot::after {
+  content: "";
+  position: absolute;
+  background: #4a677f;
+}
+
+.onb-step-loading-robot::before {
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  top: 22px;
+  left: 18px;
+  box-shadow: 24px 0 0 #4a677f;
+}
+
+.onb-step-loading-robot::after {
+  width: 24px;
+  height: 8px;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background: #6b8aa4;
+}
+
+.onb-step-loading-antenna {
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  width: 4px;
+  height: 18px;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background: #6b8aa4;
+}
+
+.onb-step-loading-antenna::after {
+  content: "";
+  position: absolute;
+  top: -7px;
+  left: 50%;
+  width: 10px;
+  height: 10px;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background: #d79a5a;
+  box-shadow: 0 0 0 4px rgba(215, 154, 90, 0.18);
+}
+
+.onb-step-loading-lines {
+  width: 100%;
+  display: grid;
+  gap: 8px;
+}
+
+.onb-step-loading-line {
+  height: 12px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #dbe5ee 0%, #eef4f8 45%, #dbe5ee 100%);
+  background-size: 220% 100%;
+  animation: onbLoadingShimmer 1.4s linear infinite;
+}
+
+.onb-step-loading-line-short {
+  width: 72%;
+  justify-self: center;
+}
+
+.onb-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .onb-step-frame-neutral {
   animation: onbStepIn 420ms ease both;
 }
@@ -1381,11 +1519,15 @@ const ONBOARDING_STYLES = `
 }
 
 .onb-nav-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   appearance: none;
   border: 1px solid #c9ccd1;
   border-radius: 12px;
   background: #ffffff;
   color: #303030;
+  text-decoration: none;
   min-height: 40px;
   padding: 0 16px;
   font-size: 0.9rem;
@@ -1461,6 +1603,25 @@ const ONBOARDING_STYLES = `
   to {
     opacity: 1;
     transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes onbRobotBob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+@keyframes onbLoadingShimmer {
+  from {
+    background-position: 220% 0;
+  }
+  to {
+    background-position: 0 0;
   }
 }
 
@@ -1554,6 +1715,17 @@ function parseStep(url: URL): number {
   return Math.max(1, Math.min(TOTAL_STEPS, Math.floor(raw)));
 }
 
+function parseStepFromPath(pathname: string, search: string): number {
+  return parseStep(new URL(`${pathname}${search}`, "http://localhost"));
+}
+
+function buildStepNavigationPath(pathname: string, search: string, step: number): string {
+  const params = new URLSearchParams(search);
+  params.set("step", String(Math.max(1, Math.min(TOTAL_STEPS, Math.floor(step) || 1))));
+  const queryString = params.toString();
+  return `${pathname}${queryString ? `?${queryString}` : ""}`;
+}
+
 function parseBoolean(raw: FormDataEntryValue | null, fallback: boolean): boolean {
   if (raw === null || raw === undefined) return fallback;
   const value = String(raw).trim().toLowerCase();
@@ -1631,7 +1803,20 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
   const url = new URL(request.url);
   const step = parseStep(url);
-  const config = await getMerchantAdminConfig(shop.id);
+  let config = getDefaultMerchantAdminConfig();
+
+  try {
+    config = await getMerchantAdminConfig(shop.id);
+  } catch (error) {
+    console.error("[Onboarding] Failed to load merchant admin config; using onboarding defaults.", {
+      shopId: shop.id,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+
+  if (config.onboardingCompleted) {
+    throw redirect(buildRedirectPath("/app", url));
+  }
 
   const adminLanguage = config.adminLanguage;
   const copy = ONBOARDING_COPY[adminLanguage];
@@ -1780,10 +1965,10 @@ export async function action({ request }: ActionFunctionArgs): Promise<Response 
   }
 
   if (intent === "complete") {
-    throw redirect(redirectTo);
+    return redirect(redirectTo);
   }
 
-  throw redirect(redirectTo);
+  return redirect(redirectTo);
 }
 
 function HiddenOnboardingInputs(props: {
@@ -1955,6 +2140,8 @@ export default function OnboardingPage() {
   const { step, totalSteps, config, copy } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
+  const location = useLocation();
+  const navigate = useNavigate();
   const showSectionSummaryCards = config.onboardingCompleted;
   const initialBotName = config.botName.trim() || getDefaultBotName(config.adminLanguage);
   const initialWelcomeMessage =
@@ -2073,6 +2260,14 @@ export default function OnboardingPage() {
     ],
   );
   const hasUnsavedChanges = currentConfigSnapshot !== persistedConfigSnapshot;
+  const pendingStep = useMemo(() => {
+    if (!navigation.location) {
+      return null;
+    }
+
+    return parseStepFromPath(navigation.location.pathname, navigation.location.search);
+  }, [navigation.location]);
+  const isStepTransitionLoading = navigation.state === "loading" && pendingStep !== null && pendingStep !== step;
 
   useEffect(() => {
     const previous = previousStepRef.current;
@@ -2113,11 +2308,10 @@ export default function OnboardingPage() {
 
   const handleStepClick = (targetStep: number) => {
     if (targetStep === step) return;
-    const url = new URL(window.location.href);
-    url.searchParams.set("step", String(targetStep));
+    const nextPath = buildStepNavigationPath(location.pathname, location.search, targetStep);
 
     if (!formRef.current || !hasUnsavedChanges) {
-      window.location.href = url.toString();
+      navigate(nextPath, { preventScrollReset: true });
       return;
     }
 
@@ -2129,17 +2323,19 @@ export default function OnboardingPage() {
 
     const xhr = new XMLHttpRequest();
     autoSaveRequestRef.current = xhr;
-    xhr.open("POST", url.toString(), true);
+    xhr.open("POST", `${location.pathname}${location.search}`, true);
     xhr.setRequestHeader("X-Requested-With", "XMLHttpRequest");
     xhr.onload = () => {
       autoSaveRequestRef.current = null;
       if (xhr.status >= 200 && xhr.status < 300) {
-        window.location.href = url.toString();
+        navigate(nextPath, { preventScrollReset: true });
+      } else {
+        navigate(nextPath, { preventScrollReset: true });
       }
     };
     xhr.onerror = () => {
       autoSaveRequestRef.current = null;
-      window.location.href = url.toString();
+      navigate(nextPath, { preventScrollReset: true });
     };
     xhr.send(formData);
   };
@@ -2173,7 +2369,7 @@ export default function OnboardingPage() {
 
       const xhr = new XMLHttpRequest();
       autoSaveRequestRef.current = xhr;
-      xhr.open("POST", window.location.href, true);
+      xhr.open("POST", `${location.pathname}${location.search}`, true);
       xhr.setRequestHeader("X-Requested-With", "XMLHttpRequest");
       xhr.onload = () => {
         if (autoSaveRequestRef.current === xhr) {
@@ -3033,23 +3229,17 @@ export default function OnboardingPage() {
                           : "";
 
                       return (
-                        <div
+                        <button
                           key={`${title}-${currentIndex}`}
+                          type="button"
                           className={`onb-step-pill ${stateClass}`}
                           style={{ animationDelay: `${index * 55}ms` }}
                           onClick={() => handleStepClick(currentIndex)}
-                          role="button"
-                          tabIndex={0}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter" || e.key === " ") {
-                              e.preventDefault();
-                              handleStepClick(currentIndex);
-                            }
-                          }}
+                          disabled={isSubmitting || isStepTransitionLoading}
                         >
                           <span className="onb-step-index">{currentIndex}</span>
                           <span className="onb-step-label">{title}</span>
-                        </div>
+                        </button>
                       );
                     })}
                   </div>
@@ -3079,10 +3269,50 @@ export default function OnboardingPage() {
                           launcherLabel={normalizedLauncherLabel}
                         />
 
-                        <div key={`step-${step}`} className={stepFrameClass}>
-                          <BlockStack gap="300">
-                            {renderStepBody()}
-                          </BlockStack>
+                        <div
+                          className={`onb-step-stage ${isStepTransitionLoading ? "onb-step-stage-loading" : ""}`}
+                          aria-busy={isStepTransitionLoading ? "true" : undefined}
+                        >
+                          <div className={stepFrameClass} aria-hidden={isStepTransitionLoading ? "true" : undefined}>
+                            <BlockStack gap="300">
+                              {renderStepBody()}
+                            </BlockStack>
+                          </div>
+
+                          {isStepTransitionLoading ? (
+                            <div
+                              className="onb-step-loading-overlay"
+                              role="status"
+                              aria-live="polite"
+                              aria-atomic="true"
+                            >
+                              <div className="onb-step-loading-panel">
+                                <div className="onb-step-loading-robot" aria-hidden="true">
+                                  <span className="onb-step-loading-antenna" aria-hidden="true" />
+                                </div>
+                                <div className="onb-step-loading-lines" aria-hidden="true">
+                                  <div className="onb-step-loading-line" />
+                                  <div className="onb-step-loading-line" />
+                                  <div className="onb-step-loading-line onb-step-loading-line-short" />
+                                </div>
+                                <p className="onb-progress-step-name">
+                                  {adminLanguage === "es"
+                                    ? `Cargando el paso ${pendingStep || step}...`
+                                    : `Loading step ${pendingStep || step}...`}
+                                </p>
+                                <p className="onb-progress-caption">
+                                  {adminLanguage === "es"
+                                    ? "Tu progreso sigue visible mientras se prepara el siguiente paso."
+                                    : "Your progress stays visible while the next step prepares."}
+                                </p>
+                                <span className="onb-sr-only">
+                                  {adminLanguage === "es"
+                                    ? "Cargando el siguiente paso del onboarding"
+                                    : "Loading the next onboarding step"}
+                                </span>
+                              </div>
+                            </div>
+                          ) : null}
                         </div>
 
                         <div className="onb-nav-row">
@@ -3091,7 +3321,7 @@ export default function OnboardingPage() {
                               <button
                                 type="button"
                                 className="onb-nav-button"
-                                disabled={isSubmitting}
+                                disabled={isSubmitting || isStepTransitionLoading}
                                 onClick={() => handleStepClick(step - 1)}
                               >
                                 {copy.back}
@@ -3104,7 +3334,7 @@ export default function OnboardingPage() {
                               <button
                                 type="button"
                                 className="onb-nav-button onb-nav-button-primary"
-                                disabled={isSubmitting}
+                                disabled={isSubmitting || isStepTransitionLoading}
                                 onClick={() => handleStepClick(step + 1)}
                               >
                                 {copy.next}
@@ -3142,6 +3372,90 @@ export default function OnboardingPage() {
                 </div>
               ) : null}
             </div>
+          </Layout.Section>
+        </Layout>
+      </div>
+    </Page>
+  );
+}
+
+export function ErrorBoundary() {
+  const error = useRouteError();
+  const location = useLocation();
+  const isKnownRouteError = isRouteErrorResponse(error);
+  const title = isKnownRouteError ? `Onboarding could not load (${error.status})` : "Onboarding could not load";
+  const description = isKnownRouteError
+    ? error.statusText || "A route transition failed while loading the next onboarding step."
+    : "A route transition failed while loading the next onboarding step.";
+  const embeddedSearch = location.search || "";
+
+  return (
+    <Page fullWidth>
+      <style>{ONBOARDING_STYLES}</style>
+      <div className="onb-shell">
+        <div className="onb-orb onb-orb-1" />
+        <div className="onb-orb onb-orb-2" />
+
+        <Layout>
+          <Layout.Section>
+            <div className="onb-hero">
+              <div className="onb-hero-card">
+                <BlockStack gap="200">
+                  <p className="onb-kicker">Guided setup</p>
+                  <h1 className="onb-title">Onboarding unavailable</h1>
+                  <p className="onb-subtitle">{description}</p>
+                </BlockStack>
+              </div>
+
+              <div className="onb-progress-card">
+                <div className="onb-progress-head">
+                  <div>
+                    <p className="onb-progress-title">Status</p>
+                    <p className="onb-progress-step-name">{title}</p>
+                  </div>
+                  <p className="onb-progress-value">!</p>
+                </div>
+                <p className="onb-progress-caption">
+                  Retry the onboarding route or return to the app dashboard if the step keeps failing.
+                </p>
+              </div>
+            </div>
+          </Layout.Section>
+
+          <Layout.Section>
+            <Card>
+              <div className="onb-form-card">
+                <BlockStack gap="300">
+                  <div className="onb-step-stage">
+                    <div className="onb-step-frame">
+                      <BlockStack gap="300">
+                        <h2 className="onb-step-headline">Recovery</h2>
+                        <p className="onb-step-copy">
+                          A loading error interrupted the onboarding transition. The shell is still available, and you can try the route again.
+                        </p>
+                        <div className="onb-note-card onb-note-card-highlight">
+                          <p className="onb-note-title">Next action</p>
+                          <p className="onb-note-text">
+                            Open the onboarding route again, or go back to the dashboard if onboarding was already completed.
+                          </p>
+                        </div>
+                      </BlockStack>
+                    </div>
+                  </div>
+
+                  <div className="onb-nav-row">
+                    <div className="onb-nav-actions">
+                      <a className="onb-nav-button" href={`/app${embeddedSearch}`}>
+                        Back to app
+                      </a>
+                      <a className="onb-nav-button onb-nav-button-primary" href={`/app/onboarding${embeddedSearch || "?step=1"}`}>
+                        Retry onboarding
+                      </a>
+                    </div>
+                  </div>
+                </BlockStack>
+              </div>
+            </Card>
           </Layout.Section>
         </Layout>
       </div>

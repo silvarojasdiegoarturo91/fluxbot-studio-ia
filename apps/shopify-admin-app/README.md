@@ -108,11 +108,13 @@ This repo is hard-locked to the **local Shopify app**:
 - Local app name: `fluxbot-studio`
 - Local app client ID: `8c36112e98ce36be869eb0dc5efdd572`
 
-Commands `npm run dev`, `npm run dev:ngrok`, `npm run dev:localhost`, and `npm run deploy` run a guard (`guard:local-target`) that fails fast if:
+Commands `npm run dev`, `npm run dev:shopify-cli`, `npm run dev:localhost`, and `npm run deploy` run a guard (`guard:local-target`) that fails fast if:
 - `shopify.app.toml` is not the local app
 - `SHOPIFY_API_KEY` does not match the local app client ID
 
 Use a separate production workspace/config for the production app (`fluxbot-studio-ia-shopify`) to avoid cross-deploys.
+
+Local development should use `npm run dev` or the root `scripts/dev-shopify-admin-local.sh` wrapper. Shopify CLI owns the dev tunnel URL and cleans stale dev previews before startup. Do not persist `ngrok` or `trycloudflare` URLs into `shopify.app.toml`; those URLs are temporary and cause `ERR_NGROK_3200` or offline preview errors after reinstalling the app.
 
 ### Dedicated Shopify app for CI
 
@@ -306,7 +308,8 @@ docker run -p 3000:3000 --env-file .env fluxbot-studio-ia-shopify
 
 ### Shopify authentication issues
 - Ensure `SHOPIFY_API_KEY` and `SHOPIFY_API_SECRET` match Partner Dashboard
-- Verify `SHOPIFY_APP_URL` matches the current public URL (tunnel in dev, production domain in prod)
+- For local development, restart with `npm run dev` or `scripts/dev-shopify-admin-local.sh` so Shopify CLI refreshes the dev preview URL
+- For production, verify `SHOPIFY_APP_URL` matches the production domain before deploy
 - Clear browser cookies and reinstall app
 
 ## Documentation
