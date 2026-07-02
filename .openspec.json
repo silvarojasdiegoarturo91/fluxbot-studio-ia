@@ -5,7 +5,7 @@
     "description": "OpenSpec local para requisitos de fluxbot-studio-ia-shopify. Los requisitos aqui son espejo de los requisitos root que afectan este repositorio.",
     "owner": "frontend_shopify",
     "status": "in-development",
-    "last_updated": "2026-07-02T01:26:21.851Z",
+    "last_updated": "2026-07-02T08:18:18.907Z",
     "source_of_truth": ".openspec.json",
     "mirror_root": "../.openspec.json"
   },
@@ -126,6 +126,47 @@
           "specs/features/onboarding/decisions.md",
           "specs/features/onboarding/requirements.md",
           "specs/features/onboarding/test-cases.md"
+        ],
+        "acceptance_criteria": [
+          "Documentation references remain synchronized",
+          "Agent instructions stay aligned with the latest docs",
+          "Follow-up work is tracked in OpenSpec"
+        ],
+        "dependencies": [],
+        "metrics": {
+          "quality_score": 90,
+          "completion_rate": 0,
+          "velocity": 1
+        }
+      },
+      {
+        "id": "DOC-34c0919-2026-07-02T08-18-18-907Z",
+        "title": "Review documentation update (9 files)",
+        "description": "Documentation changed in: apps/shopify-admin-app/TESTING.md, specs/010-shopify-app-store-compliance/checklists/requirements.md, specs/010-shopify-app-store-compliance/plan.md, specs/010-shopify-app-store-compliance/spec.md, specs/010-shopify-app-store-compliance/tasks.md, specs/features/shopify-app-store-compliance/README.md, specs/features/shopify-app-store-compliance/manual-evidence.md, specs/features/shopify-app-store-compliance/requirements.md, specs/features/shopify-app-store-compliance/test-cases.md. Review and align agent instructions, references, and related docs.",
+        "priority": "medium",
+        "status": "planned",
+        "owner": "docs",
+        "components": [
+          "apps/shopify-admin-app/TESTING.md",
+          "specs/010-shopify-app-store-compliance/checklists/requirements.md",
+          "specs/010-shopify-app-store-compliance/plan.md",
+          "specs/010-shopify-app-store-compliance/spec.md",
+          "specs/010-shopify-app-store-compliance/tasks.md",
+          "specs/features/shopify-app-store-compliance/README.md",
+          "specs/features/shopify-app-store-compliance/manual-evidence.md",
+          "specs/features/shopify-app-store-compliance/requirements.md",
+          "specs/features/shopify-app-store-compliance/test-cases.md"
+        ],
+        "source_files": [
+          "apps/shopify-admin-app/TESTING.md",
+          "specs/010-shopify-app-store-compliance/checklists/requirements.md",
+          "specs/010-shopify-app-store-compliance/plan.md",
+          "specs/010-shopify-app-store-compliance/spec.md",
+          "specs/010-shopify-app-store-compliance/tasks.md",
+          "specs/features/shopify-app-store-compliance/README.md",
+          "specs/features/shopify-app-store-compliance/manual-evidence.md",
+          "specs/features/shopify-app-store-compliance/requirements.md",
+          "specs/features/shopify-app-store-compliance/test-cases.md"
         ],
         "acceptance_criteria": [
           "Documentation references remain synchronized",
