@@ -115,10 +115,10 @@ export default function OperationsPage() {
             description={isEs ? "Tabla operativa para revisar aplicacion, ignorados, fallos y latencia." : "Operational table to review applied callbacks, ignored events, failures, and latency."}
           >
               {channelRows.length === 0 ? (
-                <EmptyState heading={isEs ? "Sin metricas de callback" : "No callback metrics yet"} image="">
+                <EmptyState heading={isEs ? "Sin métricas de callback" : "No callback metrics yet"} image="">
                   <Text as="p" variant="bodySm">
                     {isEs
-                      ? "Las metricas aparecerán cuando se reciban callbacks omnicanal."
+                      ? "Las métricas aparecerán cuando se reciban callbacks omnicanal."
                       : "Metrics will appear when omnichannel callbacks are received."}
                   </Text>
                 </EmptyState>

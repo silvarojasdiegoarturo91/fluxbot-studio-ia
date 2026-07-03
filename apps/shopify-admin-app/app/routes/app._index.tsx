@@ -544,7 +544,7 @@ export default function DashboardIndex() {
                   <Text as="p" variant="bodyMd">{business.runningSyncJobs} {isEs ? "en ejecución/pendiente" : "running/pending"}</Text>
                 </InlineStack>
                 <InlineStack align="space-between">
-                  <Text as="p" variant="bodyMd">{isEs ? "Ultima sync completada" : "Last completed sync"}</Text>
+                  <Text as="p" variant="bodyMd">{isEs ? "Última sync completada" : "Last completed sync"}</Text>
                   <Text as="p" variant="bodyMd">{business.lastSyncLabel}</Text>
                 </InlineStack>
               </BlockStack>

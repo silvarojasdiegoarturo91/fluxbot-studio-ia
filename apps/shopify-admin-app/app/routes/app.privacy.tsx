@@ -914,13 +914,13 @@ export default function PrivacyPage() {
                       : (isEs ? "DETENIDO" : "STOPPED")}
                   </Badge>
                   <Text as="p" variant="bodySm" tone="subdued">
-                    {isEs ? "Ultima ejecución" : "Last run"}: {schedulerRetentionLastRun}
+                    {isEs ? "Última ejecución" : "Last run"}: {schedulerRetentionLastRun}
                   </Text>
                   <Text as="p" variant="bodySm" tone="subdued">
                     {isEs ? "Total de ejecuciones" : "Total runs"}: {schedulerRetention?.runs ?? 0}
                   </Text>
                   <Text as="p" variant="bodySm" tone="subdued">
-                    {isEs ? "Ultima limpieza" : "Last deleted"}: {isEs ? "conversaciones" : "conversations"}{" "}
+                    {isEs ? "Última limpieza" : "Last deleted"}: {isEs ? "conversaciones" : "conversations"}{" "}
                     {schedulerRetention?.conversationsDeleted ?? 0}, {isEs ? "eventos" : "events"}{" "}
                     {schedulerRetention?.eventsDeleted ?? 0}
                   </Text>

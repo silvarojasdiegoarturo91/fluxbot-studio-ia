@@ -551,14 +551,14 @@ export default function SettingsPage() {
               title={isEs ? "Guardar y revisar cambios" : "Save and review changes"}
               description={
                 isEs
-                  ? "Revisa la ultima actualizacion y guarda esta configuración cuando estes conforme."
+                  ? "Revisa la última actualización y guarda esta configuración cuando estés conforme."
                   : "Review the latest update and save this configuration when you are ready."
               }
             >
               <div className="fb-admin-form-footer">
                 <Text as="p" variant="bodySm" tone="subdued">
                   {config.updatedAt
-                    ? `${isEs ? "Ultima actualizacion" : "Last updated"}: ${new Date(config.updatedAt).toLocaleString()}`
+                    ? `${isEs ? "Última actualización" : "Last updated"}: ${new Date(config.updatedAt).toLocaleString()}`
                     : isEs ? "Aún no hay configuraciones guardadas." : "No saved settings yet."}
                 </Text>
                 <Button submit variant="primary" loading={isSubmitting}>

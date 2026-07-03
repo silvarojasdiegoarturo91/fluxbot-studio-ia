@@ -143,7 +143,7 @@ export default function BillingPage() {
     <Page fullWidth>
       <AdminPageHeader
         eyebrow={isEs ? "Cuenta" : "Account"}
-        title={isEs ? "Facturacion" : "Billing"}
+        title={isEs ? "Facturación" : "Billing"}
         description={
           isEs
             ? "Consumo por tramos, estado del plan y activacion del siguiente nivel."
@@ -167,12 +167,12 @@ export default function BillingPage() {
             title={isEs ? "Consumo del ciclo actual" : "Current cycle usage"}
             description={
               isEs
-                ? "Mensajes consumidos vs limite base. Cada bloque extra genera un cargo variable."
+                ? "Mensajes consumidos vs límite base. Cada bloque extra genera un cargo variable."
                 : "Messages consumed vs base limit. Each extra block triggers a variable charge."
             }
             badge={
               usagePct >= 90
-                ? <AdminStatusBadge tone="warning">{isEs ? "Proximo al limite" : "Approaching limit"}</AdminStatusBadge>
+                ? <AdminStatusBadge tone="warning">{isEs ? "Próximo al límite" : "Approaching limit"}</AdminStatusBadge>
                 : <AdminStatusBadge tone="success">{isEs ? "Con margen" : "Within limit"}</AdminStatusBadge>
             }
           >
@@ -225,7 +225,7 @@ export default function BillingPage() {
         {/* Current subscriptions */}
         <Layout.Section>
           <AdminSectionCard
-            title={isEs ? "Estado de suscripcion" : "Subscription status"}
+            title={isEs ? "Estado de suscripción" : "Subscription status"}
             description={isEs ? "Plan activo y estado de cobro." : "Active plan and billing state."}
             badge={
               data.status.hasActiveSubscription
@@ -273,7 +273,7 @@ export default function BillingPage() {
             badge={<AdminStatusBadge tone="info">{isEs ? "Pago por tramos" : "Tranche billing"}</AdminStatusBadge>}
           >
             {actionData && "ok" in actionData && !actionData.ok && actionData.error && (
-              <Banner tone="critical" title={isEs ? "Error al iniciar suscripcion" : "Subscription error"}>
+              <Banner tone="critical" title={isEs ? "Error al iniciar suscripción" : "Subscription error"}>
                 <p>{actionData.error}</p>
               </Banner>
             )}

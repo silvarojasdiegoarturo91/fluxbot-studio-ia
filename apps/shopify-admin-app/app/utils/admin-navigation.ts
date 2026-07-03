@@ -104,7 +104,7 @@ const ROUTE_COPY: Record<
     },
     es: {
       title: "Analítica",
-      description: "Lee las metricas que importan para adopción, calidad de resolución e ingresos asistidos.",
+      description: "Lee las métricas que importan para adopción, calidad de resolución e ingresos asistidos.",
       section: "Insights",
     },
   },

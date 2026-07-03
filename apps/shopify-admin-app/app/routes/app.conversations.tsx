@@ -335,7 +335,7 @@ export default function ConversationsPage() {
                 <DataTable
                   columnContentTypes={["text", "text", "text", "text", "numeric", "text", "text", "text"]}
                   headings={isEs
-                    ? ["Inicio", "Estado", "Canal", "Idioma", "Mensajes", "Ultimo mensaje", "Ultima actividad", "Handoff"]
+                    ? ["Inicio", "Estado", "Canal", "Idioma", "Mensajes", "Último mensaje", "Última actividad", "Handoff"]
                     : ["Started", "Status", "Channel", "Locale", "Messages", "Last message", "Last activity", "Handoff"]}
                   rows={conversationRows}
                 />
@@ -360,7 +360,7 @@ export default function ConversationsPage() {
                 <DataTable
                   columnContentTypes={["text", "text", "text", "text", "text", "text"]}
                   headings={isEs
-                    ? ["Conversacion", "Motivo", "Asignado", "Estado", "Creado", "Acción"]
+                    ? ["Conversación", "Motivo", "Asignado", "Estado", "Creado", "Acción"]
                     : ["Conversation", "Reason", "Assigned", "Status", "Created", "Action"]}
                   rows={handoffRows}
                 />

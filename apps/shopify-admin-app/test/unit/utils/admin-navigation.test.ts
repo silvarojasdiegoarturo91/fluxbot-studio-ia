@@ -169,11 +169,14 @@ describe("getAdminNavGroups", () => {
   it("Spanish admin navigation preserves accents and ñ", () => {
     const groups = getAdminNavGroups("es", false);
     const labels = groups.flatMap((group) => group.items.map((item) => item.label));
-    const text = labels.join(" ");
+    const descriptions = groups.flatMap((group) => group.items.map((item) => item.description));
+    const sections = groups.map((group) => group.title);
+    const text = [...labels, ...descriptions, ...sections].join(" ");
 
     expect(labels).toContain("Campañas");
     expect(labels).toContain("Analítica");
     expect(labels).toContain("Facturación");
-    expect(text).not.toMatch(/\b(Campanas|Analitica|Facturacion)\b/);
+    expect(text).toContain("métricas");
+    expect(text).not.toMatch(/\b(Campanas|Analitica|Facturacion|metricas)\b/);
   });
 });

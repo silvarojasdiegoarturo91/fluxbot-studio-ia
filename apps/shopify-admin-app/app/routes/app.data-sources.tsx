@@ -759,7 +759,7 @@ export default function DataSourcesPage() {
                 <DataTable
                   columnContentTypes={["text", "text", "text", "numeric", "text", "text"]}
                   headings={isEs
-                    ? ["Nombre", "Tipo", "Estado", "Documentos", "Ultima sync", "Acción"]
+                    ? ["Nombre", "Tipo", "Estado", "Documentos", "Última sync", "Acción"]
                     : ["Name", "Type", "Status", "Documents", "Last sync", "Action"]}
                   rows={sourceRows}
                 />
