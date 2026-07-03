@@ -177,6 +177,6 @@ describe("getAdminNavGroups", () => {
     expect(labels).toContain("Analítica");
     expect(labels).toContain("Facturación");
     expect(text).toContain("métricas");
-    expect(text).not.toMatch(/\b(Campanas|Analitica|Facturacion|metricas)\b/);
+    expect(text).not.toMatch(/\b(Campanas|campanas|campana|Analitica|Facturacion|metricas|conversion|programacion)\b/);
   });
 });

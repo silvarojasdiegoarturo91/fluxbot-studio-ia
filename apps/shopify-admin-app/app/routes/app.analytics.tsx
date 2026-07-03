@@ -77,7 +77,7 @@ export default function AnalyticsPage() {
         <Layout.Section>
           <AdminSectionCard
             title={isEs ? "Embudo de mensajería proactiva" : "Proactive messaging funnel"}
-            description={isEs ? "Comprueba entregabilidad y conversion de las campañas activas." : "Check deliverability and conversion of active campaigns."}
+            description={isEs ? "Comprueba entregabilidad y conversión de las campañas activas." : "Check deliverability and conversion of active campaigns."}
           >
               <DataTable
                 columnContentTypes={["text", "numeric", "text"]}
@@ -119,7 +119,7 @@ export default function AnalyticsPage() {
         <Layout.Section variant="oneHalf">
           <AdminSectionCard
             title={isEs ? "Top triggers proactivos" : "Top proactive triggers"}
-            description={isEs ? "Prioriza los triggers que más conversacion y conversion generan." : "Prioritize the triggers that drive the most conversation and conversion."}
+            description={isEs ? "Prioriza los triggers que más conversación y conversión generan." : "Prioritize the triggers that drive the most conversation and conversion."}
           >
               {topTriggers.length === 0 ? (
                 <EmptyState heading={isEs ? "Sin datos de triggers" : "No trigger data yet"} image="">

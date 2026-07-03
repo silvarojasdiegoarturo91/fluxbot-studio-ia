@@ -2,7 +2,7 @@
   "project": {
     "name": "FluxBot Studio - Shopify Admin App",
     "version": "1.0.0",
-    "description": "OpenSpec local para requisitos de fluxbot-studio-ia-shopify. Los requisitos aqui son espejo de los requisitos root que afectan este repositorio.",
+    "description": "OpenSpec local para requisitos de fluxbot-studio-ia-shopify. Los requisitos aquí son espejo de los requisitos root que afectan este repositorio.",
     "owner": "frontend_shopify",
     "status": "in-development",
     "last_updated": "2026-07-03T21:35:48.991Z",
@@ -75,7 +75,7 @@
       {
         "id": "REQ-IA-SHOPIFY-003",
         "title": "Shopify App Store compliance matrix y gating automatizado",
-        "description": "El repositorio debe mantener una matriz viva de cumplimiento para los requisitos aplicables de Shopify App Store, con trazabilidad en OpenSpec y SpecKit, cobertura de tests para auth/install, embedded app, session tokens, Billing API, GraphQL Admin API, theme app extension, privacidad, onboarding y evidencia manual para items que no se pueden automatizar completamente.",
+        "description": "El repositorio debe mantener una matriz viva de cumplimiento para los requisitos aplicables de Shopify App Store, con trazabilidad en OpenSpec y SpecKit, cobertura de tests para auth/install, embedded app, session tokens, Billing API, GraphQL Admin API, theme app extension, privacidad, onboarding y evidencia manual para items que no se pueden automatizar completamente. En Billing se debe dejar explícito que la información de precios del submission form está actualizada, que el merchant puede cambiar entre planes (upgrade/downgrade) y que todos los cobros pasan por Shopify Billing API.",
         "priority": "high",
         "status": "planned",
         "owner": "frontend_shopify",
@@ -100,6 +100,9 @@
           "Existe una feature de OpenSpec con requisitos agrupados por dominio y trazabilidad a la guia oficial de Shopify App Store best practices.",
           "Existe un spec de SpecKit con plan, checklist y tareas para los mismos dominios.",
           "Existe al menos una suite automatizada que verifica config Shopify, embedded auth, Billing API, theme app extension y rutas de privacidad/listing relevantes.",
+          "La documentación de cumplimiento incluye criterio explícito de que la información de pricing del submission form se mantiene actualizada con los planes reales de la app.",
+          "El flujo de billing permite al merchant cambiar entre planes (upgrade y downgrade) sin intervención manual de soporte.",
+          "Todos los cargos de la app se procesan mediante Shopify Billing API; no se permiten cobros fuera de Shopify para funcionalidades de la app.",
           "La documentacion marca claramente los grupos que no aplican al producto actual (payments, purchase option, payment facilitator, POS y otros casos fuera de alcance).",
           "Los checks manuales de listing, support, screenshots y video quedan documentados como evidencia requerida antes de submission.",
           "La suite de tests se puede ejecutar con el workflow normal del repo sin requerir una tienda real para los checks estaticos."
@@ -114,7 +117,7 @@
         "id": "REQ-IA-SHOPIFY-004",
         "mirror_of": "REQ-ROOT-006",
         "title": "[BUG] Shopify Admin: corrección ortográfica y acentos en traducciones españolas",
-        "description": "BUG CONFIRMADO (espejo de REQ-ROOT-006): el Admin de Shopify muestra textos españoles sin acentos ni ñ en zonas visibles como el menú lateral y pantallas operativas; ejemplos observados: Campanas en lugar de Campañas y Analitica en lugar de Analítica. Todos los agentes deben revisar cualquier traducción nueva o modificada para que las palabras estén escritas correctamente en el idioma destino.",
+        "description": "BUG CONFIRMADO (espejo de REQ-ROOT-006): el Admin de Shopify muestra textos españoles sin acentos ni ñ en zonas visibles como el menú lateral y pantallas operativas; ejemplos observados: Campanas/campana en lugar de Campañas/campaña, Analitica en lugar de Analítica, y textos como conversacion, conversion, Programacion, posicion, espanol o aqui sin acentos. Todos los agentes deben revisar cualquier traducción nueva o modificada para que las palabras estén escritas correctamente en el idioma destino.",
         "priority": "high",
         "status": "planned",
         "owner": "frontend_shopify",
@@ -132,7 +135,8 @@
         "acceptance_criteria": [
           "El menú lateral en español muestra Campañas, Analítica y Facturación con acentos correctos.",
           "Las pantallas principales del Admin Shopify no muestran variantes españolas sin acento para términos comunes como configuración, sincronización, catálogo, políticas, páginas, descripción, acción, ejecución o retención.",
-          "Existe una prueba automatizada que cubre las etiquetas principales de navegación en español y rechaza regresiones como Campanas, Analitica y Facturacion.",
+          "Las superficies visibles del cliente/admin se reevalúan con búsqueda textual y no quedan variantes como campana, conversacion, conversion, Programacion, posicion, espanol, dinamico, mision, rapido o aqui cuando el texto está en español.",
+          "Existe una prueba automatizada que cubre las etiquetas principales de navegación en español y rechaza regresiones como Campanas, campana, Analitica, Facturacion, metricas, conversion o programacion.",
           "Las instrucciones de agentes exigen revisar traducciones nuevas o modificadas para acentos, ñ, signos y ortografía propia del idioma destino.",
           "El flujo de QA del repo afectado pasa antes de hacer push."
         ],

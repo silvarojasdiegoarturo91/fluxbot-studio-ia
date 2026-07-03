@@ -2460,10 +2460,10 @@ export default function OnboardingPage() {
       ? "Conversacional y cercano. Bueno para retail y lifestyle."
       : "Warm and conversational. Great for retail and lifestyle.",
     concise: adminLanguage === "es"
-      ? "Directo y rapido. Perfecto cuando el usuario quiere resolver en segundos."
+      ? "Directo y rápido. Perfecto cuando el usuario quiere resolver en segundos."
       : "Direct and fast. Perfect when users want instant answers.",
     sales: adminLanguage === "es"
-      ? "Persuasivo con foco comercial. Ideal para upsell y conversion."
+      ? "Persuasivo con foco comercial. Ideal para upsell y conversión."
       : "Persuasive and commerce-focused. Ideal for upsells and conversion.",
   } as const;
 
@@ -2741,7 +2741,7 @@ export default function OnboardingPage() {
         <p className="onb-preview-caption">
           {isPreviewChatOpen
             ? (adminLanguage === "es" ? "Pulsa X para cerrar el chat." : "Press X to close the chat.")
-            : (adminLanguage === "es" ? "Pulsa el globo para abrir la conversacion." : "Press the bubble to open the conversation.")}
+            : (adminLanguage === "es" ? "Pulsa el globo para abrir la conversación." : "Press the bubble to open the conversation.")}
         </p>
       </div>
     );
@@ -2760,7 +2760,7 @@ export default function OnboardingPage() {
 
           <FormLayout>
             <Select
-              label={adminLanguage === "es" ? "¿En que idioma atenderas?" : "Which language will you use?"}
+              label={adminLanguage === "es" ? "¿En qué idioma atenderás?" : "Which language will you use?"}
               options={[
                 { label: "Español", value: "es" },
                 { label: "English", value: "en" },
@@ -2821,7 +2821,7 @@ export default function OnboardingPage() {
 
           <BlockStack gap="200">
             <Text as="span" variant="bodyMd" fontWeight="medium">
-              {adminLanguage === "es" ? "¿Cual es su mision?" : "What's its mission?"}
+              {adminLanguage === "es" ? "¿Cuál es su misión?" : "What's its mission?"}
             </Text>
             <div className="onb-choice-grid onb-choice-grid-3">
               {[
@@ -2838,7 +2838,7 @@ export default function OnboardingPage() {
                 {
                   value: "SALES_SUPPORT",
                   title: adminLanguage === "es" ? "Ambas" : "Both",
-                  description: adminLanguage === "es" ? "El equilibrio ideal para una primera version." : "The ideal balance for a first launch.",
+                  description: adminLanguage === "es" ? "El equilibrio ideal para una primera versión." : "The ideal balance for a first launch.",
                 },
               ].map((option) => (
                 <button
@@ -2870,7 +2870,7 @@ export default function OnboardingPage() {
 
           <BlockStack gap="200">
             <Text as="span" variant="bodyMd" fontWeight="medium">
-              {adminLanguage === "es" ? "¿Que superpoderes tendra tu bot?" : "Which superpowers should your bot have?"}
+              {adminLanguage === "es" ? "¿Qué superpoderes tendrá tu bot?" : "Which superpowers should your bot have?"}
             </Text>
             <div className="onb-choice-grid">
               {[
@@ -2884,7 +2884,7 @@ export default function OnboardingPage() {
                   value: recommendProducts === "true",
                   onToggle: () => setRecommendProducts(recommendProducts === "true" ? "false" : "true"),
                   title: adminLanguage === "es" ? "Recomendar productos" : "Recommend products",
-                  description: adminLanguage === "es" ? "Sugiere articulos y alternativas en la conversacion." : "Suggests items and alternatives in the conversation.",
+                  description: adminLanguage === "es" ? "Sugiere artículos y alternativas en la conversación." : "Suggests items and alternatives in the conversation.",
                 },
                 {
                   value: answerOrders === "true",
@@ -2919,7 +2919,7 @@ export default function OnboardingPage() {
           </BlockStack>
 
           <div className="onb-note-card">
-            <p className="onb-note-title">{adminLanguage === "es" ? "Asi sonara" : "This is how it will sound"}</p>
+            <p className="onb-note-title">{adminLanguage === "es" ? "Así sonará" : "This is how it will sound"}</p>
             <p className="onb-note-text">{tonePreview[botTone]}</p>
           </div>
         </BlockStack>
@@ -2932,7 +2932,7 @@ export default function OnboardingPage() {
           <h2 className="onb-step-headline">{copy.brandingTitle}</h2>
           <p className="onb-step-copy">
             {adminLanguage === "es"
-              ? "Haz que el widget parezca nativo de tu tienda con color, avatar y posicion listos para publicar."
+              ? "Haz que el widget parezca nativo de tu tienda con color, avatar y posición listos para publicar."
               : "Make the widget feel native to your store with color, avatar, and launcher position ready to publish."}
           </p>
 
@@ -3003,7 +3003,7 @@ export default function OnboardingPage() {
 
             <BlockStack gap="200">
               <Text as="span" variant="bodyMd" fontWeight="medium">
-                {adminLanguage === "es" ? "Posicion del launcher" : "Launcher position"}
+                {adminLanguage === "es" ? "Posición del launcher" : "Launcher position"}
               </Text>
               <div className="onb-choice-grid onb-choice-grid-2">
                 {[
@@ -3111,7 +3111,7 @@ export default function OnboardingPage() {
           <div className="onb-note-card">
             <p className="onb-note-title">{adminLanguage === "es" ? "Cerebro" : "Brain"}</p>
             <List>
-              <List.Item>{`${adminLanguage === "es" ? "Mision" : "Mission"}: ${previewGoalTag}`}</List.Item>
+              <List.Item>{`${adminLanguage === "es" ? "Misión" : "Mission"}: ${previewGoalTag}`}</List.Item>
               <List.Item>{`${adminLanguage === "es" ? "Tono" : "Tone"}: ${botTone}`}</List.Item>
               <List.Item>{`${adminLanguage === "es" ? "Color" : "Color"}: ${normalizedPrimaryColor}`}</List.Item>
             </List>

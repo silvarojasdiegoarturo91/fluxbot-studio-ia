@@ -500,7 +500,7 @@ export default function DashboardIndex() {
               </AdminInfoCallout>
 
               <InlineStack gap="200" wrap>
-                <Button url={withEmbeddedQuery("/app/campaigns")}>{isEs ? "Lanzar campana" : "Launch campaign"}</Button>
+                <Button url={withEmbeddedQuery("/app/campaigns")}>{isEs ? "Lanzar campaña" : "Launch campaign"}</Button>
                 <Button url={withEmbeddedQuery("/app/conversations")}>{isEs ? "Revisar conversaciones" : "Review conversations"}</Button>
                   <Button url={withEmbeddedQuery("/app/data-sources")}>{isEs ? "Sincronizar fuentes" : "Sync data sources"}</Button>
                   <Button url={withEmbeddedQuery("/app/settings")}>{isEs ? "Ajustar asistente" : "Tune assistant"}</Button>

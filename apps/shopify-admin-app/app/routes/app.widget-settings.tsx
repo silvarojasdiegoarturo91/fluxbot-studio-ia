@@ -134,7 +134,7 @@ export default function WidgetSettingsPage() {
             title={isEs ? "Runtime del chat storefront" : "Storefront chat runtime"}
             description={
               isEs
-                ? "Actualiza color, posicion del launcher, etiqueta y mensaje de bienvenida del widget."
+                ? "Actualiza color, posición del launcher, etiqueta y mensaje de bienvenida del widget."
                 : "Update launcher color, position, label, and chat welcome message."
             }
             badge={<AdminStatusBadge tone="success">{isEs ? "Configuración activa" : "Active configuration"}</AdminStatusBadge>}
@@ -156,7 +156,7 @@ export default function WidgetSettingsPage() {
                   <input type="hidden" name="intent" value="save_widget_settings" />
 
                   <Select
-                    label={isEs ? "Posicion del launcher" : "Launcher position"}
+                    label={isEs ? "Posición del launcher" : "Launcher position"}
                     options={[
                       { label: isEs ? "Inferior derecha" : "Bottom right", value: "bottom-right" },
                       { label: isEs ? "Inferior izquierda" : "Bottom left", value: "bottom-left" },

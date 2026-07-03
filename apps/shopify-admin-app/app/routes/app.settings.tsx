@@ -310,7 +310,7 @@ export default function SettingsPage() {
               title={isEs ? "Identidad y voz del asistente" : "Assistant identity and voice"}
               description={
                 isEs
-                  ? "Empieza por lo que el merchant reconoce enseguida: nombre, idioma y tono con el que hablara el asistente."
+                  ? "Empieza por lo que el merchant reconoce enseguida: nombre, idioma y tono con el que hablará el asistente."
                   : "Start with what merchants recognize instantly: name, language, and the tone the assistant will use."
               }
             >

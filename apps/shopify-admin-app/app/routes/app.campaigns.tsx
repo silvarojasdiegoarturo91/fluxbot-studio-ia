@@ -254,7 +254,7 @@ export default function CampaignsPage() {
         title={isEs ? "Campañas de marketing" : "Marketing campaigns"}
         description={
           isEs
-            ? "Gestiona campañas proactivas por idioma con una vista clara del impacto, activación y conversion."
+            ? "Gestiona campañas proactivas por idioma con una vista clara del impacto, activación y conversión."
             : "Manage locale-aware proactive campaigns with a clear view of impact, activation, and conversion."
         }
         backUrl={backUrl}
@@ -262,7 +262,7 @@ export default function CampaignsPage() {
         badge={<AdminStatusBadge tone={totalActive > 0 ? "success" : "attention"}>{totalActive > 0 ? `${totalActive} ${isEs ? "activas" : "active"}` : (isEs ? "Sin campañas activas" : "No active campaigns")}</AdminStatusBadge>}
         actions={
           <Button variant="primary" onClick={handleOpenModal}>
-            {isEs ? "Nueva campana" : "New campaign"}
+            {isEs ? "Nueva campaña" : "New campaign"}
           </Button>
         }
       />
@@ -289,7 +289,7 @@ export default function CampaignsPage() {
                 heading={isEs ? "Aún no hay campañas" : "No campaigns yet"}
                 image=""
                 action={{
-                  content: isEs ? "Crear campana" : "Create campaign",
+                  content: isEs ? "Crear campaña" : "Create campaign",
                   onAction: handleOpenModal,
                 }}
               >
@@ -304,7 +304,7 @@ export default function CampaignsPage() {
                 columnContentTypes={["text", "text", "text", "numeric", "numeric", "text", "text"]}
                 headings={
                   isEs
-                    ? ["Nombre", "Estado", "Programacion", "Enviados", "Convertidos", "CVR", "Acciones"]
+                    ? ["Nombre", "Estado", "Programación", "Enviados", "Convertidos", "CVR", "Acciones"]
                     : ["Name", "Status", "Schedule", "Dispatched", "Converted", "CVR", "Actions"]
                 }
                 rows={rows}
@@ -317,7 +317,7 @@ export default function CampaignsPage() {
       <Modal
         open={modalOpen}
         onClose={handleCloseModal}
-        title={isEs ? "Nueva campana de marketing" : "New marketing campaign"}
+        title={isEs ? "Nueva campaña de marketing" : "New marketing campaign"}
         primaryAction={{
           content: isEs ? "Crear" : "Create",
           onAction: handleCreate,
@@ -328,7 +328,7 @@ export default function CampaignsPage() {
         <Modal.Section>
           <FormLayout>
             <TextField
-              label={isEs ? "Nombre de campana" : "Campaign name"}
+              label={isEs ? "Nombre de campaña" : "Campaign name"}
               value={name}
               onChange={setName}
               autoComplete="off"
@@ -362,12 +362,12 @@ export default function CampaignsPage() {
             <Banner title={isEs ? "Plantillas de mensaje" : "Message templates"} tone="info">
               <p>
                 {isEs ? "Usa" : "Use"} <code>{"{{variableName}}"}</code>{" "}
-                {isEs ? "para contenido dinamico, por ejemplo" : "for dynamic content, e.g."}{" "}
+                {isEs ? "para contenido dinámico, por ejemplo" : "for dynamic content, e.g."}{" "}
                 <code>{"{{productName}}"}</code>.
               </p>
             </Banner>
             <TextField
-              label={isEs ? "Plantilla en ingles (en)" : "English template (en)"}
+              label={isEs ? "Plantilla en inglés (en)" : "English template (en)"}
               value={templateEn}
               onChange={setTemplateEn}
               autoComplete="off"
@@ -379,14 +379,14 @@ export default function CampaignsPage() {
               }
             />
             <TextField
-              label={isEs ? "Plantilla en espanol (es)" : "Spanish template (es)"}
+              label={isEs ? "Plantilla en español (es)" : "Spanish template (es)"}
               value={templateEs}
               onChange={setTemplateEs}
               autoComplete="off"
               multiline={3}
               helpText={
                 isEs
-                  ? 'ej. "Hola, sigues pensando en {{productName}}? Aqui tienes un 10% de descuento."'
+                  ? 'ej. "Hola, ¿sigues pensando en {{productName}}? Aquí tienes un 10% de descuento."'
                   : 'e.g. "Hi! Still thinking about {{productName}}? Here is 10% off."'
               }
             />

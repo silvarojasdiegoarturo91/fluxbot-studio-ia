@@ -241,7 +241,7 @@ export default function WidgetPublishPage() {
                 {missingThemesScope ? (
                   <Text as="p" variant="bodyMd" tone="subdued">
                     {isEs
-                      ? "Falta el permiso read_themes. Actualiza los scopes de la app, despliega la version nueva y vuelve a aprobar permisos en la tienda para que podamos abrir el editor del tema automaticamente."
+                      ? "Falta el permiso read_themes. Actualiza los scopes de la app, despliega la versión nueva y vuelve a aprobar permisos en la tienda para que podamos abrir el editor del tema automáticamente."
                       : "The app is missing the read_themes scope. Update the app scopes, deploy the new version, and approve the permission update in the store so we can open the Theme Editor automatically."}
                   </Text>
                 ) : null}

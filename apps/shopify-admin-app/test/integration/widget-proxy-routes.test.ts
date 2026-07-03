@@ -426,7 +426,7 @@ describe("widget proxy routes", () => {
         avatarStyle: "assistant",
         primaryColor: "#008060",
         launcherPosition: "bottom-right",
-        welcomeMessage: "Hola, estoy aqui para ayudarte con productos, pedidos y dudas frecuentes.",
+        welcomeMessage: "Hola, estoy aquí para ayudarte con productos, pedidos y dudas frecuentes.",
         botName: "Asistente IA",
         botGoal: "SALES_SUPPORT",
         adminLanguage: "es",

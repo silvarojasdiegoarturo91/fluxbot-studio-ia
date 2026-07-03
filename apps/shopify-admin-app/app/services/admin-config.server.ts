@@ -52,7 +52,7 @@ const DEFAULT_ADMIN_CONFIG: MerchantAdminConfig = {
   botTone: "professional",
   botGoal: "SALES_SUPPORT",
   responseStyle: "BALANCED",
-  welcomeMessage: "Hola, estoy aqui para ayudarte con productos, pedidos y dudas frecuentes.",
+  welcomeMessage: "Hola, estoy aquí para ayudarte con productos, pedidos y dudas frecuentes.",
   enabledCapabilities: {
     answerProducts: true,
     answerPolicies: true,

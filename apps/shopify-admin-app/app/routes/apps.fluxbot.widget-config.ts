@@ -42,7 +42,7 @@ function buildSafeWidgetBranding(adminLanguage: "es" | "en") {
     launcherPosition: "bottom-right" as const,
     welcomeMessage: isEnglish
       ? "Hi, I'm here to help with products, orders, and common questions."
-      : "Hola, estoy aqui para ayudarte con productos, pedidos y dudas frecuentes.",
+      : "Hola, estoy aquí para ayudarte con productos, pedidos y dudas frecuentes.",
     botName: isEnglish ? "AI Assistant" : "Asistente IA",
     botGoal: "SALES_SUPPORT" as const,
     adminLanguage,

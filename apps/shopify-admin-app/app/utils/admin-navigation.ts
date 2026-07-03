@@ -80,7 +80,7 @@ const ROUTE_COPY: Record<
     },
     es: {
       title: "Campañas",
-      description: "Crea recorridos proactivos, activa campañas y sigue el rendimiento de conversion.",
+      description: "Crea recorridos proactivos, activa campañas y sigue el rendimiento de conversión.",
       section: "Crecimiento",
     },
   },

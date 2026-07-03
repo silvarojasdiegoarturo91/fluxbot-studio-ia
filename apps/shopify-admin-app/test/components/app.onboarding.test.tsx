@@ -27,7 +27,7 @@ const loaderData = {
     botTone: "professional",
     botGoal: "SALES_SUPPORT",
     responseStyle: "BALANCED",
-    welcomeMessage: "Hola, estoy aqui para ayudarte.",
+    welcomeMessage: "Hola, estoy aquí para ayudarte.",
     enabledCapabilities: {
       answerProducts: true,
       answerPolicies: true,

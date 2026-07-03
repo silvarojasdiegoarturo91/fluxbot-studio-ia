@@ -305,7 +305,7 @@ export default function ConversationsPage() {
         <Layout.Section>
           <AdminSectionCard
             title={isEs ? "Filtrar conversaciones" : "Filter conversations"}
-            description={isEs ? "Cambia rapido de vista entre estados operativos clave." : "Quickly switch between the operational states that matter."}
+            description={isEs ? "Cambia rápido de vista entre estados operativos clave." : "Quickly switch between the operational states that matter."}
             badge={<AdminStatusBadge tone="info">{`${isEs ? "Actual" : "Current"}: ${statusLabel(statusFilter, isEs)}`}</AdminStatusBadge>}
           >
               <InlineStack gap="200" wrap>
