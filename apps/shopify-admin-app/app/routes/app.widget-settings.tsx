@@ -118,7 +118,7 @@ export default function WidgetSettingsPage() {
     <Page fullWidth>
       <AdminPageHeader
         eyebrow={isEs ? "Experiencia storefront" : "Storefront experience"}
-        title={isEs ? "Configuracion del widget" : "Widget settings"}
+        title={isEs ? "Configuración del widget" : "Widget settings"}
         description={
           isEs
             ? "Ajusta launcher, color y mensaje inicial para que el widget se sienta parte de la marca."
@@ -126,7 +126,7 @@ export default function WidgetSettingsPage() {
         }
         backUrl={backToDashboardUrl}
         backLabel={isEs ? "Panel" : "Dashboard"}
-        badge={<AdminStatusBadge tone="success">{isEs ? "Configuracion activa" : "Active configuration"}</AdminStatusBadge>}
+        badge={<AdminStatusBadge tone="success">{isEs ? "Configuración activa" : "Active configuration"}</AdminStatusBadge>}
       />
       <Layout>
         <Layout.Section>
@@ -137,7 +137,7 @@ export default function WidgetSettingsPage() {
                 ? "Actualiza color, posicion del launcher, etiqueta y mensaje de bienvenida del widget."
                 : "Update launcher color, position, label, and chat welcome message."
             }
-            badge={<AdminStatusBadge tone="success">{isEs ? "Configuracion activa" : "Active configuration"}</AdminStatusBadge>}
+            badge={<AdminStatusBadge tone="success">{isEs ? "Configuración activa" : "Active configuration"}</AdminStatusBadge>}
           >
               {actionData?.ok === false && actionData.error ? (
                 <Banner tone="critical" title={isEs ? "No se pudo guardar" : "Could not save"}>
@@ -146,7 +146,7 @@ export default function WidgetSettingsPage() {
               ) : null}
 
               {actionData?.ok && actionData.message ? (
-                <Banner tone="success" title={isEs ? "Configuracion guardada" : "Settings saved"}>
+                <Banner tone="success" title={isEs ? "Configuración guardada" : "Settings saved"}>
                   <p>{isEs ? "Los cambios del widget se han actualizado." : actionData.message}</p>
                 </Banner>
               ) : null}
@@ -216,7 +216,7 @@ export default function WidgetSettingsPage() {
                   <input type="hidden" name="welcomeMessage" value={welcomeMessage} />
 
                   <Button submit variant="primary" loading={isSubmitting}>
-                    {isEs ? "Guardar configuracion" : "Save settings"}
+                    {isEs ? "Guardar configuración" : "Save settings"}
                   </Button>
                 </FormLayout>
               </Form>

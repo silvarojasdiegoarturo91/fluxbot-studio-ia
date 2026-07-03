@@ -136,7 +136,7 @@ export default function BillingPage() {
     subscription.status,
     `${subscription.priceAmount} ${subscription.priceCurrency}`,
     subscription.interval,
-    subscription.test ? (isEs ? "Si" : "Yes") : "No",
+    subscription.test ? (isEs ? "Sí" : "Yes") : "No",
   ]);
 
   return (
@@ -296,7 +296,7 @@ export default function BillingPage() {
                 <Select
                   label={isEs ? "Modo de prueba" : "Test mode"}
                   options={[
-                    { label: isEs ? "Si (desarrollo)" : "Yes (development)", value: "true" },
+                    { label: isEs ? "Sí (desarrollo)" : "Yes (development)", value: "true" },
                     { label: isEs ? "No (cargo real)" : "No (real charge)", value: "false" },
                   ]}
                   value={testMode}

@@ -5,7 +5,7 @@
     "description": "OpenSpec local para requisitos de fluxbot-studio-ia-shopify. Los requisitos aqui son espejo de los requisitos root que afectan este repositorio.",
     "owner": "frontend_shopify",
     "status": "in-development",
-    "last_updated": "2026-07-02T08:18:18.907Z",
+    "last_updated": "2026-07-03T16:40:00.000Z",
     "source_of_truth": ".openspec.json",
     "mirror_root": "../.openspec.json"
   },
@@ -109,6 +109,35 @@
           "REQ-IA-SHOPIFY-002"
         ],
         "user_story": "Como equipo de Fluxbot, quiero una matriz viva de cumplimiento para Shopify App Store con tests y trazabilidad documental, para poder preparar la app para produccion sin dejar requisitos ocultos ni evidencias dispersas."
+      },
+      {
+        "id": "REQ-IA-SHOPIFY-004",
+        "mirror_of": "REQ-ROOT-006",
+        "title": "[BUG] Shopify Admin: corrección ortográfica y acentos en traducciones españolas",
+        "description": "BUG CONFIRMADO (espejo de REQ-ROOT-006): el Admin de Shopify muestra textos españoles sin acentos ni ñ en zonas visibles como el menú lateral y pantallas operativas; ejemplos observados: Campanas en lugar de Campañas y Analitica en lugar de Analítica. Todos los agentes deben revisar cualquier traducción nueva o modificada para que las palabras estén escritas correctamente en el idioma destino.",
+        "priority": "high",
+        "status": "planned",
+        "owner": "frontend_shopify",
+        "affected_apps": [
+          "fluxbot-studio-ia-shopify"
+        ],
+        "components": [
+          "apps/shopify-admin-app/app/utils/admin-navigation.ts",
+          "apps/shopify-admin-app/app/routes/app._index.tsx",
+          "apps/shopify-admin-app/app/routes/app.campaigns.tsx",
+          "apps/shopify-admin-app/app/routes/app.analytics.tsx",
+          "apps/shopify-admin-app/test/unit/utils/admin-navigation.test.ts",
+          "AGENTS.md"
+        ],
+        "acceptance_criteria": [
+          "El menú lateral en español muestra Campañas, Analítica y Facturación con acentos correctos.",
+          "Las pantallas principales del Admin Shopify no muestran variantes españolas sin acento para términos comunes como configuración, sincronización, catálogo, políticas, páginas, descripción, acción, ejecución o retención.",
+          "Existe una prueba automatizada que cubre las etiquetas principales de navegación en español y rechaza regresiones como Campanas, Analitica y Facturacion.",
+          "Las instrucciones de agentes exigen revisar traducciones nuevas o modificadas para acentos, ñ, signos y ortografía propia del idioma destino.",
+          "El flujo de QA del repo afectado pasa antes de hacer push."
+        ],
+        "dependencies": [],
+        "user_story": "Como merchant hispanohablante, quiero ver el Admin de Shopify con español correctamente acentuado y con ñ, para percibir la app como profesional y confiable."
       }
     ],
     "documentation": [

@@ -76,17 +76,17 @@ export default function OperationsPage() {
       <Layout>
         <Layout.Section>
           <InlineGrid columns={{ xs: 1, sm: 2, md: 4 }} gap="400">
-            <AdminStatCard label={isEs ? "Eventos de callback" : "Callback events"} value={operations.callback.total} meta={isEs ? `Ultimos ${windowMinutes}m` : `Last ${windowMinutes}m`} />
+            <AdminStatCard label={isEs ? "Eventos de callback" : "Callback events"} value={operations.callback.total} meta={isEs ? `Últimos ${windowMinutes}m` : `Last ${windowMinutes}m`} />
             <AdminStatCard label={isEs ? "Tasa aplicada" : "Applied rate"} value={pct(operations.callback.appliedRate)} meta={`${isEs ? "Ignorados" : "Ignored"}: ${pct(operations.callback.ignoredRate)}`} />
             <AdminStatCard label={isEs ? "Cola de errores (DLQ)" : "Dead letter queue"} value={operations.deadLetter.queued} meta={`${isEs ? "Resueltos" : "Resolved"}: ${operations.deadLetter.resolved}`} />
-            <AdminStatCard label={isEs ? "Scheduler de retencion" : "Retention scheduler"} value={retentionSchedulerRunning ? (isEs ? "Ejecutando" : "Running") : (isEs ? "Detenido" : "Stopped")} badge={<AdminStatusBadge tone={retentionSchedulerRunning ? "success" : "attention"}>{retentionSchedulerRunning ? (isEs ? "Activo" : "Active") : (isEs ? "Pausa" : "Paused")}</AdminStatusBadge>} meta={`${isEs ? "Fallos de entrega" : "Delivery failures"}: ${operations.callback.deliveryFailures}`} />
+            <AdminStatCard label={isEs ? "Scheduler de retención" : "Retention scheduler"} value={retentionSchedulerRunning ? (isEs ? "Ejecutando" : "Running") : (isEs ? "Detenido" : "Stopped")} badge={<AdminStatusBadge tone={retentionSchedulerRunning ? "success" : "attention"}>{retentionSchedulerRunning ? (isEs ? "Activo" : "Active") : (isEs ? "Pausa" : "Paused")}</AdminStatusBadge>} meta={`${isEs ? "Fallos de entrega" : "Delivery failures"}: ${operations.callback.deliveryFailures}`} />
           </InlineGrid>
         </Layout.Section>
 
         <Layout.Section>
           <AdminSectionCard
             title={isEs ? "Cobertura por canal" : "Channel coverage"}
-            description={isEs ? "Visualiza integraciones ya cubiertas y canales aun pendientes." : "Visualize integrated channels and the ones still pending."}
+            description={isEs ? "Visualiza integraciones ya cubiertas y canales aún pendientes." : "Visualize integrated channels and the ones still pending."}
           >
               <InlineGrid columns={{ xs: 1, md: 2 }} gap="300">
                 <BlockStack gap="200">
@@ -118,7 +118,7 @@ export default function OperationsPage() {
                 <EmptyState heading={isEs ? "Sin metricas de callback" : "No callback metrics yet"} image="">
                   <Text as="p" variant="bodySm">
                     {isEs
-                      ? "Las metricas apareceran cuando se reciban callbacks omnicanal."
+                      ? "Las metricas aparecerán cuando se reciban callbacks omnicanal."
                       : "Metrics will appear when omnichannel callbacks are received."}
                   </Text>
                 </EmptyState>

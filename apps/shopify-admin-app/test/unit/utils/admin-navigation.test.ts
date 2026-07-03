@@ -44,7 +44,7 @@ describe("getAdminRouteMeta", () => {
 
   it("returns metadata for /app/billing in Spanish", () => {
     const meta = getAdminRouteMeta("/app/billing", "es");
-    expect(meta.title).toBe("Facturacion");
+    expect(meta.title).toBe("Facturación");
     expect(meta.section).toBe("Cuenta");
   });
 
@@ -164,5 +164,16 @@ describe("getAdminNavGroups", () => {
     expect(dashboard?.label).toBe("Panel");
     const onboarding = overviewItems.find((i) => i.url === "/app/onboarding");
     expect(onboarding?.label).toBe("Activación");
+  });
+
+  it("Spanish admin navigation preserves accents and ñ", () => {
+    const groups = getAdminNavGroups("es", false);
+    const labels = groups.flatMap((group) => group.items.map((item) => item.label));
+    const text = labels.join(" ");
+
+    expect(labels).toContain("Campañas");
+    expect(labels).toContain("Analítica");
+    expect(labels).toContain("Facturación");
+    expect(text).not.toMatch(/\b(Campanas|Analitica|Facturacion)\b/);
   });
 });

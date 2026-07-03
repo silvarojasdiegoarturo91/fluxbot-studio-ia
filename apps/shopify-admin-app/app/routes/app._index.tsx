@@ -231,7 +231,7 @@ export const loader = async ({ request }: LoaderFunctionArgs): Promise<Dashboard
     };
 
     const alerts: string[] = [];
-    if (!assistant.isActive) alerts.push(isEs ? "El asistente esta en pausa." : "Assistant is currently paused.");
+    if (!assistant.isActive) alerts.push(isEs ? "El asistente está en pausa." : "Assistant is currently paused.");
     if (totalSources === 0) {
       alerts.push(
         isEs
@@ -242,14 +242,14 @@ export const loader = async ({ request }: LoaderFunctionArgs): Promise<Dashboard
     if (failedSyncJobs > 0) {
       alerts.push(
         isEs
-          ? `${failedSyncJobs} job(s) de sincronizacion fallaron y requieren revision.`
+          ? `${failedSyncJobs} job(s) de sincronización fallaron y requieren revisión.`
           : `${failedSyncJobs} sync job(s) failed and need review.`,
       );
     }
     if (activeCampaigns === 0) {
       alerts.push(
         isEs
-          ? "No hay campanas activas para ventas proactivas."
+          ? "No hay campañas activas para ventas proactivas."
           : "No active campaign running for proactive sales.",
       );
     }
@@ -311,14 +311,14 @@ export default function DashboardIndex() {
       : (isEs ? "Pendiente" : "Pending");
   const trainingStatusText = business.runningSyncJobs > 0
     ? (isEs
-      ? "Hay jobs de sincronizacion en ejecucion. Puedes seguir trabajando mientras se completa."
+      ? "Hay jobs de sincronización en ejecución. Puedes seguir trabajando mientras se completa."
       : "Sync jobs are running now. You can continue working while this completes.")
     : business.hasCompletedSync
       ? (isEs
-        ? `Sincronizacion completada: ${business.lastSyncLabel}.`
+        ? `Sincronización completada: ${business.lastSyncLabel}.`
         : `Synchronization completed: ${business.lastSyncLabel}.`)
       : (isEs
-        ? "Aun no se ha ejecutado una sincronizacion completa de catalogo/politicas."
+        ? "Aún no se ha ejecutado una sincronización completa de catálogo/políticas."
         : "No catalog/policy synchronization has been completed yet.");
 
   const withEmbeddedQuery = (path: string) => {
@@ -359,7 +359,7 @@ export default function DashboardIndex() {
             <Banner tone="success" title={isEs ? "Asistente activado" : "Assistant activated"}>
               <p>
                 {isEs
-                  ? "El onboarding se completo correctamente. Tu centro de control ya esta habilitado."
+                  ? "El onboarding se completo correctamente. Tu centro de control ya está habilitado."
                   : "Onboarding was completed successfully. Your control center is now fully enabled."}
               </p>
             </Banner>
@@ -368,10 +368,10 @@ export default function DashboardIndex() {
 
         <Layout.Section>
           <AdminSectionCard
-            title={isEs ? "Conexion de tienda" : "Store connection"}
+            title={isEs ? "Conexión de tienda" : "Store connection"}
             description={
               isEs
-                ? "Comprueba que la app esta leyendo correctamente el contexto comercial del merchant."
+                ? "Comprueba que la app está leyendo correctamente el contexto comercial del merchant."
                 : "Confirm the app is reading the merchant's commercial context correctly."
             }
             badge={
@@ -408,7 +408,7 @@ export default function DashboardIndex() {
             title="Set up AI agent"
             description={
               isEs
-                ? "Despues del onboarding, este bloque centraliza el estado real de entrenamiento/sincronizacion del asistente."
+                ? "Despues del onboarding, este bloque centraliza el estado real de entrenamiento/sincronización del asistente."
                 : "After onboarding, this block centralizes the assistant's real training/synchronization status."
             }
             badge={<AdminStatusBadge tone={trainingTone}>{trainingStatusLabel}</AdminStatusBadge>}
@@ -419,18 +419,18 @@ export default function DashboardIndex() {
                   <Text as="h3" variant="headingSm">{isEs ? "Entrenar IA" : "Train AI"}</Text>
                   <Text as="p" variant="bodyMd" tone="subdued">
                     {isEs
-                      ? "Ensenale a la IA sobre tu negocio para responder con precision preguntas de clientes."
-                      : "Teach AI about your business so it can answer customer questions with precision."}
+                      ? "Ensenale a la IA sobre tu negocio para responder con precisión preguntas de clientes."
+                      : "Teach AI about your business so it can answer customer questions with precisión."}
                   </Text>
                   <Text as="p" variant="bodyMd" tone="subdued">{trainingStatusText}</Text>
                   <InlineStack gap="200" wrap>
                     <Button variant="plain" url={withEmbeddedQuery("/app/data-sources")}>
-                      {isEs ? "Mas informacion" : "More information"}
+                      {isEs ? "Más información" : "More information"}
                     </Button>
                   </InlineStack>
                 </BlockStack>
                 <Button variant="primary" url={withEmbeddedQuery("/app/data-sources")}>
-                  {isEs ? "Ir a configuracion" : "Go to configuration"}
+                  {isEs ? "Ir a configuración" : "Go to configuration"}
                 </Button>
               </InlineStack>
               <InlineStack align="space-between">
@@ -491,10 +491,10 @@ export default function DashboardIndex() {
                       : "Start by connecting your data sources so the assistant can answer with real context.")
                     : business.openHandoffs > 0
                       ? (isEs
-                        ? "Hay conversaciones esperando revision humana. Resolverlas primero ayuda a mantener la experiencia estable."
+                        ? "Hay conversaciones esperando revisión humana. Resolverlas primero ayuda a mantener la experiencia estable."
                         : "There are conversations waiting for human review. Resolving them first helps keep the experience stable.")
                       : (isEs
-                        ? "Tu base esta lista para optimizar ventas y soporte. Ajusta campanas o conversaciones segun la prioridad del dia."
+                        ? "Tu base está lista para optimizar ventas y soporte. Ajusta campañas o conversaciones según la prioridad del día."
                         : "Your base is ready to optimize sales and support. Tune campaigns or conversations based on today’s priority.")}
                 </p>
               </AdminInfoCallout>
@@ -536,12 +536,12 @@ export default function DashboardIndex() {
                   <Text as="p" variant="bodyMd">{business.activeSources}/{business.totalSources} {isEs ? "activas" : "active"}</Text>
                 </InlineStack>
                 <InlineStack align="space-between">
-                  <Text as="p" variant="bodyMd">{isEs ? "Campanas" : "Campaigns"}</Text>
+                  <Text as="p" variant="bodyMd">{isEs ? "Campañas" : "Campaigns"}</Text>
                   <Text as="p" variant="bodyMd">{business.activeCampaigns} {isEs ? "activas" : "active"}</Text>
                 </InlineStack>
                 <InlineStack align="space-between">
                   <Text as="p" variant="bodyMd">{isEs ? "Pipeline de sync" : "Sync pipeline"}</Text>
-                  <Text as="p" variant="bodyMd">{business.runningSyncJobs} {isEs ? "en ejecucion/pendiente" : "running/pending"}</Text>
+                  <Text as="p" variant="bodyMd">{business.runningSyncJobs} {isEs ? "en ejecución/pendiente" : "running/pending"}</Text>
                 </InlineStack>
                 <InlineStack align="space-between">
                   <Text as="p" variant="bodyMd">{isEs ? "Ultima sync completada" : "Last completed sync"}</Text>
@@ -554,10 +554,10 @@ export default function DashboardIndex() {
 
         <Layout.Section>
           <AdminSectionCard
-            title={isEs ? "Requiere atencion" : "Needs attention"}
+            title={isEs ? "Requiere atención" : "Needs attention"}
             description={
               isEs
-                ? "Alertas clave para desbloquear operacion, cumplimiento y crecimiento."
+                ? "Alertas clave para desbloquear operación, cumplimiento y crecimiento."
                 : "Key alerts to unblock operations, compliance, and growth."
             }
             badge={
@@ -574,14 +574,14 @@ export default function DashboardIndex() {
               </List>
             ) : (
               <Text as="p" variant="bodyMd" tone="subdued">
-                {isEs ? "No hay issues criticos detectados por ahora." : "No critical issues detected right now."}
+                {isEs ? "No hay issues críticos detectados por ahora." : "No critical issues detected right now."}
               </Text>
             )}
 
             <InlineStack gap="200" wrap>
               <Button url={withEmbeddedQuery("/app/privacy")}>{isEs ? "Centro de cumplimiento" : "Compliance center"}</Button>
               <Button url={withEmbeddedQuery("/app/operations")}>{isEs ? "Vista de operaciones" : "Operations view"}</Button>
-              <Button url={withEmbeddedQuery("/app/billing")}>{isEs ? "Facturacion" : "Billing"}</Button>
+              <Button url={withEmbeddedQuery("/app/billing")}>{isEs ? "Facturación" : "Billing"}</Button>
             </InlineStack>
           </AdminSectionCard>
         </Layout.Section>

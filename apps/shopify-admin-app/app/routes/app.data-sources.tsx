@@ -384,7 +384,7 @@ export async function action({ request }: ActionFunctionArgs): Promise<DataSourc
     };
   }
 
-  return { ok: false, error: isEs ? "Accion no soportada" : "Unsupported action" };
+  return { ok: false, error: isEs ? "Acción no soportada" : "Unsupported action" };
 }
 
 export default function DataSourcesPage() {
@@ -585,7 +585,7 @@ export default function DataSourcesPage() {
         title={isEs ? "Fuentes de datos" : "Data sources"}
         description={
           isEs
-            ? "Conecta, activa y monitoriza las fuentes que alimentan respuestas, catalogo y politicas."
+            ? "Conecta, activa y monitoriza las fuentes que alimentan respuestas, catálogo y políticas."
             : "Connect, activate, and monitor the sources that power answers, catalog data, and policies."
         }
         backUrl={backToDashboardUrl}
@@ -609,7 +609,7 @@ export default function DataSourcesPage() {
           <InlineGrid columns={{ xs: 1, sm: 2, md: 4 }} gap="400">
             <AdminStatCard label={isEs ? "Fuentes activas" : "Active sources"} value={`${activeSources}/${sources.length}`} />
             <AdminStatCard label={isEs ? "Productos proyectados" : "Projected products"} value={projections.productsProjected} />
-            <AdminStatCard label={isEs ? "Sync jobs en ejecucion" : "Running sync jobs"} value={runningSyncJobs} />
+            <AdminStatCard label={isEs ? "Sync jobs en ejecución" : "Running sync jobs"} value={runningSyncJobs} />
             <AdminStatCard label={isEs ? "Sync jobs fallidos" : "Failed sync jobs"} value={failedSyncJobs} badge={<AdminStatusBadge tone={failedSyncJobs > 0 ? "warning" : "success"}>{failedSyncJobs > 0 ? (isEs ? "Revisar" : "Review") : "OK"}</AdminStatusBadge>} />
           </InlineGrid>
         </Layout.Section>
@@ -626,7 +626,7 @@ export default function DataSourcesPage() {
               <EmptyState heading={isEs ? "No hay productos sincronizados" : "No synced products"} image="">
                 <Text as="p" variant="bodySm">
                   {isEs
-                    ? "Ejecuta una sincronizacion de catalogo para gestionar preguntas frecuentes por producto."
+                    ? "Ejecuta una sincronización de catálogo para gestionar preguntas frecuentes por producto."
                     : "Run a catalog sync to manage product frequently asked questions."}
                 </Text>
               </EmptyState>
@@ -655,7 +655,7 @@ export default function DataSourcesPage() {
           <InlineGrid columns={{ xs: 1, md: 2 }} gap="400">
             <AdminSectionCard
               title={isEs ? "Agregar fuente de datos" : "Add data source"}
-              description={isEs ? "Registra nuevas entradas de conocimiento sin mezclar configuracion y operacion." : "Register new knowledge inputs without mixing configuration and operations."}
+              description={isEs ? "Registra nuevas entradas de conocimiento sin mezclar configuración y operación." : "Register new knowledge inputs without mixing configuration and operations."}
             >
               <Form method="post">
                 <BlockStack gap="300">
@@ -666,9 +666,9 @@ export default function DataSourcesPage() {
                       label={isEs ? "Tipo de fuente" : "Source type"}
                       options={isEs
                         ? [
-                          { label: "Catalogo", value: "CATALOG" },
-                          { label: "Politicas", value: "POLICIES" },
-                          { label: "Paginas", value: "PAGES" },
+                          { label: "Catálogo", value: "CATALOG" },
+                          { label: "Políticas", value: "POLICIES" },
+                          { label: "Páginas", value: "PAGES" },
                           { label: "Blog", value: "BLOG" },
                           { label: "FAQ", value: "FAQ" },
                           { label: "Custom", value: "CUSTOM" },
@@ -684,7 +684,7 @@ export default function DataSourcesPage() {
                       value={sourceName}
                       onChange={setSourceName}
                       autoComplete="off"
-                      placeholder={isEs ? "Catalogo principal" : "Main catalog"}
+                      placeholder={isEs ? "Catálogo principal" : "Main catalog"}
                     />
                     <input type="hidden" name="name" value={sourceName} />
 
@@ -706,8 +706,8 @@ export default function DataSourcesPage() {
             </AdminSectionCard>
 
             <AdminSectionCard
-              title={isEs ? "Encolar sincronizacion" : "Queue synchronization"}
-              description={isEs ? "Lanza trabajos de sync cuando necesites refrescar inventario, politicas o paginas." : "Launch sync jobs when you need to refresh inventory, policies, or pages."}
+              title={isEs ? "Encolar sincronización" : "Queue synchronization"}
+              description={isEs ? "Lanza trabajos de sync cuando necesites refrescar inventario, políticas o páginas." : "Launch sync jobs when you need to refresh inventory, policies, or pages."}
             >
               <Form method="post">
                 <BlockStack gap="300">
@@ -717,10 +717,10 @@ export default function DataSourcesPage() {
                       label={isEs ? "Tipo de job de sync" : "Sync job type"}
                       options={isEs
                         ? [
-                          { label: "Sync inicial de catalogo", value: "initial:catalog" },
+                          { label: "Sync inicial de catálogo", value: "initial:catalog" },
                           { label: "Sync delta de productos", value: "delta:products" },
-                          { label: "Sync de politicas", value: "delta:policies" },
-                          { label: "Sync de paginas", value: "delta:pages" },
+                          { label: "Sync de políticas", value: "delta:policies" },
+                          { label: "Sync de páginas", value: "delta:pages" },
                         ]
                         : [
                           { label: "Initial catalog sync", value: "initial:catalog" },
@@ -744,14 +744,14 @@ export default function DataSourcesPage() {
         <Layout.Section>
           <AdminSectionCard
             title={isEs ? "Fuentes configuradas" : "Configured sources"}
-            description={isEs ? "Inventario operativo de fuentes disponibles y su estado de activacion." : "Operational inventory of available sources and their activation state."}
+            description={isEs ? "Inventario operativo de fuentes disponibles y su estado de activación." : "Operational inventory of available sources and their activation state."}
             badge={<AdminStatusBadge tone="info">{`${sources.length} ${isEs ? "totales" : "total"}`}</AdminStatusBadge>}
           >
               {sourceRows.length === 0 ? (
                 <EmptyState heading={isEs ? "No hay fuentes configuradas" : "No sources configured"} image="">
                   <Text as="p" variant="bodySm">
                     {isEs
-                      ? "Agrega tu primera fuente para iniciar el grounding de catalogo y politicas."
+                      ? "Agrega tu primera fuente para iniciar el grounding de catálogo y políticas."
                       : "Add your first source to start catalog and policy grounding."}
                   </Text>
                 </EmptyState>
@@ -759,7 +759,7 @@ export default function DataSourcesPage() {
                 <DataTable
                   columnContentTypes={["text", "text", "text", "numeric", "text", "text"]}
                   headings={isEs
-                    ? ["Nombre", "Tipo", "Estado", "Documentos", "Ultima sync", "Accion"]
+                    ? ["Nombre", "Tipo", "Estado", "Documentos", "Ultima sync", "Acción"]
                     : ["Name", "Type", "Status", "Documents", "Last sync", "Action"]}
                   rows={sourceRows}
                 />
@@ -773,10 +773,10 @@ export default function DataSourcesPage() {
             description={isEs ? "Historial corto para comprobar progreso, errores y capacidad operativa." : "Short history to inspect progress, errors, and operational capacity."}
           >
               {syncRows.length === 0 ? (
-                <EmptyState heading={isEs ? "Aun no hay sync jobs" : "No sync jobs yet"} image="">
+                <EmptyState heading={isEs ? "Aún no hay sync jobs" : "No sync jobs yet"} image="">
                   <Text as="p" variant="bodySm">
                     {isEs
-                      ? "Encola tu primer sync para poblar proyecciones de productos y politicas."
+                      ? "Encola tu primer sync para poblar proyecciones de productos y políticas."
                       : "Queue your first sync to populate product and policy projections."}
                   </Text>
                 </EmptyState>
@@ -784,7 +784,7 @@ export default function DataSourcesPage() {
                 <DataTable
                   columnContentTypes={["text", "text", "text", "text", "text", "text", "text", "text", "text"]}
                   headings={isEs
-                    ? ["Job", "Estado", "Progreso", "Items", "Creado", "Iniciado", "Completado", "Error", "Accion"]
+                    ? ["Job", "Estado", "Progreso", "Items", "Creado", "Iniciado", "Completado", "Error", "Acción"]
                     : ["Job", "Status", "Progress", "Items", "Created", "Started", "Completed", "Error", "Action"]}
                   rows={syncRows}
                 />

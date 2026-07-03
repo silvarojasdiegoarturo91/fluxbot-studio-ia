@@ -68,7 +68,7 @@ const ROUTE_COPY: Record<
     },
     es: {
       title: "Fuentes de datos",
-      description: "Conecta y monitoriza catalogo, politicas, paginas y sincronizaciones que alimentan al asistente.",
+      description: "Conecta y monitoriza catálogo, políticas, páginas y sincronizaciones que alimentan al asistente.",
       section: "Configurar",
     },
   },
@@ -79,8 +79,8 @@ const ROUTE_COPY: Record<
       section: "Growth",
     },
     es: {
-      title: "Campanas",
-      description: "Crea recorridos proactivos, activa campanas y sigue el rendimiento de conversion.",
+      title: "Campañas",
+      description: "Crea recorridos proactivos, activa campañas y sigue el rendimiento de conversion.",
       section: "Crecimiento",
     },
   },
@@ -92,7 +92,7 @@ const ROUTE_COPY: Record<
     },
     es: {
       title: "Conversaciones",
-      description: "Revisa trafico en vivo, prioriza escalaciones y mantén los handoffs avanzando.",
+      description: "Revisa tráfico en vivo, prioriza escalaciones y mantén los handoffs avanzando.",
       section: "Soporte",
     },
   },
@@ -103,8 +103,8 @@ const ROUTE_COPY: Record<
       section: "Insights",
     },
     es: {
-      title: "Analitica",
-      description: "Lee las metricas que importan para adopcion, calidad de resolucion e ingresos asistidos.",
+      title: "Analítica",
+      description: "Lee las metricas que importan para adopción, calidad de resolución e ingresos asistidos.",
       section: "Insights",
     },
   },
@@ -116,7 +116,7 @@ const ROUTE_COPY: Record<
     },
     es: {
       title: "Cumplimiento",
-      description: "Gestiona residencia, retencion, legal holds y auditoria desde un solo lugar.",
+      description: "Gestiona residencia, retención, legal holds y auditoría desde un solo lugar.",
       section: "Riesgo",
     },
   },
@@ -152,7 +152,7 @@ const ROUTE_COPY: Record<
     },
     es: {
       title: "Publicar widget",
-      description: "Valida instalacion, estado de publicacion y readiness del storefront.",
+      description: "Valida instalación, estado de publicación y readiness del storefront.",
       section: "Experiencia",
     },
   },
@@ -164,7 +164,7 @@ const ROUTE_COPY: Record<
     },
     es: {
       title: "llms.txt",
-      description: "Sigue generacion, publicacion y disponibilidad de entrega de llms.txt.",
+      description: "Sigue generación, publicación y disponibilidad de entrega de llms.txt.",
       section: "Operaciones",
     },
   },
@@ -175,8 +175,8 @@ const ROUTE_COPY: Record<
       section: "Account",
     },
     es: {
-      title: "Facturacion",
-      description: "Revisa plan, suscripciones y la siguiente accion de monetizacion.",
+      title: "Facturación",
+      description: "Revisa plan, suscripciones y la siguiente acción de monetización.",
       section: "Cuenta",
     },
   },

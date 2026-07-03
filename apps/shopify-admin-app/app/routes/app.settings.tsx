@@ -55,10 +55,10 @@ function getCreativitySummary(value: number, isEs: boolean) {
   }
 
   if (value <= 1.2) {
-    return isEs ? "Mas expresiva y flexible" : "More expressive and flexible";
+    return isEs ? "Más expresiva y flexible" : "More expressive and flexible";
   }
 
-  return isEs ? "Muy creativa, con mas variacion" : "Very creative with more variation";
+  return isEs ? "Muy creativa, con más variación" : "Very creative with more variation";
 }
 
 function getResponseLengthSummary(value: number, isEs: boolean) {
@@ -67,10 +67,10 @@ function getResponseLengthSummary(value: number, isEs: boolean) {
   }
 
   if (value <= 700) {
-    return isEs ? "Equilibrada y facil de leer" : "Balanced and easy to read";
+    return isEs ? "Equilibrada y fácil de leer" : "Balanced and easy to read";
   }
 
-  return isEs ? "Mas detallada y explicativa" : "More detailed and explanatory";
+  return isEs ? "Más detallada y explicativa" : "More detailed and explanatory";
 }
 
 function getConfidenceSummary(value: number, isEs: boolean) {
@@ -79,10 +79,10 @@ function getConfidenceSummary(value: number, isEs: boolean) {
   }
 
   if (value >= 0.6) {
-    return isEs ? "Equilibrio entre agilidad y seguridad" : "Balanced between speed and safety";
+    return isEs ? "Equilibrio entre ágilidad y seguridad" : "Balanced between speed and safety";
   }
 
-  return isEs ? "Mas agil, con menos filtro" : "More agile with less filtering";
+  return isEs ? "Más ágil, con menos filtro" : "More ágile with less filtering";
 }
 
 export async function loader({ request }: LoaderFunctionArgs) {
@@ -210,7 +210,7 @@ export async function action({ request }: ActionFunctionArgs): Promise<SettingsA
 
   return {
     ok: true,
-    message: language === "es" ? "Configuracion del asistente guardada." : "Assistant settings saved.",
+    message: language === "es" ? "Configuración del asistente guardada." : "Assistant settings saved.",
   };
 }
 
@@ -256,11 +256,11 @@ export default function SettingsPage() {
   return (
     <Page fullWidth>
       <AdminPageHeader
-        eyebrow={isEs ? "Configuracion central" : "Core configuration"}
-        title={isEs ? "Configuracion del asistente" : "Assistant settings"}
+        eyebrow={isEs ? "Configuración central" : "Core configuration"}
+        title={isEs ? "Configuración del asistente" : "Assistant settings"}
         description={
           isEs
-            ? "Configura la forma de hablar, el nivel de detalle y la prudencia del asistente con terminos mas faciles de entender."
+            ? "Configura la forma de hablar, el nivel de detalle y la prudencia del asistente con términos más fáciles de entender."
             : "Configure the assistant voice, level of detail, and caution using language that is easier to understand."
         }
         backUrl={backToDashboardUrl}
@@ -316,12 +316,12 @@ export default function SettingsPage() {
             >
               <BlockStack gap="400">
                 <AdminInfoCallout
-                  title={isEs ? "Configuracion recomendada para arrancar" : "Recommended setup to get started"}
+                  title={isEs ? "Configuración recomendada para arrancar" : "Recommended setup to get started"}
                   tone="highlight"
                 >
                   <p>
                     {isEs
-                      ? "Si no estas seguro, deja un tono profesional y un solo idioma principal. Luego podras afinar el resto con datos reales."
+                      ? "Sí no estás seguro, deja un tono profesional y un solo idioma principal. Luego podrás afinar el resto con datos reales."
                       : "If you are unsure, keep a professional tone and one primary language. You can refine the rest later with real usage data."}
                   </p>
                 </AdminInfoCallout>
@@ -367,7 +367,7 @@ export default function SettingsPage() {
                 title={isEs ? "Como responde el asistente" : "How the assistant responds"}
                 description={
                   isEs
-                    ? "Mantiene la misma potencia tecnica, pero explicada con terminos mas faciles de entender para negocio y soporte."
+                    ? "Mantiene la misma potencia técnica, pero explicada con términos más fáciles de entender para negocio y soporte."
                     : "It keeps the same technical power, but explained in language that is easier for business and support teams to understand."
                 }
               >
@@ -393,7 +393,7 @@ export default function SettingsPage() {
                         autoComplete="off"
                         helpText={
                           isEs
-                            ? `Control interno: temperature. Mas bajo = respuestas mas predecibles. Mas alto = respuestas mas variadas. Ahora: ${getCreativitySummary(temperatureNumber, true)}.`
+                            ? `Control interno: temperature. Más bajo = respuestas más predecibles. Más alto = respuestas más variadas. Ahora: ${getCreativitySummary(temperatureNumber, true)}.`
                             : `Internal control: temperature. Lower = more predictable replies. Higher = more varied replies. Now: ${getCreativitySummary(temperatureNumber, false)}.`
                         }
                       />
@@ -427,7 +427,7 @@ export default function SettingsPage() {
                         autoComplete="off"
                         helpText={
                           isEs
-                            ? `Control interno: confidenceThreshold. Mas alto = el asistente se lo piensa mas antes de contestar. Ahora: ${getConfidenceSummary(confidenceThresholdNumber, true)}.`
+                            ? `Control interno: confidenceThreshold. Más alto = el asistente se lo piensa más antes de contestar. Ahora: ${getConfidenceSummary(confidenceThresholdNumber, true)}.`
                             : `Internal control: confidenceThreshold. Higher = the assistant is more careful before answering. Now: ${getConfidenceSummary(confidenceThresholdNumber, false)}.`
                         }
                       />
@@ -438,7 +438,7 @@ export default function SettingsPage() {
               </AdminSectionCard>
 
               <AdminSectionCard
-                title={isEs ? "Automatizacion y escalado" : "Automation and escalation"}
+                title={isEs ? "Automatización y escalado" : "Automation and escalation"}
                 description={
                   isEs
                     ? "Define si el asistente esta activo, si inicia conversaciones por su cuenta y cuando debe pasar a una persona."
@@ -551,7 +551,7 @@ export default function SettingsPage() {
               title={isEs ? "Guardar y revisar cambios" : "Save and review changes"}
               description={
                 isEs
-                  ? "Revisa la ultima actualizacion y guarda esta configuracion cuando estes conforme."
+                  ? "Revisa la ultima actualizacion y guarda esta configuración cuando estes conforme."
                   : "Review the latest update and save this configuration when you are ready."
               }
             >
@@ -559,10 +559,10 @@ export default function SettingsPage() {
                 <Text as="p" variant="bodySm" tone="subdued">
                   {config.updatedAt
                     ? `${isEs ? "Ultima actualizacion" : "Last updated"}: ${new Date(config.updatedAt).toLocaleString()}`
-                    : isEs ? "Aun no hay configuraciones guardadas." : "No saved settings yet."}
+                    : isEs ? "Aún no hay configuraciones guardadas." : "No saved settings yet."}
                 </Text>
                 <Button submit variant="primary" loading={isSubmitting}>
-                  {isEs ? "Guardar configuracion" : "Save settings"}
+                  {isEs ? "Guardar configuración" : "Save settings"}
                 </Button>
               </div>
             </AdminSectionCard>

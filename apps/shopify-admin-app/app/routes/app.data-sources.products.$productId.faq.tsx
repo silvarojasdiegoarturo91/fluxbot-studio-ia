@@ -122,7 +122,7 @@ export async function action({ request, params }: ActionFunctionArgs): Promise<P
     return { ok: true, message: isEs ? "FAQ eliminada." : "FAQ deleted." };
   }
 
-  return { ok: false, error: isEs ? "Accion no soportada." : "Unsupported action." };
+  return { ok: false, error: isEs ? "Acción no soportada." : "Unsupported action." };
 }
 
 export default function ProductFaqManagementPage() {

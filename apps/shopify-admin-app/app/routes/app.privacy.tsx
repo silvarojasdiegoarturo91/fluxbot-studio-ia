@@ -183,7 +183,7 @@ export async function action({ request }: ActionFunctionArgs) {
     await DataResidencyService.setConfig(shop.id, rawRegion as DataRegion, countries);
     return {
       ok: true,
-      message: isEs ? "Politica de residencia de datos actualizada." : "Data residency policy updated.",
+      message: isEs ? "Política de residencia de datos actualizada." : "Data residency policy updated.",
     } satisfies PrivacyActionResponse;
   }
 
@@ -198,7 +198,7 @@ export async function action({ request }: ActionFunctionArgs) {
 
     return {
       ok: true,
-      message: isEs ? "Politica de retencion actualizada." : "Retention policy updated.",
+      message: isEs ? "Política de retención actualizada." : "Retention policy updated.",
     } satisfies PrivacyActionResponse;
   }
 
@@ -208,7 +208,7 @@ export async function action({ request }: ActionFunctionArgs) {
     return {
       ok: true,
       message: isEs
-        ? `Ejecucion de retencion completada. Conversaciones eliminadas: ${result.conversationsDeleted}, eventos eliminados: ${result.eventsDeleted}.${suffix}`
+        ? `Ejecución de retención completada. Conversaciones eliminadas: ${result.conversationsDeleted}, eventos eliminados: ${result.eventsDeleted}.${suffix}`
         : `Retention run completed. Conversations deleted: ${result.conversationsDeleted}, events deleted: ${result.eventsDeleted}.${suffix}`,
     } satisfies PrivacyActionResponse;
   }
@@ -262,7 +262,7 @@ export async function action({ request }: ActionFunctionArgs) {
     if (title.length === 0 || reason.length === 0) {
       return {
         ok: false,
-        error: isEs ? "El titulo y motivo del bloqueo legal son obligatorios." : "Legal hold title and reason are required.",
+        error: isEs ? "El título y motivo del bloqueo legal son obligatorios." : "Legal hold title and reason are required.",
       } satisfies PrivacyActionResponse;
     }
 
@@ -367,7 +367,7 @@ export async function action({ request }: ActionFunctionArgs) {
 
   return {
     ok: false,
-    error: isEs ? "Accion no soportada" : "Unsupported action",
+    error: isEs ? "Acción no soportada" : "Unsupported action",
   } satisfies PrivacyActionResponse;
 }
 
@@ -463,8 +463,8 @@ export default function PrivacyPage() {
   const lastSiemDispatchRows =
     actionData?.siemDispatch?.connectors?.map((connector) => [
       connector.connector,
-      connector.attempted ? (isEs ? "Si" : "Yes") : (isEs ? "No" : "No"),
-      connector.delivered ? (isEs ? "Si" : "Yes") : (isEs ? "No" : "No"),
+      connector.attempted ? (isEs ? "Sí" : "Yes") : (isEs ? "No" : "No"),
+      connector.delivered ? (isEs ? "Sí" : "Yes") : (isEs ? "No" : "No"),
       connector.statusCode ? String(connector.statusCode) : "-",
       connector.ingestedEvents ? String(connector.ingestedEvents) : "-",
       connector.error || "-",
@@ -473,7 +473,7 @@ export default function PrivacyPage() {
   return (
     <Page
       title={isEs ? "Privacidad y cumplimiento" : "Privacy & Compliance"}
-      subtitle={isEs ? `${shop.domain} • Ultimos ${days} dias` : `${shop.domain} • Last ${days} days`}
+      subtitle={isEs ? `${shop.domain} • Últimos ${days} días` : `${shop.domain} • Last ${days} days`}
       backAction={{ content: isEs ? "Panel" : "Dashboard", url: backToDashboardUrl }}
     >
       <Layout>
@@ -505,7 +505,7 @@ export default function PrivacyPage() {
             <Card>
               <BlockStack gap="100">
                 <Text as="p" variant="bodySm" tone="subdued">
-                  {isEs ? "Entradas de auditoria" : "Audit Log Entries"}
+                  {isEs ? "Entradas de auditoría" : "Audit Log Entries"}
                 </Text>
                 <Text as="p" variant="headingLg">
                   {report.auditLogEntries}
@@ -596,7 +596,7 @@ export default function PrivacyPage() {
                 </InlineGrid>
 
                 <Button submit variant="primary" loading={isSubmitting}>
-                  {isEs ? "Guardar politica de residencia" : "Save data residency policy"}
+                  {isEs ? "Guardar política de residencia" : "Save data residency policy"}
                 </Button>
               </BlockStack>
             </Form>
@@ -707,7 +707,7 @@ export default function PrivacyPage() {
                 <FormLayout>
                   <input type="hidden" name="intent" value="create_legal_hold" />
                   <TextField
-                    label={isEs ? "Titulo" : "Title"}
+                    label={isEs ? "Título" : "Title"}
                     value={holdTitle}
                     onChange={setHoldTitle}
                     autoComplete="off"
@@ -725,7 +725,7 @@ export default function PrivacyPage() {
                       { label: isEs ? "Todos los datos" : "All data", value: "ALL" },
                       { label: isEs ? "Conversaciones" : "Conversations", value: "CONVERSATIONS" },
                       { label: isEs ? "Eventos de comportamiento" : "Behavior events", value: "BEHAVIOR_EVENTS" },
-                      { label: isEs ? "Logs de auditoria" : "Audit logs", value: "AUDIT_LOGS" },
+                      { label: isEs ? "Logs de auditoría" : "Audit logs", value: "AUDIT_LOGS" },
                       { label: isEs ? "Registros de consentimiento" : "Consent records", value: "CONSENT_RECORDS" },
                     ]}
                     value={holdScope}
@@ -750,7 +750,7 @@ export default function PrivacyPage() {
                 <EmptyState heading={isEs ? "Sin bloqueos legales" : "No legal holds"} image="">
                   <Text as="p" variant="bodySm">
                     {isEs
-                      ? "Crea bloqueos legales para detener purgas de retencion durante revisiones legales o regulatorias."
+                      ? "Crea bloqueos legales para detener purgas de retención durante revisiónes legales o regulatorias."
                       : "Create legal holds to block retention purges during legal or regulatory review."}
                   </Text>
                 </EmptyState>
@@ -759,7 +759,7 @@ export default function PrivacyPage() {
                   columnContentTypes={["text", "text", "text", "text", "text"]}
                   headings={
                     isEs
-                      ? ["Titulo", "Alcance", "Estado", "Expira", "Accion"]
+                      ? ["Título", "Alcance", "Estado", "Expira", "Acción"]
                       : ["Title", "Scope", "Status", "Expires", "Action"]
                   }
                   rows={legalHoldRows}
@@ -779,7 +779,7 @@ export default function PrivacyPage() {
                 <FormLayout>
                   <input type="hidden" name="intent" value="export_siem" />
                   <TextField
-                    label={isEs ? "Ventana (dias)" : "Window (days)"}
+                    label={isEs ? "Ventana (días)" : "Window (days)"}
                     type="number"
                     min={1}
                     max={3650}
@@ -800,7 +800,7 @@ export default function PrivacyPage() {
                     label={isEs ? "Enviar a conectores" : "Dispatch to connectors"}
                     options={[
                       { label: isEs ? "No (solo exportacion)" : "No (export only)", value: "false" },
-                      { label: isEs ? "Si (Datadog/Splunk)" : "Yes (Datadog/Splunk)", value: "true" },
+                      { label: isEs ? "Sí (Datadog/Splunk)" : "Yes (Datadog/Splunk)", value: "true" },
                     ]}
                     value={dispatchConnectors}
                     onChange={setDispatchConnectors}
@@ -819,7 +819,7 @@ export default function PrivacyPage() {
                   rows={[
                     [isEs ? "ID de exportacion" : "Export ID", lastSiemExport.exportId],
                     [isEs ? "Generado" : "Generated", new Date(lastSiemExport.generatedAt).toLocaleString()],
-                    [isEs ? "Ventana (dias)" : "Window (days)", String(lastSiemExport.windowDays)],
+                    [isEs ? "Ventana (días)" : "Window (days)", String(lastSiemExport.windowDays)],
                     [isEs ? "Eventos" : "Events", String(lastSiemExport.eventCount)],
                   ]}
                 />
@@ -844,7 +844,7 @@ export default function PrivacyPage() {
           <Card>
             <BlockStack gap="300">
               <Text as="h2" variant="headingMd">
-                {isEs ? "Automatizacion de retencion" : "Retention Automation"}
+                {isEs ? "Automatización de retención" : "Retention Automation"}
               </Text>
 
               {activeLegalHolds > 0 ? (
@@ -852,7 +852,7 @@ export default function PrivacyPage() {
                   tone="warning"
                   title={
                     isEs
-                      ? "Hay exclusiones de retencion activas por alcances de bloqueo legal."
+                      ? "Hay exclusiones de retención activas por alcances de bloqueo legal."
                       : "Retention exclusions are active due to legal hold scopes."
                   }
                 />
@@ -864,7 +864,7 @@ export default function PrivacyPage() {
                     <input type="hidden" name="intent" value="set_retention_policy" />
                     <TextField
                       label={
-                        isEs ? "Retencion de conversaciones (dias)" : "Conversation retention (days)"
+                        isEs ? "Retención de conversaciones (días)" : "Conversation retention (days)"
                       }
                       type="number"
                       min={1}
@@ -882,7 +882,7 @@ export default function PrivacyPage() {
                     <TextField
                       label={
                         isEs
-                          ? "Retencion de eventos de comportamiento (dias)"
+                          ? "Retención de eventos de comportamiento (días)"
                           : "Behavior event retention (days)"
                       }
                       type="number"
@@ -899,7 +899,7 @@ export default function PrivacyPage() {
                     />
 
                     <Button submit variant="primary" loading={isSubmitting}>
-                      {isEs ? "Guardar politica de retencion" : "Save retention policy"}
+                      {isEs ? "Guardar política de retención" : "Save retention policy"}
                     </Button>
                   </FormLayout>
                 </Form>
@@ -914,7 +914,7 @@ export default function PrivacyPage() {
                       : (isEs ? "DETENIDO" : "STOPPED")}
                   </Badge>
                   <Text as="p" variant="bodySm" tone="subdued">
-                    {isEs ? "Ultima ejecucion" : "Last run"}: {schedulerRetentionLastRun}
+                    {isEs ? "Ultima ejecución" : "Last run"}: {schedulerRetentionLastRun}
                   </Text>
                   <Text as="p" variant="bodySm" tone="subdued">
                     {isEs ? "Total de ejecuciones" : "Total runs"}: {schedulerRetention?.runs ?? 0}
@@ -927,7 +927,7 @@ export default function PrivacyPage() {
                   <Form method="post">
                     <input type="hidden" name="intent" value="run_retention_now" />
                     <Button submit loading={isSubmitting}>
-                      {isEs ? "Ejecutar retencion ahora" : "Run retention now"}
+                      {isEs ? "Ejecutar retención ahora" : "Run retention now"}
                     </Button>
                   </Form>
                 </BlockStack>
@@ -976,7 +976,7 @@ export default function PrivacyPage() {
                 <EmptyState heading={isEs ? "Sin eventos de consentimiento" : "No consent events"} image="">
                   <Text as="p" variant="bodySm">
                     {isEs
-                      ? "Los registros apareceran cuando los visitantes acepten o rechacen consentimiento."
+                      ? "Los registros aparecerán cuando los visitantes acepten o rechacen consentimiento."
                       : "Consent records will appear as visitors grant or reject consent."}
                   </Text>
                 </EmptyState>
@@ -1016,7 +1016,7 @@ export default function PrivacyPage() {
                   columnContentTypes={["text", "text", "text", "numeric"]}
                   headings={
                     isEs
-                      ? ["Actividad", "Proposito", "Base legal", "Retencion (dias)"]
+                      ? ["Actividad", "Proposito", "Base legal", "Retención (días)"]
                       : ["Activity", "Purpose", "Legal Basis", "Retention (days)"]
                   }
                   rows={processingActivities.map((activity) => [
@@ -1058,7 +1058,7 @@ export default function PrivacyPage() {
                     breach.severity,
                     String(breach.affectedDataSubjects),
                     breach.reportedToAuthority
-                      ? (isEs ? "Si" : "Yes")
+                      ? (isEs ? "Sí" : "Yes")
                       : (isEs ? "No" : "No"),
                     breach.reportedAt72h
                       ? (isEs ? "Cumplido" : "Met")

@@ -56,7 +56,7 @@ const TOTAL_STEPS = 4;
 const ONBOARDING_COPY = {
   es: {
     title: "Activa Fluxbot en 4 pasos",
-    subtitle: "Guía al merchant por una activación clara, con preview en vivo y sin fricción.",
+    subtitle: "Gu al merchant por una activación clara, con preview en vivo y sin fricción.",
     stepLabel: "Paso",
     progressLabel: "Magic setup",
     saveDraft: "Guardar progreso",
@@ -80,7 +80,7 @@ const ONBOARDING_COPY = {
     activateTitle: "Despegue",
     reviewText: "Resumen visual y registro inicial de tienda antes de activar.",
     activateText:
-      "Al pulsar Activar, guardamos la configuracion y registramos tu tienda en el backend IA. La sincronizacion de catalogo y politicas se ejecuta desde el panel.",
+      "Al pulsar Activar, guardamos la configuración y registramos tu tienda en el backend IA. La sincronización de catálogo y políticas se ejecuta desde el panel.",
     activatedMessage: "Fluxbot listo para atender en tu tienda.",
   },
   en: {
@@ -1762,7 +1762,7 @@ function getDefaultBotName(language: AdminLanguage): string {
 
 function getDefaultWelcomeMessage(language: AdminLanguage, botName: string): string {
   return language === "es"
-    ? `Hola, soy ${botName}. Estoy aqui para ayudarte con productos, pedidos y dudas de tu tienda.`
+    ? `Hola, soy ${botName}. Estoy aquí para ayudarte con productos, pedidos y dudas de tu tienda.`
     : `Hi, I'm ${botName}. I'm here to help with products, orders, and store questions.`;
 }
 
@@ -2473,7 +2473,7 @@ export default function OnboardingPage() {
       enabled: answerProducts === "true",
     },
     {
-      label: adminLanguage === "es" ? "Politicas" : "Policies",
+      label: adminLanguage === "es" ? "Políticas" : "Policies",
       enabled: answerPolicies === "true",
     },
     {
@@ -2495,8 +2495,8 @@ export default function OnboardingPage() {
       if (item.label === "Productos" || item.label === "Products") {
         return adminLanguage === "es" ? "Recomiendame algo" : "Recommend something";
       }
-      if (item.label === "Politicas" || item.label === "Policies") {
-        return adminLanguage === "es" ? "Politica de envios" : "Shipping policy";
+      if (item.label === "Políticas" || item.label === "Policies") {
+        return adminLanguage === "es" ? "Política de envíos" : "Shipping policy";
       }
       if (item.label === "Pedidos" || item.label === "Orders") {
         return adminLanguage === "es" ? "Seguir mi pedido" : "Track my order";
@@ -2515,7 +2515,7 @@ export default function OnboardingPage() {
   const previewAssistantMessage = useMemo(() => {
     if (!answerProducts || answerProducts === "false") {
       return adminLanguage === "es"
-        ? "Ahora mismo la recomendacion de productos esta desactivada. Puedo ayudarte con politicas y soporte si lo prefieres."
+        ? "Ahora mismo la recomendación de productos esta desactivada. Puedo ayudarte con políticas y soporte si lo prefieres."
         : "Product recommendations are currently disabled. I can still help with policy and support questions.";
     }
 
@@ -2530,7 +2530,7 @@ export default function OnboardingPage() {
     };
 
     const detailedTone = {
-      es: "Segun tu presupuesto y uso, Flux Shell Lite (€79) encaja muy bien: tejido ligero, buena ventilacion y corte versatil para uso diario. Si quieres, te comparo una opcion premium antes de decidir.",
+      es: "Según tu presupuesto y uso, Flux Shell Lite (€79) encaja muy bien: tejido ligero, buena ventilacion y corte versatil para uso diario. Si quieres, te comparo una opcion premium antes de decidir.",
       en: "Based on your budget and use case, Flux Shell Lite (€79) is a strong match: lightweight fabric, good airflow, and a versatile everyday fit. I can also compare one premium option before you decide.",
     };
 
@@ -2541,7 +2541,7 @@ export default function OnboardingPage() {
 
     const policySnippet = answerPolicies === "true"
       ? adminLanguage === "es"
-        ? " Incluye cambios hasta 30 dias."
+        ? " Incluye cambios hasta 30 días."
         : " Includes easy exchanges within 30 days."
       : "";
 
@@ -2553,7 +2553,7 @@ export default function OnboardingPage() {
 
     const recommendationSnippet = recommendProducts === "true"
       ? adminLanguage === "es"
-        ? " Te dejo dos alternativas mas para comparar rapido."
+        ? " Te dejo dos alternativas más para comparar rápido."
         : " I can suggest two more alternatives for a quick comparison."
       : "";
 
@@ -2754,7 +2754,7 @@ export default function OnboardingPage() {
           <h2 className="onb-step-headline">{copy.languageTitle}</h2>
           <p className="onb-step-copy">
             {adminLanguage === "es"
-              ? "Haz que el bot deje de ser codigo: elige idioma, nombre y saludo para tu primera impresion."
+              ? "Haz que el bot deje de ser código: elige idioma, nombre y saludo para tu primera impresión."
               : "Turn the bot into a real teammate: choose language, name, and greeting for the first impression."}
           </p>
 
@@ -2762,7 +2762,7 @@ export default function OnboardingPage() {
             <Select
               label={adminLanguage === "es" ? "¿En que idioma atenderas?" : "Which language will you use?"}
               options={[
-                { label: "Espanol", value: "es" },
+                { label: "Español", value: "es" },
                 { label: "English", value: "en" },
               ]}
               value={adminLanguage}
@@ -2815,7 +2815,7 @@ export default function OnboardingPage() {
           <h2 className="onb-step-headline">{copy.profileTitle}</h2>
           <p className="onb-step-copy">
             {adminLanguage === "es"
-              ? "Define la mision y los superpoderes del bot para que responda como una IA util desde el dia uno."
+              ? "Define la misión y los superpoderes del bot para que responda como una IA útil desde el día uno."
               : "Define the bot mission and superpowers so it behaves like a useful AI teammate from day one."}
           </p>
 
@@ -2828,7 +2828,7 @@ export default function OnboardingPage() {
                 {
                   value: "SALES",
                   title: adminLanguage === "es" ? "Vender productos" : "Sell products",
-                  description: adminLanguage === "es" ? "Mas foco en conversion y recomendaciones." : "More focus on conversion and recommendations.",
+                  description: adminLanguage === "es" ? "Más foco en conversión y recomendaciones." : "More focus on conversion and recommendations.",
                 },
                 {
                   value: "SUPPORT",
@@ -2878,7 +2878,7 @@ export default function OnboardingPage() {
                   value: answerProducts === "true",
                   onToggle: () => setAnswerProducts(answerProducts === "true" ? "false" : "true"),
                   title: adminLanguage === "es" ? "Responder sobre productos" : "Product answers",
-                  description: adminLanguage === "es" ? "Usa catalogo y fichas para contestar dudas." : "Uses catalog data to answer product questions.",
+                  description: adminLanguage === "es" ? "Usa catálogo y fichas para contestar dudas." : "Uses catalog data to answer product questions.",
                 },
                 {
                   value: recommendProducts === "true",
@@ -2895,14 +2895,14 @@ export default function OnboardingPage() {
                 {
                   value: answerPolicies === "true",
                   onToggle: () => setAnswerPolicies(answerPolicies === "true" ? "false" : "true"),
-                  title: adminLanguage === "es" ? "Politicas de envio" : "Shipping policies",
-                  description: adminLanguage === "es" ? "Responde sobre envios, cambios y devoluciones." : "Answers shipping, exchange, and return questions.",
+                  title: adminLanguage === "es" ? "Políticas de envío" : "Shipping policies",
+                  description: adminLanguage === "es" ? "Responde sobre envíos, cambios y devoluciones." : "Answers shipping, exchange, and return questions.",
                 },
                 {
                   value: captureLeads === "true",
                   onToggle: () => setCaptureLeads(captureLeads === "true" ? "false" : "true"),
                   title: adminLanguage === "es" ? "Capturar leads" : "Capture leads",
-                  description: adminLanguage === "es" ? "Recoge email o intencion comercial para seguimiento." : "Captures shopper intent for follow-up.",
+                  description: adminLanguage === "es" ? "Recoge email o intención comercial para seguimiento." : "Captures shopper intent for follow-up.",
                 },
               ].map((item) => (
                 <button
@@ -3082,10 +3082,10 @@ export default function OnboardingPage() {
               <p className="onb-note-text">
                 {syncPreviewProgress === 0
                   ? (adminLanguage === "es"
-                    ? "Este paso solo registra la referencia de tu tienda. La sincronizacion de catalogo y politicas se inicia desde el panel."
+                    ? "Este paso solo registra la referencia de tu tienda. La sincronización de catálogo y políticas se inicia desde el panel."
                     : "This step only registers your shop reference. Catalog and policy sync is started from the dashboard.")
                   : (adminLanguage === "es"
-                    ? "Procesando activacion y registro de tienda."
+                    ? "Procesando activación y registro de tienda."
                     : "Processing activation and shop registration.")}
               </p>
             </div>
@@ -3102,7 +3102,7 @@ export default function OnboardingPage() {
           <div className="onb-note-card">
             <p className="onb-note-title">{adminLanguage === "es" ? "Identidad" : "Identity"}</p>
             <List>
-              <List.Item>{`${adminLanguage === "es" ? "Idioma" : "Language"}: ${adminLanguage === "es" ? "Espanol" : "English"}`}</List.Item>
+              <List.Item>{`${adminLanguage === "es" ? "Idioma" : "Language"}: ${adminLanguage === "es" ? "Español" : "English"}`}</List.Item>
               <List.Item>{`${adminLanguage === "es" ? "Nombre" : "Name"}: ${normalizedBotName}`}</List.Item>
               <List.Item>{`${adminLanguage === "es" ? "Saludo" : "Greeting"}: ${normalizedWelcomeMessage}`}</List.Item>
             </List>
@@ -3187,7 +3187,7 @@ export default function OnboardingPage() {
                 </div>
                 <p className="onb-progress-caption">
                   {adminLanguage === "es"
-                    ? "Configuracion guiada con guardado automatico y vista previa en tiempo real."
+                    ? "Configuración guiada con guardado automático y vista previa en tiempo real."
                     : "Guided setup with autosave and live preview as you move through the steps."}
                 </p>
               </div>

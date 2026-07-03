@@ -251,15 +251,15 @@ export default function CampaignsPage() {
     <Page fullWidth>
       <AdminPageHeader
         eyebrow={isEs ? "Crecimiento" : "Growth"}
-        title={isEs ? "Campanas de marketing" : "Marketing campaigns"}
+        title={isEs ? "Campañas de marketing" : "Marketing campaigns"}
         description={
           isEs
-            ? "Gestiona campanas proactivas por idioma con una vista clara del impacto, activacion y conversion."
+            ? "Gestiona campañas proactivas por idioma con una vista clara del impacto, activación y conversion."
             : "Manage locale-aware proactive campaigns with a clear view of impact, activation, and conversion."
         }
         backUrl={backUrl}
         backLabel={isEs ? "Panel" : "Dashboard"}
-        badge={<AdminStatusBadge tone={totalActive > 0 ? "success" : "attention"}>{totalActive > 0 ? `${totalActive} ${isEs ? "activas" : "active"}` : (isEs ? "Sin campanas activas" : "No active campaigns")}</AdminStatusBadge>}
+        badge={<AdminStatusBadge tone={totalActive > 0 ? "success" : "attention"}>{totalActive > 0 ? `${totalActive} ${isEs ? "activas" : "active"}` : (isEs ? "Sin campañas activas" : "No active campaigns")}</AdminStatusBadge>}
         actions={
           <Button variant="primary" onClick={handleOpenModal}>
             {isEs ? "Nueva campana" : "New campaign"}
@@ -269,24 +269,24 @@ export default function CampaignsPage() {
       <Layout>
         <Layout.Section>
           <InlineGrid columns={{ xs: 1, sm: 3 }} gap="400">
-            <AdminStatCard label={isEs ? "Campanas activas" : "Active campaigns"} value={totalActive} />
-            <AdminStatCard label={isEs ? "Total de envios" : "Total dispatched"} value={totalDispatched.toLocaleString()} />
+            <AdminStatCard label={isEs ? "Campañas activas" : "Active campaigns"} value={totalActive} />
+            <AdminStatCard label={isEs ? "Total de envíos" : "Total dispatched"} value={totalDispatched.toLocaleString()} />
             <AdminStatCard label={isEs ? "CVR global" : "Overall CVR"} value={`${overallCvr}${overallCvr !== "—" ? "%" : ""}`} />
           </InlineGrid>
         </Layout.Section>
 
         <Layout.Section>
           <AdminSectionCard
-            title={isEs ? "Campanas configuradas" : "Configured campaigns"}
+            title={isEs ? "Campañas configuradas" : "Configured campaigns"}
             description={
               isEs
-                ? "Supervisa estado, programacion y performance sin salir del panel comercial."
+                ? "Supervisa estado, programación y performance sin salir del panel comercial."
                 : "Monitor status, scheduling, and performance without leaving the commercial control center."
             }
           >
             {campaigns.length === 0 ? (
               <EmptyState
-                heading={isEs ? "Aun no hay campanas" : "No campaigns yet"}
+                heading={isEs ? "Aún no hay campañas" : "No campaigns yet"}
                 image=""
                 action={{
                   content: isEs ? "Crear campana" : "Create campaign",
@@ -295,7 +295,7 @@ export default function CampaignsPage() {
               >
                 <p>
                   {isEs
-                    ? "Crea campanas proactivas por idioma para llegar a cada visitante con el mensaje correcto en el momento adecuado."
+                    ? "Crea campañas proactivas por idioma para llegar a cada visitante con el mensaje correcto en el momento adecuado."
                     : "Create locale-aware proactive campaigns to reach visitors in their preferred language with the right message at the right moment."}
                 </p>
               </EmptyState>
@@ -335,14 +335,14 @@ export default function CampaignsPage() {
               requiredIndicator
             />
             <TextField
-              label={isEs ? "Descripcion" : "Description"}
+              label={isEs ? "Descripción" : "Description"}
               value={description}
               onChange={setDescription}
               autoComplete="off"
               multiline={2}
             />
             <Select
-              label={isEs ? "Tipo de programacion" : "Schedule type"}
+              label={isEs ? "Tipo de programación" : "Schedule type"}
               options={
                 isEs
                   ? [

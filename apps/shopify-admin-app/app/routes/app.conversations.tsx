@@ -210,7 +210,7 @@ export async function action({ request }: ActionFunctionArgs): Promise<Conversat
     return { ok: true, message: isEs ? "Handoff marcado como resuelto." : "Handoff marked as resolved." };
   }
 
-  return { ok: false, error: isEs ? "Accion no soportada" : "Unsupported action" };
+  return { ok: false, error: isEs ? "Acción no soportada" : "Unsupported action" };
 }
 
 export default function ConversationsPage() {
@@ -268,7 +268,7 @@ export default function ConversationsPage() {
         title={isEs ? "Conversaciones" : "Conversations"}
         description={
           isEs
-            ? "Supervisa trafico, detecta escalaciones y resuelve handoffs sin perder contexto."
+            ? "Supervisa tráfico, detecta escalaciones y resuelve handoffs sin perder contexto."
             : "Monitor traffic, detect escalations, and resolve handoffs without losing context."
         }
         backUrl={backToDashboardUrl}
@@ -327,7 +327,7 @@ export default function ConversationsPage() {
                 <EmptyState heading={isEs ? "No se encontraron conversaciones" : "No conversations found"} image="">
                   <Text as="p" variant="bodySm">
                     {isEs
-                      ? "Las conversaciones apareceran aqui cuando visitantes interactuen con tu asistente."
+                      ? "Las conversaciones aparecerán aquí cuando visitantes interactúen con tu asistente."
                       : "Conversations will appear here as visitors interact with your assistant."}
                   </Text>
                 </EmptyState>
@@ -360,7 +360,7 @@ export default function ConversationsPage() {
                 <DataTable
                   columnContentTypes={["text", "text", "text", "text", "text", "text"]}
                   headings={isEs
-                    ? ["Conversacion", "Motivo", "Asignado", "Estado", "Creado", "Accion"]
+                    ? ["Conversacion", "Motivo", "Asignado", "Estado", "Creado", "Acción"]
                     : ["Conversation", "Reason", "Assigned", "Status", "Created", "Action"]}
                   rows={handoffRows}
                 />

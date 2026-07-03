@@ -40,15 +40,15 @@ export default function AnalyticsPage() {
     <Page fullWidth>
       <AdminPageHeader
         eyebrow={isEs ? "Insights" : "Insights"}
-        title={isEs ? "Analitica" : "Analytics"}
-        description={isEs ? `Ultimos ${days} dias de rendimiento, atribucion e intenciones.` : `Last ${days} days of performance, attribution, and intent signals.`}
+        title={isEs ? "Analítica" : "Analytics"}
+        description={isEs ? `Últimos ${days} días de rendimiento, atribución e intenciones.` : `Last ${days} days of performance, attribution, and intent signals.`}
         backUrl={backUrl}
         backLabel={isEs ? "Panel" : "Dashboard"}
       />
       <Layout>
         <Layout.Section>
           <InlineGrid columns={{ xs: 1, sm: 2, md: 4 }} gap="400">
-            <AdminStatCard label={isEs ? "Conversaciones" : "Conversations"} value={conversations.total} meta={`${isEs ? "Resolucion" : "Resolution"}: ${pct(conversations.resolutionRate)}`} />
+            <AdminStatCard label={isEs ? "Conversaciones" : "Conversations"} value={conversations.total} meta={`${isEs ? "Resolución" : "Resolution"}: ${pct(conversations.resolutionRate)}`} />
             <AdminStatCard label={isEs ? "Ingresos asistidos" : "Assisted revenue"} value={currency(revenue.totalRevenue)} meta={`${revenue.conversionCount} ${isEs ? "pedidos atribuidos" : "orders attributed"}`} />
             <AdminStatCard label={isEs ? "Proactivos enviados" : "Proactive sent"} value={proactive.sent} meta={`CVR: ${pct(proactive.conversionRate)}`} />
             <AdminStatCard label={isEs ? "Tasa de handoff" : "Handoff rate"} value={pct(conversations.handoffRate)} meta={`${conversations.escalated} ${isEs ? "escaladas" : "escalated"}`} />
@@ -57,16 +57,16 @@ export default function AnalyticsPage() {
 
         <Layout.Section>
           <AdminSectionCard
-            title={isEs ? "Atribucion de ingresos" : "Revenue attribution"}
-            description={isEs ? "Desglosa como el asistente mueve valor a lo largo del funnel." : "Break down how the assistant drives value across the funnel."}
+            title={isEs ? "Atribución de ingresos" : "Revenue attribution"}
+            description={isEs ? "Desglosa cómo el asistente mueve valor a lo largo del funnel." : "Break down how the assistant drives value across the funnel."}
           >
               <DataTable
                 columnContentTypes={["text", "numeric"]}
-                headings={isEs ? ["Tipo de atribucion", "Ingresos"] : ["Attribution Type", "Revenue"]}
+                headings={isEs ? ["Tipo de atribución", "Ingresos"] : ["Attribution Type", "Revenue"]}
                 rows={[
-                  [isEs ? "Recomendacion directa" : "Direct Recommendation", currency(revenue.directRevenue)],
+                  [isEs ? "Recomendación directa" : "Direct Recommendation", currency(revenue.directRevenue)],
                   [isEs ? "Asistido" : "Assisted", currency(revenue.assistedRevenue)],
-                  [isEs ? "Recuperacion de carrito" : "Cart Recovery", currency(revenue.cartRecoveryRevenue)],
+                  [isEs ? "Recuperación de carrito" : "Cart Recovery", currency(revenue.cartRecoveryRevenue)],
                   [isEs ? "Trigger proactivo" : "Proactive Trigger", currency(revenue.proactiveTriggerRevenue)],
                   [isEs ? "Total" : "Total", currency(revenue.totalRevenue)],
                 ]}
@@ -76,7 +76,7 @@ export default function AnalyticsPage() {
 
         <Layout.Section>
           <AdminSectionCard
-            title={isEs ? "Embudo de mensajeria proactiva" : "Proactive messaging funnel"}
+            title={isEs ? "Embudo de mensajería proactiva" : "Proactive messaging funnel"}
             description={isEs ? "Comprueba entregabilidad y conversion de las campañas activas." : "Check deliverability and conversion of active campaigns."}
           >
               <DataTable
@@ -99,17 +99,17 @@ export default function AnalyticsPage() {
             description={isEs ? "Identifica las necesidades dominantes que llegan al chat." : "Identify the dominant needs reaching the chat."}
           >
               {intents.length === 0 ? (
-                <EmptyState heading={isEs ? "Sin datos de intencion" : "No intent data yet"} image="">
+                <EmptyState heading={isEs ? "Sin datos de intención" : "No intent data yet"} image="">
                   <Text as="p" variant="bodySm">
                     {isEs
-                      ? "Los datos apareceran cuando visitantes interactuen con el chat."
+                      ? "Los datos aparecerán cuando visitantes interactúen con el chat."
                       : "Data will appear as visitors interact with the chat."}
                   </Text>
                 </EmptyState>
               ) : (
                 <DataTable
                   columnContentTypes={["text", "numeric", "text"]}
-                  headings={isEs ? ["Tipo", "Senales", "Confianza prom."] : ["Intent Type", "Signals", "Avg Confidence"]}
+                  headings={isEs ? ["Tipo", "Señales", "Confianza prom."] : ["Intent Type", "Signals", "Avg Confidence"]}
                   rows={intents.map((i) => [i.type, String(i.count), pct(i.avgConfidence)])}
                 />
               )}
@@ -119,13 +119,13 @@ export default function AnalyticsPage() {
         <Layout.Section variant="oneHalf">
           <AdminSectionCard
             title={isEs ? "Top triggers proactivos" : "Top proactive triggers"}
-            description={isEs ? "Prioriza los triggers que mas conversacion y conversion generan." : "Prioritize the triggers that drive the most conversation and conversion."}
+            description={isEs ? "Prioriza los triggers que más conversacion y conversion generan." : "Prioritize the triggers that drive the most conversation and conversion."}
           >
               {topTriggers.length === 0 ? (
                 <EmptyState heading={isEs ? "Sin datos de triggers" : "No trigger data yet"} image="">
                   <Text as="p" variant="bodySm">
                     {isEs
-                      ? "Crea y activa triggers proactivos para ver rendimiento aqui."
+                      ? "Crea y activa triggers proactivos para ver rendimiento aquí."
                       : "Create and enable proactive triggers to see performance here."}
                   </Text>
                 </EmptyState>

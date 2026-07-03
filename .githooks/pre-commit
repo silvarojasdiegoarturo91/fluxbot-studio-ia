@@ -3,6 +3,7 @@ set -eu
 
 . ./.githooks/strict-flow.sh
 
+strict_require_hooks_active
 strict_check_openspec_conflicts
 strict_run_qa
 strict_run_doc_hook pre-commit

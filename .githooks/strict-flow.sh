@@ -11,6 +11,19 @@ strict_run_qa() {
   npm run --silent qa:gate
 }
 
+strict_require_hooks_active() {
+  hooks_path="$(git config --get core.hooksPath || true)"
+  if [ "$hooks_path" != ".githooks" ]; then
+    strict_fail "core.hooksPath must be .githooks. Run: git config core.hooksPath .githooks"
+  fi
+
+  for hook in ./.githooks/pre-commit ./.githooks/post-commit ./.githooks/pre-push ./.githooks/strict-flow.sh; do
+    if [ ! -x "$hook" ]; then
+      strict_fail "$hook must exist and be executable."
+    fi
+  done
+}
+
 strict_check_openspec_conflicts() {
   if git diff --cached --name-only | grep -qx ".openspec.json" && [ -f "./scripts/check-openspec-conflicts.mjs" ]; then
     echo "[strict-flow] Checking OpenSpec conflicts..."
@@ -18,8 +31,12 @@ strict_check_openspec_conflicts() {
     node ./scripts/check-openspec-conflicts.mjs
     code=$?
     set -e
-    [ "$code" -eq 1 ] && strict_fail "OpenSpec conflicts detected; resolve them before commit."
-    [ "$code" -eq 2 ] && echo "[strict-flow] OpenSpec warnings detected; continuing because they are non-blocking."
+    if [ "$code" -eq 1 ]; then
+      strict_fail "OpenSpec conflicts detected; resolve them before commit."
+    fi
+    if [ "$code" -eq 2 ]; then
+      echo "[strict-flow] OpenSpec warnings detected; continuing because they are non-blocking."
+    fi
   fi
 }
 
@@ -58,6 +75,8 @@ strict_require_clean_worktree() {
 
 strict_post_commit_sync_and_push() {
   branch="$(git rev-parse --abbrev-ref HEAD)"
+
+  strict_require_hooks_active
 
   if [ "$branch" = "HEAD" ]; then
     echo "[strict-flow] Detached HEAD detected; skipping auto-push."

@@ -24,6 +24,10 @@ Este repo debe tener hooks activos (`npm run githooks:install`) con este flujo:
 4. `post-commit` hace `push`.
 5. Si hay conflicto, resolver y repetir `qa:gate` antes de empujar.
 
+## 🌐 Regla obligatoria de traducciones del Admin
+
+Todo agente que modifique copy del Admin Shopify debe revisar el idioma destino antes de cerrar la tarea. En español, las etiquetas y textos visibles deben conservar acentos, `ñ` y ortografía correcta: `Campañas`, `Analítica`, `Facturación`, `configuración`, `sincronización`, `catálogo`, `políticas`, `páginas`, `descripción`, `acción`, `ejecución` y `retención`. Si se corrige o añade copy localizado, se debe actualizar una prueba cercana cuando exista cobertura razonable.
+
 ---
 
 ## 📖 GUÍA DE REFERENCIA OBLIGATORIA

@@ -3,6 +3,7 @@ set -eu
 
 . ./.githooks/strict-flow.sh
 
+strict_require_hooks_active
 strict_run_qa
 strict_require_clean_worktree
 
