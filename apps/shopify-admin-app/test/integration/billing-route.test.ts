@@ -45,7 +45,7 @@ describe("app.billing route", () => {
       id: "shop-1",
       domain: "shop.example.myshopify.com",
     } as any);
-    mockBillingService.listPlans.mockReturnValue([
+    mockBillingService.listPlans.mockResolvedValue([
       {
         id: "starter",
         name: "Starter",

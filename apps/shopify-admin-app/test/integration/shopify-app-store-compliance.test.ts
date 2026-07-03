@@ -47,11 +47,12 @@ describe("Shopify App Store compliance baseline", () => {
     expect(server).toContain("registerWebhooks({ session })");
   });
 
-  it("routes billing through Shopify Billing API and App Subscription creation", () => {
+  it("routes billing through backend billing orchestration and Shopify subscription state", () => {
     const billingService = readText("fluxbot-studio-ia-shopify/apps/shopify-admin-app/app/services/billing.server.ts");
     const billingRoute = readText("fluxbot-studio-ia-shopify/apps/shopify-admin-app/app/routes/app.billing.tsx");
 
-    expect(billingService).toContain("appSubscriptionCreate");
+    expect(billingService).toContain("/api/v1/billing/subscribe");
+    expect(billingService).toContain("X-Shopify-Access-Token");
     expect(billingService).toContain("Shopify billing request failed");
     expect(billingService).toContain("currentAppInstallation");
     expect(billingRoute).toContain("BillingService.createSubscription");

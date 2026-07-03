@@ -290,6 +290,57 @@ export interface ShopSyncResponse {
   syncedAt: string;
 }
 
+export interface BillingPlanResponse {
+  code: string;
+  name: string;
+  billingMode: 'shopify_app_pricing' | 'shopify_legacy_billing';
+  currency: string;
+  basePrice?: number;
+  includedMessages: number;
+  includedPeriodType: 'lifetime' | 'monthly';
+  extraBlockSize?: number | null;
+  extraBlockPrice?: number | null;
+  cappedAmount?: number | null;
+}
+
+export interface BillingStatusResponse {
+  hasActiveSubscription: boolean;
+  subscriptions: Array<{
+    id: string;
+    name: string;
+    status: string;
+    test: boolean;
+    priceAmount: string;
+    priceCurrency: string;
+    interval: string;
+  }>;
+  shopId: string;
+  activePlanCode: string;
+  billingCurrency: string;
+  currentUsage: number;
+  includedUsage: number;
+  billableBlocks: number;
+  billedBlocks: number;
+  balanceUsed: number;
+  cappedAmount: number;
+  softCapAmount: number;
+  billingCycleStart: string;
+  billingCycleEnd: string;
+  status: string;
+}
+
+export interface BillingSubscribeRequest {
+  planCode: string;
+  returnUrl?: string;
+  test?: boolean;
+}
+
+export interface BillingSubscribeResponse {
+  confirmationUrl: string;
+  subscriptionId?: string;
+  usageLineItemId?: string;
+}
+
 export class IABackendError extends Error {
   constructor(
     message: string,
@@ -497,5 +548,16 @@ export const iaClient = {
   shops: {
     sync: (request: ShopSyncRequest, shopDomain?: string) =>
       makeRequest<ShopSyncResponse>(`${API_V1}/shops/sync`, 'POST', request, shopDomain),
+  },
+
+  billing: {
+    plans: (shopDomain?: string) =>
+      makeRequest<BillingPlanResponse[]>(`${API_V1}/billing/plans`, 'GET', undefined, shopDomain),
+
+    status: (shopDomain?: string) =>
+      makeRequest<BillingStatusResponse>(`${API_V1}/billing/status`, 'GET', undefined, shopDomain),
+
+    subscribe: (request: BillingSubscribeRequest, shopDomain?: string) =>
+      makeRequest<BillingSubscribeResponse>(`${API_V1}/billing/subscribe`, 'POST', request, shopDomain),
   },
 };

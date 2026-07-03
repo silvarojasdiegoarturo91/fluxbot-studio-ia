@@ -35,7 +35,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   try {
     const [status, plans, usageStatus] = await Promise.all([
       BillingService.getStatus(shop.id),
-      Promise.resolve(BillingService.listPlans()),
+      BillingService.listPlans(shop.id),
       BillingService.getUsageStatus(shop.id),
     ]);
 
@@ -50,7 +50,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     return {
       shop,
       status: { hasActiveSubscription: false, subscriptions: [] },
-      plans: BillingService.listPlans(),
+      plans: await BillingService.listPlans(),
       usageStatus: { currentUsage: 0, includedUsage: 500, billedBlocks: 0, cappedAmount: 100, status: "active" },
       error: error instanceof Error ? error.message : "Failed to load billing status",
     };
@@ -146,7 +146,7 @@ export default function BillingPage() {
         title={isEs ? "Facturación" : "Billing"}
         description={
           isEs
-            ? "Consumo por tramos, estado del plan y activacion del siguiente nivel."
+            ? "Consumo por tramos, estado del plan y activación del siguiente nivel."
             : "Tranche usage, plan status and next tier activation."
         }
         backUrl={backToDashboardUrl}
@@ -154,7 +154,7 @@ export default function BillingPage() {
         badge={
           <AdminStatusBadge tone={data.status.hasActiveSubscription ? "success" : "attention"}>
             {data.status.hasActiveSubscription
-              ? (isEs ? "Suscripcion activa" : "Active subscription")
+              ? (isEs ? "Suscripción activa" : "Active subscription")
               : (isEs ? "Sin plan activo" : "No active plan")}
           </AdminStatusBadge>
         }
@@ -267,7 +267,7 @@ export default function BillingPage() {
             title={isEs ? "Cambiar plan" : "Change plan"}
             description={
               isEs
-                ? "Plan con cargo base mensual + tramos variables automaticos al superar los mensajes incluidos."
+                ? "Plan con cargo base mensual + tramos variables automáticos al superar los mensajes incluidos."
                 : "Plan with monthly base charge + automatic variable tranches when included messages are exceeded."
             }
             badge={<AdminStatusBadge tone="info">{isEs ? "Pago por tramos" : "Tranche billing"}</AdminStatusBadge>}

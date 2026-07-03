@@ -116,6 +116,35 @@ async function handleAppUninstalled(shopId: string): Promise<void> {
   console.log("[Webhooks] Shop " + shopId + " uninstalled — marked CANCELLED and onboarding reset");
 }
 
+async function handleAppSubscriptionUpdate(shopId: string, payload: unknown): Promise<void> {
+  const shopRecord = await prisma.shop.findUnique({
+    where: { id: shopId },
+    select: { metadata: true, plan: true },
+  });
+
+  const existingMetadata = asRecord(shopRecord?.metadata);
+  const nextMetadata = {
+    ...existingMetadata,
+    billing: {
+      ...(asRecord(existingMetadata.billing) || {}),
+      subscription: payload,
+      updatedAt: new Date().toISOString(),
+    },
+  };
+  const payloadRecord = asRecord(payload);
+  const nextPlan = typeof payloadRecord.name === "string"
+    ? payloadRecord.name
+    : shopRecord?.plan;
+
+  await prisma.shop.update({
+    where: { id: shopId },
+    data: {
+      plan: typeof nextPlan === "string" ? nextPlan : shopRecord?.plan,
+      metadata: nextMetadata as Prisma.InputJsonValue,
+    },
+  });
+}
+
 export async function action({ request }: ActionFunctionArgs) {
   try {
     if (!isSignedRequest(request)) {
@@ -159,6 +188,9 @@ export async function action({ request }: ActionFunctionArgs) {
       case "orders/paid":
       case "orders/fulfilled":
         await handleOrderPaid(shop.id, payload);
+        break;
+      case "app_subscriptions/update":
+        await handleAppSubscriptionUpdate(shop.id, payload);
         break;
       case "app/uninstalled":
         await handleAppUninstalled(shop.id);
