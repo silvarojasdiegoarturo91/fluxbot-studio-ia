@@ -11,6 +11,7 @@ vi.mock("../../app/services/shop-context.server", () => ({
 vi.mock("../../app/services/billing.server", () => ({
   BillingService: {
     getStatus: vi.fn(),
+    getUsageStatus: vi.fn(),
     listPlans: vi.fn(),
     getPlan: vi.fn(),
     createSubscription: vi.fn(),
@@ -73,6 +74,13 @@ describe("app.billing route", () => {
           interval: "EVERY_30_DAYS",
         },
       ],
+    } as any);
+    mockBillingService.getUsageStatus.mockResolvedValue({
+      currentUsage: 125,
+      includedUsage: 500,
+      billedBlocks: 0,
+      cappedAmount: 100,
+      status: "active",
     } as any);
     mockBillingService.getPlan.mockReturnValue({
       id: "starter",

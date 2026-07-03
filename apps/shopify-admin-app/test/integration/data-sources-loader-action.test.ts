@@ -17,6 +17,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mockAuthenticateAdminRequest = vi.fn();
 const mockEnsureShopForSession = vi.fn();
 const mockGetMerchantAdminConfig = vi.fn();
+const mockProcessPendingSyncJobsForShop = vi.fn();
 
 vi.mock("../../app/utils/authenticate-admin.server", () => ({
   authenticateAdminRequest: mockAuthenticateAdminRequest,
@@ -28,6 +29,10 @@ vi.mock("../../app/services/shop-context.server", () => ({
 
 vi.mock("../../app/services/admin-config.server", () => ({
   getMerchantAdminConfig: mockGetMerchantAdminConfig,
+}));
+
+vi.mock("../../app/jobs/sync-worker.server", () => ({
+  processPendingSyncJobsForShop: mockProcessPendingSyncJobsForShop,
 }));
 
 // ── Mock Prisma — simula la BD sin necesitar conexión real ────────────────────
@@ -82,6 +87,7 @@ beforeEach(() => {
   mockAuthenticateAdminRequest.mockResolvedValue({ session: SESSION });
   mockEnsureShopForSession.mockResolvedValue(SHOP);
   mockGetMerchantAdminConfig.mockResolvedValue({ adminLanguage: "es" });
+  mockProcessPendingSyncJobsForShop.mockResolvedValue({ processed: 0, failed: 0, jobs: [] });
 
   // Prisma defaults vacíos
   mockPrisma.knowledgeSource.findMany.mockResolvedValue([]);
@@ -178,6 +184,7 @@ describe("app.data-sources loader", () => {
 
   it("devuelve runningSyncJobs y failedSyncJobs correctamente", async () => {
     mockPrisma.syncJob.count
+      .mockResolvedValueOnce(0)  // pending jobs (entry recovery dispatch)
       .mockResolvedValueOnce(2)  // PENDING + RUNNING
       .mockResolvedValueOnce(1); // FAILED
 
@@ -187,6 +194,20 @@ describe("app.data-sources loader", () => {
 
     expect(result.runningSyncJobs).toBe(2);
     expect(result.failedSyncJobs).toBe(1);
+  });
+
+  it("ejecuta la rutina de recovery al entrar en data-sources", async () => {
+    mockPrisma.syncJob.count.mockResolvedValueOnce(2);
+
+    const { loader } = await import("../../app/routes/app.data-sources");
+    const request = new Request("http://localhost/app/data-sources");
+    await loader({ request, params: {}, context: {} } as never);
+
+    expect(mockProcessPendingSyncJobsForShop).toHaveBeenCalledWith(
+      SHOP.id,
+      2,
+      "entry-routine",
+    );
   });
 
   it("lanza 404 si no existe el shop", async () => {
@@ -299,7 +320,7 @@ describe("app.data-sources action — disable_product", () => {
         where: {
           id: "sync-123",
           shopId: SHOP.id,
-          status: { in: ["FAILED", "CANCELLED", "RUNNING", "COMPLETED"] },
+          status: { in: ["FAILED", "CANCELLED", "RUNNING", "COMPLETED", "PENDING"] },
         },
         data: {
           status: "PENDING",

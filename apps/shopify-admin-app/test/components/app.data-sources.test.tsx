@@ -40,6 +40,10 @@ vi.mock("../../app/shopify.server", () => ({
   authenticate: { admin: vi.fn() },
 }));
 
+vi.mock("../../app/jobs/sync-worker.server", () => ({
+  processPendingSyncJobsForShop: vi.fn().mockResolvedValue({ processed: 0, failed: 0, jobs: [] }),
+}));
+
 // Polaris mock mínimo — renderiza HTML plano para poder afirmar sobre el DOM
 vi.mock("@shopify/polaris", () => {
   const React = require("react");

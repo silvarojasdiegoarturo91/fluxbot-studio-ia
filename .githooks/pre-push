@@ -1,5 +1,9 @@
 #!/usr/bin/env sh
 set -eu
 
-echo "[pre-push] Running QA gate (requirements + typecheck + tests)..."
-npm run --silent qa:gate
+. ./.githooks/strict-flow.sh
+
+strict_run_qa
+strict_require_clean_worktree
+
+echo "[strict-flow] pre-push passed."

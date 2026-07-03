@@ -13,6 +13,7 @@ dist/
 coverage/
 .vscode/
 .idea/
+.codebase-memory/
 
 # Playwright E2E
 playwright-report/

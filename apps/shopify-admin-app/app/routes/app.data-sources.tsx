@@ -27,6 +27,7 @@ import { ensureShopForSession } from "../services/shop-context.server";
 import { authenticateAdminRequest } from "../utils/authenticate-admin.server";
 import { getMerchantAdminConfig } from "../services/admin-config.server";
 import { SyncService, type SyncJobType } from "../services/sync-service.server";
+import { processPendingSyncJobsForShop } from "../jobs/sync-worker.server";
 import { appendProductFaq, getProductAdminMetadata, setProductDisabled } from "../services/product-faqs.server";
 import { useIsSpanish } from "../hooks/use-admin-language";
 import { AdminPageHeader, AdminSectionCard, AdminStatCard, AdminStatusBadge } from "../components/admin-ui";
@@ -70,6 +71,73 @@ function isSyncJobType(value: string): value is SyncJobType {
   return SYNC_JOB_TYPES.includes(value as SyncJobType);
 }
 
+const ENTRY_RECOVERY_STALE_MS = process.env.SYNC_RUNNING_STALE_MS
+  ? parseInt(process.env.SYNC_RUNNING_STALE_MS, 10)
+  : 10 * 60 * 1000;
+const ENTRY_RECOVERY_STALE_LIMIT = process.env.SYNC_STALE_REQUEUE_LIMIT
+  ? parseInt(process.env.SYNC_STALE_REQUEUE_LIMIT, 10)
+  : 20;
+const ENTRY_RECOVERY_DISPATCH_LIMIT = process.env.SYNC_DISPATCH_LIMIT
+  ? parseInt(process.env.SYNC_DISPATCH_LIMIT, 10)
+  : 25;
+const ENTRY_RECOVERY_TERMINAL_REQUEUE_LIMIT = process.env.SYNC_ENTRY_RETRY_LIMIT
+  ? parseInt(process.env.SYNC_ENTRY_RETRY_LIMIT, 10)
+  : 6;
+const ENTRY_RECOVERY_TERMINAL_MAX_AGE_MS = process.env.SYNC_ENTRY_RETRY_MAX_AGE_MS
+  ? parseInt(process.env.SYNC_ENTRY_RETRY_MAX_AGE_MS, 10)
+  : 60 * 60 * 1000;
+
+async function runDataSourcesEntryRecovery(shopId: string): Promise<void> {
+  const staleLimit = Number.isFinite(ENTRY_RECOVERY_STALE_LIMIT) && ENTRY_RECOVERY_STALE_LIMIT > 0
+    ? ENTRY_RECOVERY_STALE_LIMIT
+    : 20;
+  const staleMs = Number.isFinite(ENTRY_RECOVERY_STALE_MS) && ENTRY_RECOVERY_STALE_MS > 0
+    ? ENTRY_RECOVERY_STALE_MS
+    : 10 * 60 * 1000;
+  const terminalLimit = Number.isFinite(ENTRY_RECOVERY_TERMINAL_REQUEUE_LIMIT) && ENTRY_RECOVERY_TERMINAL_REQUEUE_LIMIT > 0
+    ? ENTRY_RECOVERY_TERMINAL_REQUEUE_LIMIT
+    : 6;
+  const terminalMaxAgeMs = Number.isFinite(ENTRY_RECOVERY_TERMINAL_MAX_AGE_MS) && ENTRY_RECOVERY_TERMINAL_MAX_AGE_MS > 0
+    ? ENTRY_RECOVERY_TERMINAL_MAX_AGE_MS
+    : 60 * 60 * 1000;
+  const dispatchLimit = Number.isFinite(ENTRY_RECOVERY_DISPATCH_LIMIT) && ENTRY_RECOVERY_DISPATCH_LIMIT > 0
+    ? ENTRY_RECOVERY_DISPATCH_LIMIT
+    : 25;
+
+  const staleRequeued = await SyncService.requeueStaleRunningJobs({
+    shopId,
+    maxAgeMs: staleMs,
+    limit: staleLimit,
+    triggerSource: "entry-routine",
+  });
+
+  const terminalRequeued = await SyncService.requeueRecentTerminalJobs(shopId, {
+    maxAgeMs: terminalMaxAgeMs,
+    limit: terminalLimit,
+    triggerSource: "entry-routine",
+  });
+
+  const pendingCount = await prisma.syncJob.count({
+    where: { shopId, status: "PENDING" },
+  });
+  const jobsToDispatch = Math.min(dispatchLimit, pendingCount);
+
+  const dispatchResult = jobsToDispatch > 0
+    ? await processPendingSyncJobsForShop(shopId, jobsToDispatch, "entry-routine")
+    : { processed: 0, failed: 0, jobs: [] };
+
+  if (staleRequeued > 0 || terminalRequeued > 0 || dispatchResult.processed > 0 || dispatchResult.failed > 0) {
+    console.info("[DataSources] entry recovery executed", {
+      triggerSource: "entry-routine",
+      shopId,
+      staleRequeued,
+      terminalRequeued,
+      dispatchedCompleted: dispatchResult.processed,
+      dispatchedFailed: dispatchResult.failed,
+    });
+  }
+}
+
 export async function loader({ request }: LoaderFunctionArgs) {
   const { session } = await authenticateAdminRequest(request);
   const shop = await ensureShopForSession(session);
@@ -77,6 +145,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
   if (!shop) {
     throw new Response("Shop not found", { status: 404 });
   }
+
+  await runDataSourcesEntryRecovery(shop.id);
 
   const [sources, syncJobs, projectionCounts, runningSyncJobs, failedSyncJobs, productRowsRaw] = await Promise.all([
     prisma.knowledgeSource.findMany({
@@ -101,6 +171,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
         totalItems: true,
         errorMessage: true,
         createdAt: true,
+        startedAt: true,
         completedAt: true,
       },
     }),
@@ -235,6 +306,7 @@ export async function action({ request }: ActionFunctionArgs): Promise<DataSourc
     }
 
     await SyncService.queueSyncJob(shop.id, jobType, 0);
+    await processPendingSyncJobsForShop(shop.id, 1, "dispatcher");
 
     return { ok: true, message: isEs ? `Job de sync en cola (${jobType}).` : `Sync job queued (${jobType}).` };
   }
@@ -255,6 +327,8 @@ export async function action({ request }: ActionFunctionArgs): Promise<DataSourc
           : "Unable to reprocess job (job missing or status not eligible).",
       };
     }
+
+    await processPendingSyncJobsForShop(shop.id, 1, "manual-reprocess");
 
     return {
       ok: true,
@@ -372,13 +446,28 @@ export default function DataSourcesPage() {
 
   const syncRows = syncJobs.map((job) => [
     job.jobType,
-    job.status,
+    job.status === "FAILED"
+      ? <Badge tone="critical">FAILED</Badge>
+      : job.status === "RUNNING"
+        ? <Badge tone="attention">RUNNING</Badge>
+        : job.status === "PENDING"
+          ? <Badge tone="attention">PENDING</Badge>
+          : job.status === "COMPLETED"
+            ? <Badge tone="success">COMPLETED</Badge>
+            : <Badge>{job.status}</Badge>,
     `${Math.round((job.progress || 0) * 100)}%`,
     `${job.processedItems || 0}${job.totalItems ? `/${job.totalItems}` : ""}`,
     job.createdAt ? new Date(job.createdAt).toLocaleString() : "-",
+    job.startedAt ? new Date(job.startedAt).toLocaleString() : "-",
     job.completedAt ? new Date(job.completedAt).toLocaleString() : "-",
-    job.errorMessage || "-",
-    ["FAILED", "CANCELLED", "RUNNING", "COMPLETED"].includes(job.status)
+    job.errorMessage
+      ? (
+        <Text as="span" tone={job.status === "FAILED" ? "critical" : "subdued"}>
+          {job.errorMessage}
+        </Text>
+      )
+      : "-",
+    ["FAILED", "CANCELLED", "RUNNING", "COMPLETED", "PENDING"].includes(job.status)
       ? (
         <Form method="post" key={`reprocess-${job.id}`}>
           <input type="hidden" name="intent" value="reprocess_sync_job" />
@@ -693,10 +782,10 @@ export default function DataSourcesPage() {
                 </EmptyState>
               ) : (
                 <DataTable
-                  columnContentTypes={["text", "text", "text", "text", "text", "text", "text", "text"]}
+                  columnContentTypes={["text", "text", "text", "text", "text", "text", "text", "text", "text"]}
                   headings={isEs
-                    ? ["Job", "Estado", "Progreso", "Items", "Creado", "Completado", "Error", "Accion"]
-                    : ["Job", "Status", "Progress", "Items", "Created", "Completed", "Error", "Action"]}
+                    ? ["Job", "Estado", "Progreso", "Items", "Creado", "Iniciado", "Completado", "Error", "Accion"]
+                    : ["Job", "Status", "Progress", "Items", "Created", "Started", "Completed", "Error", "Action"]}
                   rows={syncRows}
                 />
               )}

@@ -12,6 +12,7 @@ import {
   PolicyTransformer,
   PageTransformer,
   SyncService,
+  type SyncTriggerSource,
   type ProductDocument,
   type PolicyDocument,
   type PageDocument,
@@ -670,9 +671,12 @@ async function syncOrders(shopId: string, shopDomain: string, accessToken: strin
   return { items: orders.length };
 }
 
-async function claimNextPendingJob() {
+async function claimNextPendingJob(shopId?: string) {
   const next = await prisma.syncJob.findFirst({
-    where: { status: "PENDING" },
+    where: {
+      status: "PENDING",
+      ...(shopId ? { shopId } : {}),
+    },
     orderBy: { createdAt: "asc" },
     select: { id: true },
   });
@@ -763,14 +767,25 @@ async function processJob(job: Awaited<ReturnType<typeof claimNextPendingJob>>) 
 /**
  * Queue broker: claim one pending job and dispatch it for processing.
  */
-export async function dispatchNextSyncQueueJob(): Promise<DispatchResult> {
-  const job = await claimNextPendingJob();
+export async function dispatchNextSyncQueueJob(params?: {
+  shopId?: string;
+  triggerSource?: SyncTriggerSource;
+}): Promise<DispatchResult> {
+  const triggerSource = params?.triggerSource ?? "dispatcher";
+  const job = await claimNextPendingJob(params?.shopId);
   if (!job) {
     return null;
   }
 
   try {
     await processJob(job);
+    console.info("[SyncWorker] sync job transition", {
+      triggerSource,
+      jobId: job.id,
+      shopId: job.shop?.id ?? null,
+      previousStatus: "RUNNING",
+      nextStatus: "COMPLETED",
+    });
     return { id: job.id, status: "COMPLETED" };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -778,6 +793,14 @@ export async function dispatchNextSyncQueueJob(): Promise<DispatchResult> {
       status: "FAILED",
       errorMessage: message,
       completedAt: new Date(),
+    });
+    console.error("[SyncWorker] sync job transition", {
+      triggerSource,
+      jobId: job.id,
+      shopId: job.shop?.id ?? null,
+      previousStatus: "RUNNING",
+      nextStatus: "FAILED",
+      errorMessage: message,
     });
     console.error(`[SyncWorker] Job ${job.id} failed:`, error);
     return { id: job.id, status: "FAILED", message };
@@ -788,12 +811,20 @@ export async function dispatchNextSyncQueueJob(): Promise<DispatchResult> {
  * Process pending sync jobs in FIFO order.
  */
 export async function processPendingSyncJobs(limit = 2): Promise<ProcessResult> {
+  return processPendingSyncJobsForShop(undefined, limit, "dispatcher");
+}
+
+export async function processPendingSyncJobsForShop(
+  shopId: string | undefined,
+  limit = 2,
+  triggerSource: SyncTriggerSource = "dispatcher",
+): Promise<ProcessResult> {
   let processed = 0;
   let failed = 0;
   const jobs: ProcessResult["jobs"] = [];
 
   for (let i = 0; i < limit; i++) {
-    const dispatch = await dispatchNextSyncQueueJob();
+    const dispatch = await dispatchNextSyncQueueJob({ shopId, triggerSource });
     if (!dispatch) break;
     jobs.push(dispatch);
 

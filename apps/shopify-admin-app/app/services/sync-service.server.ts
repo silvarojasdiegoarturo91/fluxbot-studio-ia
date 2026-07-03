@@ -9,6 +9,7 @@ import prisma from "../db.server";
 // Type definitions matching Prisma schema enums
 export type KnowledgeSourceType = "CATALOG" | "POLICIES" | "PAGES" | "BLOG" | "FAQ" | "CUSTOM";
 export type SyncStatus = "PENDING" | "RUNNING" | "COMPLETED" | "FAILED" | "CANCELLED";
+export type SyncTriggerSource = "watchdog" | "entry-routine" | "manual-reprocess" | "dispatcher";
 
 export type SyncJobType =
   | "initial:catalog"
@@ -384,13 +385,17 @@ export class SyncService {
   static async requeueStaleRunningJobs(params?: {
     maxAgeMs?: number;
     limit?: number;
+    shopId?: string;
+    triggerSource?: SyncTriggerSource;
   }): Promise<number> {
     const maxAgeMs = params?.maxAgeMs ?? 10 * 60 * 1000;
     const limit = Math.max(1, Math.min(params?.limit ?? 20, 200));
+    const triggerSource = params?.triggerSource ?? "watchdog";
     const staleThreshold = new Date(Date.now() - maxAgeMs);
 
     const staleJobs = await prisma.syncJob.findMany({
       where: {
+        ...(params?.shopId ? { shopId: params.shopId } : {}),
         status: "RUNNING",
         OR: [
           { startedAt: { lte: staleThreshold } },
@@ -416,12 +421,89 @@ export class SyncService {
         data: {
           status: "PENDING",
           progress: 0,
+          processedItems: 0,
           startedAt: null,
           completedAt: null,
-          errorMessage: "Job requeued by sync watchdog (stale RUNNING state).",
+          errorMessage: "Job requeued by watchdog due to stale RUNNING state.",
         },
       });
       requeued += updated.count;
+      if (updated.count > 0) {
+        console.warn("[SyncService] sync job transition", {
+          triggerSource,
+          jobId: job.id,
+          previousStatus: "RUNNING",
+          nextStatus: "PENDING",
+          reason: "stale-running",
+          shopId: params?.shopId ?? null,
+        });
+      }
+    }
+
+    return requeued;
+  }
+
+  /**
+   * Auto-requeue recent terminal jobs so they can be reprocessed on page entry.
+   */
+  static async requeueRecentTerminalJobs(
+    shopId: string,
+    params?: {
+      maxAgeMs?: number;
+      limit?: number;
+      triggerSource?: SyncTriggerSource;
+    },
+  ): Promise<number> {
+    const triggerSource = params?.triggerSource ?? "entry-routine";
+    const limit = Math.max(1, Math.min(params?.limit ?? 10, 200));
+    const maxAgeMs = params?.maxAgeMs ?? 60 * 60 * 1000;
+    const threshold = new Date(Date.now() - maxAgeMs);
+
+    const candidates = await prisma.syncJob.findMany({
+      where: {
+        shopId,
+        status: { in: ["FAILED", "CANCELLED"] },
+        createdAt: { gte: threshold },
+      },
+      orderBy: { createdAt: "asc" },
+      select: { id: true, status: true, jobType: true },
+      take: limit,
+    });
+
+    if (candidates.length === 0) {
+      return 0;
+    }
+
+    let requeued = 0;
+    for (const job of candidates) {
+      const updated = await prisma.syncJob.updateMany({
+        where: {
+          id: job.id,
+          shopId,
+          status: { in: ["FAILED", "CANCELLED"] },
+        },
+        data: {
+          status: "PENDING",
+          progress: 0,
+          processedItems: 0,
+          startedAt: null,
+          completedAt: null,
+          errorMessage: null,
+        },
+      });
+
+      requeued += updated.count;
+      if (updated.count > 0) {
+        console.warn("[SyncService] sync job transition", {
+          triggerSource,
+          jobId: job.id,
+          shopId,
+          jobType: job.jobType,
+          previousStatus: job.status,
+          nextStatus: "PENDING",
+          reason: "auto-retry-terminal",
+        });
+      }
     }
 
     return requeued;
@@ -435,7 +517,7 @@ export class SyncService {
       where: {
         id: jobId,
         shopId,
-        status: { in: ["FAILED", "CANCELLED", "RUNNING", "COMPLETED"] },
+        status: { in: ["FAILED", "CANCELLED", "RUNNING", "COMPLETED", "PENDING"] },
       },
       data: {
         status: "PENDING",
@@ -446,6 +528,15 @@ export class SyncService {
         completedAt: null,
       },
     });
+
+    if (updated.count > 0) {
+      console.info("[SyncService] sync job transition", {
+        triggerSource: "manual-reprocess",
+        jobId,
+        shopId,
+        nextStatus: "PENDING",
+      });
+    }
 
     return updated.count > 0;
   }
