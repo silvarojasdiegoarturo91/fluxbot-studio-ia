@@ -47,6 +47,10 @@ As the Fluxbot team, I want the compliance matrix to mark payments apps, purchas
 - **FR-CS-010**: All app charges MUST be processed through Shopify Billing API for the app's paid functionality; off-platform billing for app charges is not allowed.
 - **FR-CS-011**: Merchants MUST be able to switch pricing plans (upgrade and downgrade) from the app billing flow.
 - **FR-CS-012**: Pricing information in the App Store submission form MUST stay aligned with the actual in-app billing plans and charge behavior.
+- **FR-CS-024**: After Shopify confirms a billing charge/subscription, the app MUST return merchants to an embedded in-app post-purchase section (thank-you) and then to dashboard without showing a manual "Shop domain" login form.
+- **FR-CS-025**: Billing return URLs MUST preserve or recover embedded context (`shop`, `host`, `embedded`) in a bounded format compatible with Shopify limits.
+- **FR-CS-026**: If a merchant already has the same active plan, the app MUST block duplicate purchase and require selecting a different plan.
+- **FR-CS-027**: Upgrade/downgrade plan changes MUST use Shopify-supported replacement behavior so proration/credit handling is delegated to Shopify Billing and duplicate active plans are avoided.
 
 ### Storefront and theme app extension
 

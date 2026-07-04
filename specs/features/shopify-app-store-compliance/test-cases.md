@@ -11,23 +11,27 @@
 4. Given the billing service is loaded, when the codebase is inspected, then merchant charges route through Shopify Billing API / App Pricing and the plan mutation uses `appSubscriptionCreate`.
 5. Given the dashboard loader reads shop connection data, when the code is inspected, then the app uses GraphQL Admin API rather than REST for the primary dashboard flow.
 6. Given the app uses Shopify APIs, when the manifests are inspected, then the required scopes are explicit and remain aligned with the declared functionality.
+7. Given a merchant confirms billing in Shopify, when Shopify returns to the app, then Fluxbot lands on an embedded thank-you route and continues to dashboard without manual shop-domain login.
+8. Given billing return URL generation runs, when host/shop context is present or partially missing, then the URL keeps bounded embedded params and never exceeds Shopify return URL limits.
+9. Given a merchant already has the same active plan, when they attempt to buy it again, then the app blocks duplicate purchase and prompts upgrade/downgrade instead.
+10. Given a merchant changes plan (upgrade/downgrade), when the billing mutation is sent, then Shopify replacement behavior supports proration and only one active plan remains.
 
 ## Storefront and theme extension
 
-7. Given the storefront widget extension is inspected, when the extension manifest is read, then it declares a theme app extension and does not ask merchants to edit theme files directly.
-8. Given the widget publish page is inspected, when the code builds the theme editor URL, then merchants receive a direct deep link to the published theme editor context.
-9. Given admin widget settings are changed, when the config is saved, then the storefront-facing config remains canonical and aligned with the Admin values.
+11. Given the storefront widget extension is inspected, when the extension manifest is read, then it declares a theme app extension and does not ask merchants to edit theme files directly.
+12. Given the widget publish page is inspected, when the code builds the theme editor URL, then merchants receive a direct deep link to the published theme editor context.
+13. Given admin widget settings are changed, when the config is saved, then the storefront-facing config remains canonical and aligned with the Admin values.
 
 ## Privacy, support and evidence
 
-10. Given the privacy route is inspected, when the loaders and actions are reviewed, then data export/delete/retention flows are documented and testable.
-11. Given the repository documentation is inspected, when the compliance docs are read, then support/contact and factual listing evidence are explicitly tracked.
-12. Given the app submission readiness checklist is reviewed, when unsupported Shopify families are listed, then payments, purchase-option, payment-facilitator, POS and other non-applicable families are marked as skipped with rationale.
+14. Given the privacy route is inspected, when the loaders and actions are reviewed, then data export/delete/retention flows are documented and testable.
+15. Given the repository documentation is inspected, when the compliance docs are read, then support/contact and factual listing evidence are explicitly tracked.
+16. Given the app submission readiness checklist is reviewed, when unsupported Shopify families are listed, then payments, purchase-option, payment-facilitator, POS and other non-applicable families are marked as skipped with rationale.
 
 ## Manual review items
 
-13. Given Shopify listing content is prepared, then screenshots, video, app description, pricing copy and support contact are required as manual evidence.
-14. Given the best-practices guide asks for a specific browser/runtime condition, then that item is recorded as evidence or manual verification instead of a brittle code assertion.
+17. Given Shopify listing content is prepared, then screenshots, video, app description, pricing copy and support contact are required as manual evidence.
+18. Given the best-practices guide asks for a specific browser/runtime condition, then that item is recorded as evidence or manual verification instead of a brittle code assertion.
 
 ## Exit criteria
 

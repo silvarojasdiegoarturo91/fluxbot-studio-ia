@@ -129,30 +129,41 @@ describe("BillingService.createSubscription", () => {
 
     process.env.NODE_ENV = "development";
 
-    global.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        data: {
-          appSubscriptionCreate: {
-            confirmationUrl: "https://shopify.example/confirm",
-            appSubscription: {
-              id: "gid://shopify/AppSubscription/42",
-              lineItems: [
-                {
-                  id: "gid://shopify/AppSubscriptionLineItem/1",
-                  plan: {
-                    pricingDetails: {
-                      __typename: "AppUsagePricing",
+    global.fetch = vi.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          data: {
+            currentAppInstallation: {
+              activeSubscriptions: [],
+            },
+          },
+        }),
+      } as any)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          data: {
+            appSubscriptionCreate: {
+              confirmationUrl: "https://shopify.example/confirm",
+              appSubscription: {
+                id: "gid://shopify/AppSubscription/42",
+                lineItems: [
+                  {
+                    id: "gid://shopify/AppSubscriptionLineItem/1",
+                    plan: {
+                      pricingDetails: {
+                        __typename: "AppUsagePricing",
+                      },
                     },
                   },
-                },
-              ],
+                ],
+              },
+              userErrors: [],
             },
-            userErrors: [],
           },
-        },
-      }),
-    }) as any;
+        }),
+      } as any);
 
     const result = await BillingService.createSubscription({
       shopId: "shop-1",
@@ -161,11 +172,12 @@ describe("BillingService.createSubscription", () => {
     });
 
     expect(result.confirmationUrl).toBe("https://shopify.example/confirm");
-    expect(global.fetch).toHaveBeenCalledTimes(1);
-    const [, options] = vi.mocked(global.fetch).mock.calls[0] as [string, RequestInit];
+    expect(global.fetch).toHaveBeenCalledTimes(2);
+    const [, options] = vi.mocked(global.fetch).mock.calls[1] as [string, RequestInit];
     const payload = JSON.parse(String(options.body)) as { query: string; variables: { test: boolean } };
     expect(payload.query).toContain("appSubscriptionCreate");
     expect(payload.variables.test).toBe(true);
+    expect((payload.variables as any).replacementBehavior).toBe("STANDARD");
   });
 
   it("creates billing subscription in production real-charge mode", async () => {
@@ -177,21 +189,32 @@ describe("BillingService.createSubscription", () => {
     process.env.NODE_ENV = "production";
     process.env.SHOPIFY_APP_URL = "https://app.fluxbot.ai";
 
-    global.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        data: {
-          appSubscriptionCreate: {
-            confirmationUrl: "https://shopify.example/confirm",
-            appSubscription: {
-              id: "gid://shopify/AppSubscription/99",
-              lineItems: [],
+    global.fetch = vi.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          data: {
+            currentAppInstallation: {
+              activeSubscriptions: [],
             },
-            userErrors: [],
           },
-        },
-      }),
-    }) as any;
+        }),
+      } as any)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          data: {
+            appSubscriptionCreate: {
+              confirmationUrl: "https://shopify.example/confirm",
+              appSubscription: {
+                id: "gid://shopify/AppSubscription/99",
+                lineItems: [],
+              },
+              userErrors: [],
+            },
+          },
+        }),
+      } as any);
 
     await BillingService.createSubscription({
       shopId: "shop-1",
@@ -199,10 +222,96 @@ describe("BillingService.createSubscription", () => {
       returnUrl: "https://app.example.com/app/billing",
     });
 
-    const [, options] = vi.mocked(global.fetch).mock.calls[0] as [string, RequestInit];
+    const [, options] = vi.mocked(global.fetch).mock.calls[1] as [string, RequestInit];
     const payload = JSON.parse(String(options.body)) as { query: string; variables: { test: boolean } };
     expect(payload.query).toContain("appSubscriptionCreate");
     expect(payload.variables.test).toBe(false);
+  });
+
+  it("rejects creating the same active plan twice", async () => {
+    mockPrisma.shop.findUnique.mockResolvedValue({
+      domain: "shop.example.myshopify.com",
+      accessToken: "shpat_valid_token",
+    } as any);
+
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        data: {
+          currentAppInstallation: {
+            activeSubscriptions: [
+              {
+                id: "gid://shopify/AppSubscription/42",
+                name: "FluxBot Starter",
+                status: "ACTIVE",
+              },
+            ],
+          },
+        },
+      }),
+    }) as any;
+
+    await expect(
+      BillingService.createSubscription({
+        shopId: "shop-1",
+        planId: "starter",
+        returnUrl: "https://app.example.com/app/billing",
+      }),
+    ).rejects.toThrow("Ya tienes este plan activo");
+
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("uses immediate replacement for upgrade/downgrade proration", async () => {
+    mockPrisma.shop.findUnique.mockResolvedValue({
+      domain: "shop.example.myshopify.com",
+      accessToken: "shpat_valid_token",
+    } as any);
+    process.env.NODE_ENV = "production";
+    process.env.SHOPIFY_APP_URL = "https://app.fluxbot.ai";
+
+    global.fetch = vi.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          data: {
+            currentAppInstallation: {
+              activeSubscriptions: [
+                {
+                  id: "gid://shopify/AppSubscription/42",
+                  name: "FluxBot Starter",
+                  status: "ACTIVE",
+                },
+              ],
+            },
+          },
+        }),
+      } as any)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          data: {
+            appSubscriptionCreate: {
+              confirmationUrl: "https://shopify.example/confirm",
+              appSubscription: {
+                id: "gid://shopify/AppSubscription/99",
+                lineItems: [],
+              },
+              userErrors: [],
+            },
+          },
+        }),
+      } as any);
+
+    await BillingService.createSubscription({
+      shopId: "shop-1",
+      planId: "growth",
+      returnUrl: "https://app.example.com/app/billing",
+    });
+
+    const [, options] = vi.mocked(global.fetch).mock.calls[1] as [string, RequestInit];
+    const payload = JSON.parse(String(options.body)) as { variables: Record<string, string> };
+    expect(payload.variables.replacementBehavior).toBe("APPLY_IMMEDIATELY");
   });
 });
 

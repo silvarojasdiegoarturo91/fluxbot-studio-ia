@@ -25,6 +25,57 @@ interface BillingActionData {
   confirmationUrl?: string;
 }
 
+const BILLING_RETURN_QUERY_KEYS = ["shop", "host", "embedded"] as const;
+
+function buildDashboardUrlFromSearch(searchParams: URLSearchParams): string {
+  const params = new URLSearchParams();
+  for (const key of BILLING_RETURN_QUERY_KEYS) {
+    const value = searchParams.get(key);
+    if (value) {
+      params.set(key, value);
+    }
+  }
+  const queryString = params.toString();
+  return `/app${queryString ? `?${queryString}` : ""}`;
+}
+
+export function buildBillingReturnUrl(options: {
+  requestUrl: URL;
+  planId: BillingPlanId;
+  sessionShopDomain?: string;
+}): string {
+  const { requestUrl, planId, sessionShopDomain } = options;
+  const returnUrl = new URL("/app/billing/thank-you", requestUrl.origin);
+  const sourceParams = requestUrl.searchParams;
+  const shop = sourceParams.get("shop") || sessionShopDomain;
+  const host = sourceParams.get("host");
+  const embedded = sourceParams.get("embedded");
+
+  if (shop) {
+    returnUrl.searchParams.set("shop", shop);
+  }
+  if (host) {
+    returnUrl.searchParams.set("host", host);
+  }
+  if (embedded) {
+    returnUrl.searchParams.set("embedded", embedded);
+  }
+  returnUrl.searchParams.set("plan", planId);
+
+  // Shopify enforces max 255 chars for returnUrl.
+  if (returnUrl.toString().length > 255) {
+    returnUrl.searchParams.delete("embedded");
+  }
+  if (returnUrl.toString().length > 255) {
+    returnUrl.searchParams.delete("plan");
+  }
+  if (returnUrl.toString().length > 255) {
+    returnUrl.searchParams.delete("host");
+  }
+
+  return returnUrl.toString();
+}
+
 export async function loader({ request }: LoaderFunctionArgs) {
   const { session } = await authenticateAdminRequest(request);
   const shop = await ensureShopForSession(session);
@@ -85,8 +136,13 @@ export async function action({ request }: ActionFunctionArgs): Promise<BillingAc
   }
 
   try {
-    const url = new URL(request.url);
-    const returnUrl = `${url.origin}/app/billing`;
+    const requestUrl = new URL(request.url);
+    const sessionShopDomain = (session as unknown as { shop?: string }).shop;
+    const returnUrl = buildBillingReturnUrl({
+      requestUrl,
+      planId,
+      sessionShopDomain,
+    });
 
     const result = await BillingService.createSubscription({
       shopId: shop.id,
@@ -94,7 +150,7 @@ export async function action({ request }: ActionFunctionArgs): Promise<BillingAc
       returnUrl,
       // Pass session credentials directly so createSubscription never needs a DB
       // lookup for the access token, avoiding stale-token failures.
-      shopDomain: (session as unknown as { shop?: string }).shop,
+      shopDomain: sessionShopDomain,
       accessToken: (session as unknown as { accessToken?: string }).accessToken,
     });
 
@@ -120,7 +176,7 @@ export default function BillingPage() {
   const [planId, setPlanId] = useState<BillingPlanId>("starter");
 
   const isSubmitting = navigation.state === "submitting";
-  const backToDashboardUrl = `/app${location.search || ""}`;
+  const backToDashboardUrl = buildDashboardUrlFromSearch(new URLSearchParams(location.search));
 
   // When Shopify returns a confirmationUrl, navigate the TOP-LEVEL frame.
   // A simple redirect() navigates the iframe itself, which causes admin.shopify.com

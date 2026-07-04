@@ -198,6 +198,26 @@ async function runShopifyGraphql<T>(params: {
   return payload.data;
 }
 
+type ActiveSubscriptionSummary = {
+  id: string;
+  name: string;
+  status: string;
+};
+
+function normalizeSubscriptionName(name: string): string {
+  return name.trim().toLowerCase();
+}
+
+function findActivePlanBySubscriptionName(subscriptionName: string): BillingPlan | null {
+  const normalized = normalizeSubscriptionName(subscriptionName);
+  const matched = BILLING_PLANS.find((plan) => normalizeSubscriptionName(plan.name) === normalized);
+  return matched ? { ...matched } : null;
+}
+
+function isLiveSubscriptionStatus(status: string): boolean {
+  return ["ACTIVE", "PENDING", "ACCEPTED", "FROZEN"].includes(String(status || "").toUpperCase());
+}
+
 export class BillingService {
   static async listPlans(shopId?: string): Promise<BillingPlan[]> {
     if (!shopId) {
@@ -327,18 +347,63 @@ export class BillingService {
     const isTestMode = billingMode === 'development';
     const usageTerms = `${plan.extraBlockSize} messages per block`;
 
+    const activeSubscriptionsQuery = `#graphql
+      query ActiveSubscriptionsForPlanGuard {
+        currentAppInstallation {
+          activeSubscriptions {
+            id
+            name
+            status
+          }
+        }
+      }
+    `;
+
+    const activeSubscriptionsData = await runShopifyGraphql<{
+      currentAppInstallation?: {
+        activeSubscriptions?: Array<Record<string, unknown>>;
+      };
+    }>({
+      shopDomain: domain,
+      accessToken,
+      query: activeSubscriptionsQuery,
+    });
+
+    const activeSubscriptionsRaw = Array.isArray(activeSubscriptionsData.currentAppInstallation?.activeSubscriptions)
+      ? activeSubscriptionsData.currentAppInstallation?.activeSubscriptions
+      : [];
+    const activeSubscriptions: ActiveSubscriptionSummary[] = activeSubscriptionsRaw.map((sub) => ({
+      id: String((sub as { id?: unknown }).id || ''),
+      name: String((sub as { name?: unknown }).name || ''),
+      status: String((sub as { status?: unknown }).status || ''),
+    })).filter((sub) => sub.id && isLiveSubscriptionStatus(sub.status));
+
+    const activePlan = activeSubscriptions
+      .map((sub) => findActivePlanBySubscriptionName(sub.name))
+      .find((candidate): candidate is BillingPlan => Boolean(candidate)) || null;
+
+    if (activePlan?.id === plan.id) {
+      throw new Error('Ya tienes este plan activo. Elige otro plan para hacer upgrade o downgrade.');
+    }
+
+    const replacementBehavior = activePlan && activePlan.id !== plan.id
+      ? 'APPLY_IMMEDIATELY'
+      : 'STANDARD';
+
     const mutation = `#graphql
       mutation CreateAppSubscription(
         $name: String!
         $returnUrl: URL!
         $test: Boolean!
         $lineItems: [AppSubscriptionLineItemInput!]!
+        $replacementBehavior: AppSubscriptionReplacementBehavior
       ) {
         appSubscriptionCreate(
           name: $name
           returnUrl: $returnUrl
           test: $test
           lineItems: $lineItems
+          replacementBehavior: $replacementBehavior
         ) {
           confirmationUrl
           userErrors {
@@ -402,6 +467,7 @@ export class BillingService {
           name: plan.name,
           returnUrl: params.returnUrl,
           test: isTestMode,
+          replacementBehavior,
           lineItems: [
             {
               plan: {

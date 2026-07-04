@@ -137,7 +137,34 @@ describe("app.billing route", () => {
     expect(mockBillingService.createSubscription).toHaveBeenCalledWith({
       shopId: "shop-1",
       planId: "starter",
-      returnUrl: "http://localhost/app/billing",
+      returnUrl: "http://localhost/app/billing/thank-you?shop=shop.example.myshopify.com&plan=starter",
+      shopDomain: "shop.example.myshopify.com",
+      accessToken: "mock-access-token",
+    });
+  });
+
+  it("preserves embedded shop/host context in the billing return URL", async () => {
+    mockBillingService.createSubscription.mockResolvedValue({
+      confirmationUrl: "https://shopify.example/confirm",
+      subscriptionId: "sub-456",
+    } as any);
+
+    const { action } = await import("../../app/routes/app.billing");
+    await action({
+      request: makePostRequest(
+        {
+          intent: "create_subscription",
+          planId: "starter",
+        },
+        "?shop=shop.example.myshopify.com&host=dGVzdC1ob3N0&embedded=1",
+      ),
+    } as any);
+
+    expect(mockBillingService.createSubscription).toHaveBeenCalledWith({
+      shopId: "shop-1",
+      planId: "starter",
+      returnUrl:
+        "http://localhost/app/billing/thank-you?shop=shop.example.myshopify.com&host=dGVzdC1ob3N0&embedded=1&plan=starter",
       shopDomain: "shop.example.myshopify.com",
       accessToken: "mock-access-token",
     });
@@ -180,5 +207,18 @@ describe("app.billing route", () => {
       }),
     } as any);
     expect(missingShop).toEqual({ ok: false, error: "Shop not found" });
+  });
+
+  it("builds a bounded billing return URL when host is too long", async () => {
+    const { buildBillingReturnUrl } = await import("../../app/routes/app.billing");
+    const veryLongHost = "a".repeat(320);
+    const builtUrl = buildBillingReturnUrl({
+      requestUrl: new URL(`http://localhost/app/billing?shop=shop.example.myshopify.com&host=${veryLongHost}&embedded=1`),
+      planId: "starter",
+      sessionShopDomain: "shop.example.myshopify.com",
+    });
+
+    expect(builtUrl.length).toBeLessThanOrEqual(255);
+    expect(builtUrl).toContain("shop=shop.example.myshopify.com");
   });
 });

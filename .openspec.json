@@ -170,6 +170,40 @@
         ],
         "dependencies": [],
         "user_story": "Como merchant, quiero que mi suscripción se inicie sin error 500 y con cobro correcto según entorno, para evitar bloqueos y cargos incorrectos."
+      },
+      {
+        "id": "REQ-IA-SHOPIFY-006",
+        "title": "[BUG] Billing post-pago: retorno embebido, thank-you, upgrades/downgrades y prorrateo",
+        "description": "BUG CONFIRMADO: después de confirmar el pago en Shopify, producción puede caer en login manual de dominio en lugar de volver al Admin embebido. Se requiere un retorno post-pago confiable con contexto shop/host, sección thank-you con ventajas del plan, bloqueo de recompra del mismo plan y cambios upgrade/downgrade usando comportamiento de reemplazo/prorrateo de Shopify Billing.",
+        "priority": "critical",
+        "status": "planned",
+        "owner": "frontend_shopify",
+        "affected_apps": [
+          "fluxbot-studio-ia-shopify"
+        ],
+        "components": [
+          "apps/shopify-admin-app/app/routes/app.billing.tsx",
+          "apps/shopify-admin-app/app/routes/app.billing.thank-you.tsx",
+          "apps/shopify-admin-app/app/services/billing.server.ts",
+          "apps/shopify-admin-app/test/integration/billing-route.test.ts",
+          "apps/shopify-admin-app/test/integration/billing-thank-you-route.test.ts",
+          "apps/shopify-admin-app/test/unit/services/billing.server.test.ts",
+          "specs/features/shopify-app-store-compliance/requirements.md",
+          "specs/features/shopify-app-store-compliance/test-cases.md"
+        ],
+        "acceptance_criteria": [
+          "Tras confirmar el cobro en Shopify, el merchant vuelve al Admin embebido sin pantalla manual de 'Shop domain'.",
+          "El flujo de compra aterriza en una sección thank-you con ventajas del plan y continuidad al dashboard.",
+          "El returnUrl de billing preserva/reconstruye shop/host/embedded sin exceder el límite de Shopify.",
+          "Si el merchant ya tiene el mismo plan activo, el sistema bloquea recompra duplicada y exige cambio de plan.",
+          "Para upgrade/downgrade, el mutation usa replacementBehavior de Shopify para que el prorrateo lo gestione Shopify y no queden dos planes activos.",
+          "Existe cobertura automatizada para retorno post-billing, pérdida parcial de contexto, plan duplicado y cambio de plan."
+        ],
+        "dependencies": [
+          "REQ-IA-SHOPIFY-003",
+          "REQ-IA-SHOPIFY-005"
+        ],
+        "user_story": "Como merchant, quiero volver al panel embebido tras confirmar el pago para continuar operando sin login manual ni cobros duplicados."
       }
     ],
     "documentation": [
