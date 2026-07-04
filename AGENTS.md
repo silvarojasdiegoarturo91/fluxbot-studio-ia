@@ -24,6 +24,10 @@ Este repo debe tener hooks activos (`npm run githooks:install`) con este flujo:
 4. `post-commit` hace `push`.
 5. Si hay conflicto, resolver y repetir `qa:gate` antes de empujar.
 
+Además, todo cambio del Admin Shopify debe ejecutar la suite E2E aplicable antes de cerrarse. Para cambios de rutas, loaders, actions, UI, configuración, specs o hooks, usar Playwright completo (`npm --workspace @fluxbot/shopify-admin-app run test:e2e` desde este repo o el job CI equivalente). Si E2E falla en local o GitHub Actions, el agente debe corregir el fallo y repetir E2E antes de commit/push/cierre.
+
+Regla de regresión para "Sincronizar catálogo": cualquier cambio que toque `/app/assistant-config`, `iaClient.catalog.sync`, `ensureShopRecord`, `syncShopReferenceToIABackend` o el contrato de shop sync debe revisar `REQ-IA-AI-001`, `REQ-IA-AI-002`, `REQ-ROOT-AI-001` y `REQ-ROOT-009`, actualizar SpecKit/OpenSpec local si cambia el comportamiento y mantener pruebas para propagación de `accessToken`, bypass de throttle con token, header `X-Shop-Domain`, unwrap de `data`, `durationMs`, `errors[]` parciales y mensajes sin `[object Object]`.
+
 ## 🌐 Regla obligatoria de traducciones del Admin
 
 Todo agente que modifique copy del Admin Shopify debe revisar el idioma destino antes de cerrar la tarea. En español, las etiquetas y textos visibles deben conservar acentos, `ñ` y ortografía correcta: `Campañas`, `Analítica`, `Facturación`, `configuración`, `sincronización`, `catálogo`, `políticas`, `páginas`, `descripción`, `acción`, `ejecución` y `retención`. Si se corrige o añade copy localizado, se debe actualizar una prueba cercana cuando exista cobertura razonable.

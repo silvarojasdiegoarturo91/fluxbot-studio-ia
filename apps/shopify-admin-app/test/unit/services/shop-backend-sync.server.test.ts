@@ -93,6 +93,34 @@ describe("shop-backend-sync.server", () => {
     expect(mockShopSync).toHaveBeenCalledTimes(1);
   });
 
+  it("allows a forced token sync to bypass the domain throttle", async () => {
+    mockShopSync.mockResolvedValue({
+      shop: { id: "shop-1", domain: "store.myshopify.com" },
+      created: false,
+      syncedAt: "2026-03-13T10:00:00.000Z",
+    });
+
+    const { _resetShopSyncThrottle, syncShopReferenceToIABackend } = await import(
+      "../../../app/services/shop-backend-sync.server"
+    );
+
+    _resetShopSyncThrottle();
+
+    const first = await syncShopReferenceToIABackend({ id: "shop-1", domain: "store.myshopify.com" });
+    const second = await syncShopReferenceToIABackend(
+      { id: "shop-1", domain: "store.myshopify.com", accessToken: "shpat_new_token" },
+      { force: true },
+    );
+
+    expect(first).toBe(true);
+    expect(second).toBe(true);
+    expect(mockShopSync).toHaveBeenCalledTimes(2);
+    expect(mockShopSync).toHaveBeenLastCalledWith(
+      { shop: { id: "shop-1", domain: "store.myshopify.com", accessToken: "shpat_new_token" } },
+      "store.myshopify.com",
+    );
+  });
+
   it("skips sync when IA backend execution is local", async () => {
     process.env.IA_EXECUTION_MODE = "local";
 

@@ -69,4 +69,45 @@ describe("ia-backend.server", () => {
     expect(thrown?.message).toContain("Error al sincronizar el catálogo");
     expect(thrown?.message).not.toContain("[object Object]");
   });
+
+  it("unwraps successful catalog sync envelopes and posts the shop domain header", async () => {
+    const mockFetch = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          data: {
+            chunksIndexed: 6,
+            productsProcessed: 6,
+            durationMs: 378,
+            errors: [],
+          },
+          requestId: "req-1",
+          timestamp: "2026-07-05T00:00:00.000Z",
+        }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      ),
+    );
+    vi.stubGlobal("fetch", mockFetch);
+
+    const { iaClient } = await import("../../../app/services/ia-backend.server");
+
+    const result = await iaClient.catalog.sync({ shopId: "shop-1", fullSync: true }, "store.myshopify.com");
+
+    expect(result).toEqual({
+      chunksIndexed: 6,
+      productsProcessed: 6,
+      durationMs: 378,
+      errors: [],
+    });
+    expect(mockFetch).toHaveBeenCalledWith(
+      "http://localhost:3001/api/v1/catalog/sync",
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({
+          Authorization: "Bearer test-key",
+          "X-Shop-Domain": "store.myshopify.com",
+        }),
+        body: JSON.stringify({ shopId: "shop-1", fullSync: true }),
+      }),
+    );
+  });
 });
