@@ -5,7 +5,7 @@
     "description": "OpenSpec local para requisitos de fluxbot-studio-ia-shopify. Los requisitos aquí son espejo de los requisitos root que afectan este repositorio.",
     "owner": "frontend_shopify",
     "status": "in-development",
-    "last_updated": "2026-07-05T00:00:00.000Z",
+    "last_updated": "2026-07-04T22:51:37.152Z",
     "source_of_truth": ".openspec.json",
     "mirror_root": "../.openspec.json"
   },
@@ -495,6 +495,33 @@
         "source_files": [
           "specs/features/shopify-app-store-compliance/requirements.md",
           "specs/features/shopify-app-store-compliance/test-cases.md"
+        ],
+        "acceptance_criteria": [
+          "Documentation references remain synchronized",
+          "Agent instructions stay aligned with the latest docs",
+          "Follow-up work is tracked in OpenSpec"
+        ],
+        "dependencies": [],
+        "metrics": {
+          "quality_score": 90,
+          "completion_rate": 0,
+          "velocity": 1
+        }
+      },
+      {
+        "id": "DOC-1249bc2-2026-07-04T22-51-37-152Z",
+        "title": "Review documentation update (2 files)",
+        "description": "Documentation changed in: AGENTS.md, specs/features/assistant-config-catalog-sync-error/requirements.md. Review and align agent instructions, references, and related docs.",
+        "priority": "medium",
+        "status": "planned",
+        "owner": "docs",
+        "components": [
+          "AGENTS.md",
+          "specs/features/assistant-config-catalog-sync-error/requirements.md"
+        ],
+        "source_files": [
+          "AGENTS.md",
+          "specs/features/assistant-config-catalog-sync-error/requirements.md"
         ],
         "acceptance_criteria": [
           "Documentation references remain synchronized",
