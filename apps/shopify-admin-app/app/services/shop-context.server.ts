@@ -127,7 +127,10 @@ export async function ensureShopRecord(context: ShopContext): Promise<{ id: stri
     select: { id: true, domain: true },
   });
 
-  await syncShopReferenceToIABackend(shop);
+  await syncShopReferenceToIABackend({
+    ...shop,
+    ...(context.accessToken ? { accessToken: context.accessToken } : {}),
+  }, { force: Boolean(context.accessToken) });
 
   if (isNewInstall || isReinstall) {
     await queueInitialSyncJobs(shop.id);

@@ -316,6 +316,7 @@ export interface ShopSyncRequest {
     id: string;
     domain: string;
     name?: string;
+    accessToken?: string;
   };
 }
 

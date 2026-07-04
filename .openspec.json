@@ -5,7 +5,7 @@
     "description": "OpenSpec local para requisitos de fluxbot-studio-ia-shopify. Los requisitos aquí son espejo de los requisitos root que afectan este repositorio.",
     "owner": "frontend_shopify",
     "status": "in-development",
-    "last_updated": "2026-07-04T22:20:35.733Z",
+    "last_updated": "2026-07-05T00:00:00.000Z",
     "source_of_truth": ".openspec.json",
     "mirror_root": "../.openspec.json"
   },
@@ -243,6 +243,35 @@
         }
       },
       {
+        "id": "REQ-IA-SHOPIFY-007",
+        "mirror_of": "REQ-ROOT-010",
+        "title": "E2E obligatorio para cambios del Shopify Admin",
+        "description": "Espejo de REQ-ROOT-010. Todo cambio en el Shopify Admin debe ejecutar la suite Playwright E2E aplicable antes de cerrarse. Si GitHub Actions falla en `tests/e2e`, el agente debe corregir la regresión o el test obsoleto, repetir E2E y no cerrar ni empujar con E2E rojo.",
+        "priority": "critical",
+        "status": "planned",
+        "owner": "frontend_shopify",
+        "affected_apps": [
+          "fluxbot-studio-ia-shopify"
+        ],
+        "components": [
+          "package.json",
+          "apps/shopify-admin-app/playwright.config.ts",
+          "apps/shopify-admin-app/tests/e2e",
+          "apps/shopify-admin-app/app/routes/app.onboarding.tsx"
+        ],
+        "acceptance_criteria": [
+          "`qa:gate:full` ejecuta `qa:gate` y la suite Playwright completa mediante `npm --workspace @fluxbot/shopify-admin-app run test:e2e`.",
+          "Los cambios de rutas, loaders, acciones, UI o configuración del Admin se validan con E2E antes de cierre.",
+          "Los fallos E2E de GitHub Actions se tratan como bloqueantes hasta reproducir o aislar, corregir y reejecutar.",
+          "El flujo de onboarding permite navegación directa por pasos en `E2E_TEST_MODE=true` para que Playwright pueda validar pasos sembrados como completados sin romper producción.",
+          "No se permite commit/push/cierre con E2E rojo salvo bloqueo externo documentado."
+        ],
+        "dependencies": [
+          "REQ-IA-SHOPIFY-004"
+        ],
+        "user_story": "Como equipo de Fluxbot, quiero que cada cambio del Shopify Admin pase Playwright E2E para bloquear regresiones de onboarding y flujos críticos antes de llegar a CI."
+      },
+      {
         "id": "DOC-34c0919-2026-07-02T08-18-18-907Z",
         "title": "Review documentation update (9 files)",
         "description": "Documentation changed in: apps/shopify-admin-app/TESTING.md, specs/010-shopify-app-store-compliance/checklists/requirements.md, specs/010-shopify-app-store-compliance/plan.md, specs/010-shopify-app-store-compliance/spec.md, specs/010-shopify-app-store-compliance/tasks.md, specs/features/shopify-app-store-compliance/README.md, specs/features/shopify-app-store-compliance/manual-evidence.md, specs/features/shopify-app-store-compliance/requirements.md, specs/features/shopify-app-store-compliance/test-cases.md. Review and align agent instructions, references, and related docs.",
@@ -387,6 +416,7 @@
           "Los HTTP 500 del backend se presentan como mensaje español accionable y sanitizado, conservando contexto técnico solo para logs.",
           "La UI usa durationMs del resultado de /api/v1/catalog/sync para mostrar duración de sincronización.",
           "Si el backend devuelve errors parciales, la UI muestra resultado parcial con mensaje claro de revisión, no éxito silencioso.",
+          "El registro de tienda hacia fluxbot-studio-back-ia envía accessToken cuando está disponible para que /api/v1/catalog/sync pueda consultar Shopify Admin GraphQL.",
           "Existe prueba automatizada que cubre un error JSON anidado y verifica que no aparezca [object Object]."
         ],
         "dependencies": [

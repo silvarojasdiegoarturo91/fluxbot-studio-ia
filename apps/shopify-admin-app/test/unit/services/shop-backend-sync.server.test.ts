@@ -62,11 +62,12 @@ describe("shop-backend-sync.server", () => {
     const synced = await syncShopReferenceToIABackend({
       id: "shop-1",
       domain: " Store.MyShopify.com ",
+      accessToken: "  shpat_test_token  ",
     });
 
     expect(synced).toBe(true);
     expect(mockShopSync).toHaveBeenCalledWith(
-      { shop: { id: "shop-1", domain: "store.myshopify.com" } },
+      { shop: { id: "shop-1", domain: "store.myshopify.com", accessToken: "shpat_test_token" } },
       "store.myshopify.com",
     );
   });
