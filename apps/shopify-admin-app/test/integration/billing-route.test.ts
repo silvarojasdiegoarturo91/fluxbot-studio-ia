@@ -39,7 +39,7 @@ describe("app.billing route", () => {
     vi.clearAllMocks();
 
     mockAuthenticateAdminRequest.mockResolvedValue({
-      session: { shop: "shop.example.myshopify.com" },
+      session: { shop: "shop.example.myshopify.com", accessToken: "mock-access-token" },
     } as any);
     mockEnsureShopForSession.mockResolvedValue({
       id: "shop-1",
@@ -124,7 +124,6 @@ describe("app.billing route", () => {
         {
           intent: "create_subscription",
           planId: "starter",
-          testMode: "true",
         },
         "?source=admin",
       ),
@@ -137,7 +136,8 @@ describe("app.billing route", () => {
       shopId: "shop-1",
       planId: "starter",
       returnUrl: "http://localhost/app/billing?source=admin",
-      test: true,
+      shopDomain: "shop.example.myshopify.com",
+      accessToken: "mock-access-token",
     });
   });
 

@@ -44,26 +44,29 @@ As the Fluxbot team, I want the compliance matrix to mark payments apps, purchas
 - **FR-CS-007**: The app MUST use GraphQL Admin API for general Shopify admin operations that are part of the app's product surface.
 - **FR-CS-008**: If the app charges merchants, billing MUST flow through Shopify Billing API or Shopify App Pricing.
 - **FR-CS-009**: The billing experience MUST support plan creation, decline handling, reinstall recovery, and plan changes without requiring support intervention.
+- **FR-CS-010**: All app charges MUST be processed through Shopify Billing API for the app's paid functionality; off-platform billing for app charges is not allowed.
+- **FR-CS-011**: Merchants MUST be able to switch pricing plans (upgrade and downgrade) from the app billing flow.
+- **FR-CS-012**: Pricing information in the App Store submission form MUST stay aligned with the actual in-app billing plans and charge behavior.
 
 ### Storefront and theme app extension
 
-- **FR-CS-010**: If the app modifies the storefront theme, it MUST do so through a theme app extension instead of direct theme code edits.
-- **FR-CS-011**: The storefront extension MUST expose setup instructions or a deep link to help merchants enable and preview it.
-- **FR-CS-012**: Theme-facing configuration MUST be stored canonically in Admin and must not depend on manual file edits in the merchant theme.
-- **FR-CS-013**: Storefront configuration must stay consistent with Admin settings for launcher color, position, and copy.
+- **FR-CS-013**: If the app modifies the storefront theme, it MUST do so through a theme app extension instead of direct theme code edits.
+- **FR-CS-014**: The storefront extension MUST expose setup instructions or a deep link to help merchants enable and preview it.
+- **FR-CS-015**: Theme-facing configuration MUST be stored canonically in Admin and must not depend on manual file edits in the merchant theme.
+- **FR-CS-016**: Storefront configuration must stay consistent with Admin settings for launcher color, position, and copy.
 
 ### Privacy, retention and support
 
-- **FR-CS-014**: Customer data collected by Shopify-hosted surfaces MUST be accessible to merchants from Admin or from an in-app dashboard.
-- **FR-CS-015**: Data retention, export and deletion flows MUST be documented and testable.
-- **FR-CS-016**: The repo MUST contain a submission-ready support/contact and privacy evidence checklist.
-- **FR-CS-017**: App listing copy and documentation MUST be factual and must not claim fabricated reviews, sales, traffic or social proof.
+- **FR-CS-017**: Customer data collected by Shopify-hosted surfaces MUST be accessible to merchants from Admin or from an in-app dashboard.
+- **FR-CS-018**: Data retention, export and deletion flows MUST be documented and testable.
+- **FR-CS-019**: The repo MUST contain a submission-ready support/contact and privacy evidence checklist.
+- **FR-CS-020**: App listing copy and documentation MUST be factual and must not claim fabricated reviews, sales, traffic or social proof.
 
 ### Manual evidence and review readiness
 
-- **FR-CS-018**: The repo MUST enumerate evidence items that require human review, including screenshots, video, support contact, privacy policy, billing plan copy and app listing assets.
-- **FR-CS-019**: The repo MUST mark non-applicable Shopify families as skipped with a reason.
-- **FR-CS-020**: The repo MUST keep the compliance matrix synchronized with OpenSpec and SpecKit.
+- **FR-CS-021**: The repo MUST enumerate evidence items that require human review, including screenshots, video, support contact, privacy policy, billing plan copy and app listing assets.
+- **FR-CS-022**: The repo MUST mark non-applicable Shopify families as skipped with a reason.
+- **FR-CS-023**: The repo MUST keep the compliance matrix synchronized with OpenSpec and SpecKit.
 
 ## Key entities
 

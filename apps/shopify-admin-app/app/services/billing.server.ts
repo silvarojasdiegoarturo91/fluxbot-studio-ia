@@ -2,6 +2,8 @@ import prisma from '../db.server';
 import { iaClient } from './ia-backend.server';
 
 const ADMIN_API_VERSION = '2026-01';
+const DEFAULT_BILLING_ERROR_MESSAGE =
+  'No se pudo iniciar la suscripción en Shopify. Inténtalo nuevamente en unos segundos.';
 
 const BILLING_PLANS = [
   {
@@ -91,6 +93,40 @@ export interface BillingSubscriptionResult {
   confirmationUrl: string;
   subscriptionId?: string;
   usageLineItemId?: string;
+}
+
+export type BillingEnvironmentMode = 'production' | 'development';
+
+export function resolveBillingEnvironmentMode(env: NodeJS.ProcessEnv = process.env): BillingEnvironmentMode {
+  const forcedMode = String(env.BILLING_ENV_MODE || '').trim().toLowerCase();
+  if (forcedMode === 'production' || forcedMode === 'development') {
+    return forcedMode;
+  }
+
+  if (env.NODE_ENV !== 'production') {
+    return 'development';
+  }
+
+  const deploymentTarget = String(env.FLUXBOT_DEPLOY_TARGET || env.DEPLOY_TARGET || '')
+    .trim()
+    .toLowerCase();
+  if (deploymentTarget.includes('dev') || deploymentTarget.includes('staging')) {
+    return 'development';
+  }
+
+  const appUrl = String(env.SHOPIFY_APP_URL || env.APP_URL || '')
+    .trim()
+    .toLowerCase();
+  const isLocalAppUrl =
+    appUrl.includes('localhost') ||
+    appUrl.includes('127.0.0.1') ||
+    appUrl.includes('fluxbot-local-dev.invalid');
+
+  if (isLocalAppUrl) {
+    return 'development';
+  }
+
+  return 'production';
 }
 
 async function getShopDomain(shopId: string): Promise<string> {
@@ -265,51 +301,189 @@ export class BillingService {
     shopId: string;
     planId: BillingPlanId;
     returnUrl: string;
-    test?: boolean;
+    /** Pass session credentials directly to avoid DB lookup. */
+    shopDomain?: string;
+    accessToken?: string;
   }): Promise<BillingSubscriptionResult> {
     const plan = BILLING_PLANS.find((candidate) => candidate.id === params.planId);
     if (!plan) {
       throw new Error('Invalid billing plan');
     }
 
-    const { domain, accessToken } = await getShopCredentials(params.shopId);
-    const backendUrl = process.env.IA_BACKEND_URL || 'http://localhost:3001';
-    const apiKey = process.env.IA_BACKEND_API_KEY || process.env.MASTER_API_KEY || 'dev_master_key';
+    let domain: string;
+    let accessToken: string;
 
-    const response = await fetch(`${backendUrl}/api/v1/billing/subscribe`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-        'X-Shop-Domain': domain,
-        'X-Shopify-Access-Token': accessToken,
-      },
-      body: JSON.stringify({
-        planCode: plan.id,
-        returnUrl: params.returnUrl,
-        test: params.test !== false,
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`Shopify billing request failed with HTTP ${response.status}`);
+    if (params.shopDomain && params.accessToken) {
+      // Use session credentials directly — avoids a stale-token DB lookup
+      domain = params.shopDomain;
+      accessToken = params.accessToken;
+    } else {
+      const creds = await getShopCredentials(params.shopId);
+      domain = creds.domain;
+      accessToken = creds.accessToken;
     }
 
-    const payload = await response.json() as {
-      confirmationUrl?: string;
-      subscriptionId?: string;
-      usageLineItemId?: string;
-      error?: string;
+    const billingMode = resolveBillingEnvironmentMode(process.env);
+    const isTestMode = billingMode === 'development';
+    const usageTerms = `${plan.extraBlockSize} messages per block`;
+
+    const mutation = `#graphql
+      mutation CreateAppSubscription(
+        $name: String!
+        $returnUrl: URL!
+        $test: Boolean!
+        $lineItems: [AppSubscriptionLineItemInput!]!
+      ) {
+        appSubscriptionCreate(
+          name: $name
+          returnUrl: $returnUrl
+          test: $test
+          lineItems: $lineItems
+        ) {
+          confirmationUrl
+          userErrors {
+            field
+            message
+          }
+          appSubscription {
+            id
+            lineItems {
+              id
+              plan {
+                pricingDetails {
+                  __typename
+                }
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    let data: {
+      appSubscriptionCreate?: {
+        confirmationUrl?: string;
+        userErrors?: Array<{ message?: string }>;
+        appSubscription?: {
+          id?: string;
+          lineItems?: Array<{
+            id?: string;
+            plan?: {
+              pricingDetails?: {
+                __typename?: string;
+              };
+            };
+          }>;
+        };
+      };
     };
+    try {
+      data = await runShopifyGraphql<{
+        appSubscriptionCreate?: {
+          confirmationUrl?: string;
+          userErrors?: Array<{ message?: string }>;
+          appSubscription?: {
+            id?: string;
+            lineItems?: Array<{
+              id?: string;
+              plan?: {
+                pricingDetails?: {
+                  __typename?: string;
+                };
+              };
+            }>;
+          };
+        };
+      }>({
+        shopDomain: domain,
+        accessToken,
+        query: mutation,
+        variables: {
+          name: plan.name,
+          returnUrl: params.returnUrl,
+          test: isTestMode,
+          lineItems: [
+            {
+              plan: {
+                appRecurringPricingDetails: {
+                  interval: plan.interval,
+                  price: {
+                    amount: String(plan.amountUsd),
+                    currencyCode: 'USD',
+                  },
+                },
+              },
+            },
+            {
+              plan: {
+                appUsagePricingDetails: {
+                  terms: usageTerms,
+                  cappedAmount: {
+                    amount: String(plan.cappedAmountUsd),
+                    currencyCode: 'USD',
+                  },
+                },
+              },
+            },
+          ],
+        },
+      });
+    } catch (error) {
+      console.error('[billing] createSubscription network failure', {
+        shopId: params.shopId,
+        shopDomain: domain,
+        planId: plan.id,
+        billingMode,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw new Error(DEFAULT_BILLING_ERROR_MESSAGE);
+    }
+
+    const payload = data.appSubscriptionCreate;
+    if (!payload) {
+      console.error('[billing] createSubscription failed', {
+        shopId: params.shopId,
+        shopDomain: domain,
+        planId: plan.id,
+        billingMode,
+        reason: 'missing appSubscriptionCreate payload',
+      });
+      throw new Error(DEFAULT_BILLING_ERROR_MESSAGE);
+    }
+
+    if (payload.userErrors?.length) {
+      const firstError = payload.userErrors[0];
+      const shopifyMessage = firstError?.message;
+      console.error('[billing] createSubscription userErrors', {
+        shopId: params.shopId,
+        shopDomain: domain,
+        planId: plan.id,
+        billingMode,
+        userErrors: payload.userErrors,
+      });
+      throw new Error(shopifyMessage || DEFAULT_BILLING_ERROR_MESSAGE);
+    }
 
     if (!payload.confirmationUrl) {
-      throw new Error(payload.error || 'Shopify did not return confirmation URL');
+      console.error('[billing] createSubscription missing confirmationUrl', {
+        shopId: params.shopId,
+        shopDomain: domain,
+        planId: plan.id,
+        billingMode,
+        backendError: null,
+      });
+      throw new Error(DEFAULT_BILLING_ERROR_MESSAGE);
     }
+
+    const lineItems = Array.isArray(payload.appSubscription?.lineItems)
+      ? payload.appSubscription?.lineItems
+      : [];
+    const usageLineItem = lineItems.find((item) => item.plan?.pricingDetails?.__typename === 'AppUsagePricing');
 
     return {
       confirmationUrl: payload.confirmationUrl,
-      subscriptionId: payload.subscriptionId,
-      usageLineItemId: payload.usageLineItemId,
+      subscriptionId: payload.appSubscription?.id,
+      usageLineItemId: usageLineItem?.id,
     };
   }
 

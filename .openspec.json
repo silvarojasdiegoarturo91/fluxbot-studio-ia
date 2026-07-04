@@ -5,7 +5,7 @@
     "description": "OpenSpec local para requisitos de fluxbot-studio-ia-shopify. Los requisitos aquí son espejo de los requisitos root que afectan este repositorio.",
     "owner": "frontend_shopify",
     "status": "in-development",
-    "last_updated": "2026-07-03T23:59:38.976Z",
+    "last_updated": "2026-07-04T00:10:00.000Z",
     "source_of_truth": ".openspec.json",
     "mirror_root": "../.openspec.json"
   },
@@ -142,6 +142,34 @@
         ],
         "dependencies": [],
         "user_story": "Como merchant hispanohablante, quiero ver el Admin de Shopify con español correctamente acentuado y con ñ, para percibir la app como profesional y confiable."
+      },
+      {
+        "id": "REQ-IA-SHOPIFY-005",
+        "mirror_of": "REQ-ROOT-007",
+        "title": "[BUG] Billing Shopify: resolver HTTP 500 y forzar modo de cobro por entorno",
+        "description": "BUG CONFIRMADO (espejo de REQ-ROOT-007): iniciar suscripción en producción puede devolver HTTP 500 con mensaje 'Error al iniciar suscripción'. Además, el merchant no debe elegir manualmente modo de prueba/producción. El modo de billing se debe resolver internamente por entorno de ejecución: producción (deploy oficial) cobra real; desarrollo usa test.",
+        "priority": "critical",
+        "status": "planned",
+        "owner": "frontend_shopify",
+        "affected_apps": [
+          "fluxbot-studio-ia-shopify"
+        ],
+        "components": [
+          "apps/shopify-admin-app/app/routes/app.billing.tsx",
+          "apps/shopify-admin-app/app/services/billing.server.ts",
+          "apps/shopify-admin-app/test/integration/billing-route.test.ts",
+          "apps/shopify-admin-app/test/unit/services/billing.server.test.ts"
+        ],
+        "acceptance_criteria": [
+          "El flujo de inicio de suscripción no expone selector manual de modo test/producción en la UI.",
+          "El backend resuelve modo de billing automáticamente por entorno de ejecución (production/development).",
+          "En entorno producción el payload a /api/v1/billing/subscribe usa test=false.",
+          "En entorno desarrollo el payload a /api/v1/billing/subscribe usa test=true.",
+          "Los errores de billing devuelven mensaje controlado al merchant y registran contexto técnico estructurado para diagnóstico.",
+          "Existe cobertura automatizada para el route action y la resolución de modo de billing."
+        ],
+        "dependencies": [],
+        "user_story": "Como merchant, quiero que mi suscripción se inicie sin error 500 y con cobro correcto según entorno, para evitar bloqueos y cargos incorrectos."
       }
     ],
     "documentation": [
@@ -271,6 +299,36 @@
           "quality_score": 90,
           "completion_rate": 0,
           "velocity": 1
+        }
+      },
+      {
+        "id": "REQ-IA-AI-001",
+        "mirror_of": "REQ-ROOT-AI-001",
+        "title": "[MIRROR] IA orientada a ventas con contexto de tienda — frontend",
+        "user_story": "Como merchant de Shopify, quiero configurar la identidad del asistente IA y sincronizar mi catálogo de productos para personalizar la experiencia de mis clientes.",
+        "description": "Espejo de REQ-ROOT-AI-001. El frontend Shopify Admin debe exponer una UI para configurar AssistantConfig (nombre, personalidad, tono, instrucciones, idioma) y disparar sincronización del catálogo hacia fluxbot-studio-back-ia. La página /app/assistant-config permite al merchant personalizar la identidad del asistente y sincronizar productos vía POST /api/v1/catalog/sync. Los contratos OpenAPI están en fluxbot-studio-contracts v0.4.0.",
+        "priority": "high",
+        "status": "in-progress",
+        "components": [
+          "apps/shopify-admin-app/app/routes/app.assistant-config.tsx",
+          "apps/shopify-admin-app/app/services/ia-backend.server.ts",
+          "apps/shopify-admin-app/app/utils/admin-navigation.ts"
+        ],
+        "acceptance_criteria": [
+          "La ruta /app/assistant-config existe y muestra un formulario Polaris con nombre, personalidad, tono, instrucciones de ventas, mensaje de bienvenida e idioma",
+          "El formulario guarda la configuración vía POST /api/v1/assistant-config en el backend IA",
+          "El botón 'Sincronizar catálogo' dispara POST /api/v1/catalog/sync y muestra el número de fragmentos indexados y duración",
+          "La página aparece en el menú de navegación bajo la sección 'Configurar'",
+          "El iaClient expone iaClient.assistantConfig.get(), iaClient.assistantConfig.upsert() e iaClient.catalog.sync()",
+          "Las interfaces AssistantConfigRequest, AssistantConfigResponse, CatalogSyncRequest y CatalogSyncResponse están tipadas en ia-backend.server.ts",
+          "La UI muestra un Banner de advertencia si el backend IA no está disponible",
+          "Los tests de Fase 0 siguen pasando (68/68)"
+        ],
+        "dependencies": ["REQ-IA-SHOPIFY-001"],
+        "metrics": {
+          "quality_score": 85,
+          "completion_rate": 70,
+          "velocity": 2
         }
       }
     ]

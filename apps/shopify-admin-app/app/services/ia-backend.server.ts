@@ -290,6 +290,40 @@ export interface ShopSyncResponse {
   syncedAt: string;
 }
 
+export type AssistantPersona = 'FRIENDLY' | 'PROFESSIONAL' | 'EXPERT' | 'CASUAL';
+
+export interface AssistantConfigRequest {
+  shopId: string;
+  assistantName?: string;
+  persona?: AssistantPersona;
+  tone?: string;
+  systemInstructions?: string | null;
+  welcomeMessage?: string | null;
+  language?: string;
+  productCategories?: string[];
+}
+
+export interface AssistantConfigResponse {
+  shopId: string;
+  assistantName: string;
+  persona: AssistantPersona;
+  tone: string;
+  systemInstructions: string | null;
+  welcomeMessage: string | null;
+  language: string;
+  productCategories: string[];
+}
+
+export interface CatalogSyncRequest {
+  shopId: string;
+  fullSync?: boolean;
+}
+
+export interface CatalogSyncResponse {
+  chunksIndexed: number;
+  duration: number;
+}
+
 export interface BillingPlanResponse {
   code: string;
   name: string;
@@ -548,6 +582,19 @@ export const iaClient = {
   shops: {
     sync: (request: ShopSyncRequest, shopDomain?: string) =>
       makeRequest<ShopSyncResponse>(`${API_V1}/shops/sync`, 'POST', request, shopDomain),
+  },
+
+  catalog: {
+    sync: (request: CatalogSyncRequest, shopDomain?: string) =>
+      makeRequest<CatalogSyncResponse>(`${API_V1}/catalog/sync`, 'POST', request, shopDomain),
+  },
+
+  assistantConfig: {
+    get: (shopDomain: string) =>
+      makeRequest<AssistantConfigResponse>(`${API_V1}/assistant-config`, 'GET', undefined, shopDomain),
+
+    upsert: (request: AssistantConfigRequest, shopDomain?: string) =>
+      makeRequest<AssistantConfigResponse>(`${API_V1}/assistant-config`, 'POST', request, shopDomain),
   },
 
   billing: {

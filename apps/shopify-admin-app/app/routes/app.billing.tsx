@@ -77,7 +77,6 @@ export async function action({ request }: ActionFunctionArgs): Promise<BillingAc
   }
 
   const planId = String(formData.get("planId") || "") as BillingPlanId;
-  const testMode = String(formData.get("testMode") || "true") !== "false";
 
   const selectedPlan = BillingService.getPlan(planId);
   if (!selectedPlan) {
@@ -92,7 +91,10 @@ export async function action({ request }: ActionFunctionArgs): Promise<BillingAc
       shopId: shop.id,
       planId,
       returnUrl,
-      test: testMode,
+      // Pass session credentials directly so createSubscription never needs a DB
+      // lookup for the access token, avoiding stale-token failures.
+      shopDomain: (session as unknown as { shop?: string }).shop,
+      accessToken: (session as unknown as { accessToken?: string }).accessToken,
     });
 
     return redirect(result.confirmationUrl);
@@ -112,7 +114,6 @@ export default function BillingPage() {
   const navigation = useNavigation();
 
   const [planId, setPlanId] = useState<BillingPlanId>("starter");
-  const [testMode, setTestMode] = useState("true");
 
   const isSubmitting = navigation.state === "submitting";
   const backToDashboardUrl = `/app${location.search || ""}`;
@@ -292,17 +293,6 @@ export default function BillingPage() {
                   onChange={(value) => setPlanId(value as BillingPlanId)}
                 />
                 <input type="hidden" name="planId" value={planId} />
-
-                <Select
-                  label={isEs ? "Modo de prueba" : "Test mode"}
-                  options={[
-                    { label: isEs ? "Sí (desarrollo)" : "Yes (development)", value: "true" },
-                    { label: isEs ? "No (cargo real)" : "No (real charge)", value: "false" },
-                  ]}
-                  value={testMode}
-                  onChange={setTestMode}
-                />
-                <input type="hidden" name="testMode" value={testMode} />
 
                 <Button submit variant="primary" loading={isSubmitting}>
                   {isEs ? "Continuar con Shopify Billing" : "Continue with Shopify Billing"}

@@ -51,7 +51,7 @@ describe("Shopify App Store compliance baseline", () => {
     const billingService = readText("fluxbot-studio-ia-shopify/apps/shopify-admin-app/app/services/billing.server.ts");
     const billingRoute = readText("fluxbot-studio-ia-shopify/apps/shopify-admin-app/app/routes/app.billing.tsx");
 
-    expect(billingService).toContain("/api/v1/billing/subscribe");
+    expect(billingService).toContain("appSubscriptionCreate");
     expect(billingService).toContain("X-Shopify-Access-Token");
     expect(billingService).toContain("Shopify billing request failed");
     expect(billingService).toContain("currentAppInstallation");

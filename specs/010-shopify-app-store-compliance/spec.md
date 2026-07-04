@@ -31,7 +31,10 @@ As a maintainer, I want the billing, GraphQL Admin, and theme app extension beha
 **Acceptance Scenarios**:
 
 1. **Given** the billing service is inspected, **When** the code is read, **Then** billing creation goes through Shopify Billing API.
-2. **Given** the widget extension is inspected, **When** the manifest is read, **Then** it is a theme app extension rather than a direct theme edit.
+2. **Given** the app submission form is prepared, **When** pricing is reviewed, **Then** pricing information matches the current in-app plans and charge behavior.
+3. **Given** a merchant is on one paid plan, **When** they change plans, **Then** the flow supports both upgrade and downgrade without manual support intervention.
+4. **Given** any app charge is created, **When** billing processing is inspected, **Then** it is processed through Shopify Billing API.
+5. **Given** the widget extension is inspected, **When** the manifest is read, **Then** it is a theme app extension rather than a direct theme edit.
 
 ### User Story 3 - Privacy and submission evidence (Priority: P2)
 
@@ -63,6 +66,9 @@ As a maintainer, I want privacy, support, listing copy and manual evidence track
 - **FR-005**: The repo MUST explicitly mark unsupported Shopify review families as skipped with rationale.
 - **FR-006**: The repo MUST keep the compliance docs close to the existing Shopify app specs rather than in an unrelated root doc.
 - **FR-007**: The compliance suite MUST cover app manifest, embedded auth, billing, theme extension, privacy and factual-copy surfaces.
+- **FR-008**: The compliance requirements MUST explicitly enforce Shopify Billing API as the only allowed processing path for app charges.
+- **FR-009**: The compliance requirements MUST explicitly enforce that merchants can switch plans (upgrade/downgrade) from the app billing flow.
+- **FR-010**: The compliance requirements MUST explicitly enforce that submission-form pricing information remains aligned with current app pricing.
 
 ### Key Entities
 
