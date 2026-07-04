@@ -85,7 +85,7 @@ export async function action({ request }: ActionFunctionArgs): Promise<BillingAc
 
   try {
     const url = new URL(request.url);
-    const returnUrl = `${url.origin}/app/billing${url.search || ""}`;
+    const returnUrl = `${url.origin}/app/billing`;
 
     const result = await BillingService.createSubscription({
       shopId: shop.id,

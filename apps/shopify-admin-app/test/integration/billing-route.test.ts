@@ -135,7 +135,7 @@ describe("app.billing route", () => {
     expect(mockBillingService.createSubscription).toHaveBeenCalledWith({
       shopId: "shop-1",
       planId: "starter",
-      returnUrl: "http://localhost/app/billing?source=admin",
+      returnUrl: "http://localhost/app/billing",
       shopDomain: "shop.example.myshopify.com",
       accessToken: "mock-access-token",
     });
