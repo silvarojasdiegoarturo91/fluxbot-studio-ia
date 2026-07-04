@@ -191,6 +191,24 @@ describe("app.billing route", () => {
     expect(invalidPlan).toEqual({ ok: false, error: "Invalid billing plan" });
   });
 
+  it("returns controlled error when backend blocks same-plan purchase", async () => {
+    mockBillingService.createSubscription.mockRejectedValue(
+      new Error("You are already subscribed to this plan."),
+    );
+    const { action } = await import("../../app/routes/app.billing");
+    const response = await action({
+      request: makePostRequest({
+        intent: "create_subscription",
+        planId: "starter",
+      }),
+    } as any);
+
+    expect(response).toEqual({
+      ok: false,
+      error: "You are already subscribed to this plan.",
+    });
+  });
+
   it("rejects non-POST requests and missing shops", async () => {
     const { action } = await import("../../app/routes/app.billing");
 

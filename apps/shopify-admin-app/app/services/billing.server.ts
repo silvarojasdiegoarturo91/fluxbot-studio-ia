@@ -63,6 +63,8 @@ export interface ActiveSubscription {
   priceAmount: string;
   priceCurrency: string;
   interval: string;
+  createdAt?: string;
+  currentPeriodEnd?: string;
   usageLineItemId?: string;
   cappedAmount?: string;
   balanceUsed?: string;
@@ -208,10 +210,13 @@ function normalizeSubscriptionName(name: string): string {
   return name.trim().toLowerCase();
 }
 
-function findActivePlanBySubscriptionName(subscriptionName: string): BillingPlan | null {
+function findActivePlanIdBySubscriptionName(subscriptionName: string): BillingPlanId | null {
   const normalized = normalizeSubscriptionName(subscriptionName);
-  const matched = BILLING_PLANS.find((plan) => normalizeSubscriptionName(plan.name) === normalized);
-  return matched ? { ...matched } : null;
+  const matched = BILLING_PLANS.find((plan) =>
+    normalizeSubscriptionName(plan.name) === normalized ||
+    normalized.includes(plan.id),
+  );
+  return matched?.id ?? null;
 }
 
 function isLiveSubscriptionStatus(status: string): boolean {
@@ -255,6 +260,8 @@ export class BillingService {
             name
             test
             status
+            createdAt
+            currentPeriodEnd
             lineItems {
               plan {
                 pricingDetails {
@@ -305,6 +312,8 @@ export class BillingService {
         name: String(sub.name || ''),
         status: String(sub.status || ''),
         test: Boolean(sub.test),
+        createdAt: typeof sub.createdAt === "string" ? sub.createdAt : undefined,
+        currentPeriodEnd: typeof sub.currentPeriodEnd === "string" ? sub.currentPeriodEnd : undefined,
         priceAmount: String(price.amount || ''),
         priceCurrency: String(price.currencyCode || 'USD'),
         interval: String(pricingDetails.interval || ''),
@@ -378,15 +387,12 @@ export class BillingService {
       status: String((sub as { status?: unknown }).status || ''),
     })).filter((sub) => sub.id && isLiveSubscriptionStatus(sub.status));
 
-    const activePlan = activeSubscriptions
-      .map((sub) => findActivePlanBySubscriptionName(sub.name))
-      .find((candidate): candidate is BillingPlan => Boolean(candidate)) || null;
-
-    if (activePlan?.id === plan.id) {
-      throw new Error('Ya tienes este plan activo. Elige otro plan para hacer upgrade o downgrade.');
+    const hasSamePlanActive = activeSubscriptions.some((sub) => findActivePlanIdBySubscriptionName(sub.name) === plan.id);
+    if (hasSamePlanActive) {
+      throw new Error("You are already subscribed to this plan.");
     }
 
-    const replacementBehavior = activePlan && activePlan.id !== plan.id
+    const replacementBehavior = activeSubscriptions.length > 0
       ? 'APPLY_IMMEDIATELY'
       : 'STANDARD';
 

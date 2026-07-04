@@ -51,6 +51,10 @@ As the Fluxbot team, I want the compliance matrix to mark payments apps, purchas
 - **FR-CS-025**: Billing return URLs MUST preserve or recover embedded context (`shop`, `host`, `embedded`) in a bounded format compatible with Shopify limits.
 - **FR-CS-026**: If a merchant already has the same active plan, the app MUST block duplicate purchase and require selecting a different plan.
 - **FR-CS-027**: Upgrade/downgrade plan changes MUST use Shopify-supported replacement behavior so proration/credit handling is delegated to Shopify Billing and duplicate active plans are avoided.
+- **FR-CS-028**: The billing change UI MUST show the active plan as status information and MUST NOT render the active plan as a selectable purchase/change option.
+- **FR-CS-029**: The billing plan selector UI MUST use pricing cards (not only a dropdown), including plan name, price, direction badge (upgrade/downgrade), key limits/features, and a primary action button.
+- **FR-CS-030**: Available plan cards MUST be labeled as `Upgrade` or `Downgrade` based on plan hierarchy/price relative to the active plan.
+- **FR-CS-031**: If no alternate plans are available, the UI MUST show an explicit "best available plan" message instead of rendering a purchase action.
 
 ### Storefront and theme app extension
 

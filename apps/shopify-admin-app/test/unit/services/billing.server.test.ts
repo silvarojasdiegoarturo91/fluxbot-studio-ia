@@ -257,7 +257,7 @@ describe("BillingService.createSubscription", () => {
         planId: "starter",
         returnUrl: "https://app.example.com/app/billing",
       }),
-    ).rejects.toThrow("Ya tienes este plan activo");
+    ).rejects.toThrow("You are already subscribed to this plan.");
 
     expect(global.fetch).toHaveBeenCalledTimes(1);
   });

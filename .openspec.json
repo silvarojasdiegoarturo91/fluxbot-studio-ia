@@ -187,6 +187,7 @@
           "apps/shopify-admin-app/app/services/billing.server.ts",
           "apps/shopify-admin-app/test/integration/billing-route.test.ts",
           "apps/shopify-admin-app/test/integration/billing-thank-you-route.test.ts",
+          "apps/shopify-admin-app/test/unit/routes/billing-plan-options.test.ts",
           "apps/shopify-admin-app/test/unit/services/billing.server.test.ts",
           "specs/features/shopify-app-store-compliance/requirements.md",
           "specs/features/shopify-app-store-compliance/test-cases.md"
@@ -195,9 +196,13 @@
           "Tras confirmar el cobro en Shopify, el merchant vuelve al Admin embebido sin pantalla manual de 'Shop domain'.",
           "El flujo de compra aterriza en una sección thank-you con ventajas del plan y continuidad al dashboard.",
           "El returnUrl de billing preserva/reconstruye shop/host/embedded sin exceder el límite de Shopify.",
+          "La UI de cambio de plan usa cards visuales (no dropdown simple) con precio, badge de dirección y lista breve de beneficios/límites.",
+          "El plan activo se muestra solo como estado (nombre/fecha/estado) y nunca aparece como opción seleccionable de compra/cambio.",
+          "Las opciones disponibles se etiquetan como Upgrade o Downgrade según jerarquía/precio del plan activo.",
+          "Si no hay planes alternativos, la UI muestra mensaje explícito de mejor plan disponible sin acción de compra.",
           "Si el merchant ya tiene el mismo plan activo, el sistema bloquea recompra duplicada y exige cambio de plan.",
           "Para upgrade/downgrade, el mutation usa replacementBehavior de Shopify para que el prorrateo lo gestione Shopify y no queden dos planes activos.",
-          "Existe cobertura automatizada para retorno post-billing, pérdida parcial de contexto, plan duplicado y cambio de plan."
+          "Existe cobertura automatizada para retorno post-billing, pérdida parcial de contexto, plan duplicado, clasificación de plan options y cambio de plan."
         ],
         "dependencies": [
           "REQ-IA-SHOPIFY-003",

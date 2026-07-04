@@ -56,7 +56,8 @@ describe("Shopify App Store compliance baseline", () => {
     expect(billingService).toContain("Shopify billing request failed");
     expect(billingService).toContain("currentAppInstallation");
     expect(billingRoute).toContain("BillingService.createSubscription");
-    expect(billingRoute).toContain("Continue with Shopify Billing");
+    expect(billingRoute).toContain("/app/billing/thank-you");
+    expect(billingRoute).toContain("Upgrade to");
   });
 
   it("reads shop connection data through GraphQL Admin API on the dashboard", () => {
