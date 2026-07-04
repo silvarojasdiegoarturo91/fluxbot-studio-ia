@@ -513,8 +513,14 @@ components:
               properties:
                 chunksIndexed:
                   type: integer
-                duration:
+                productsProcessed:
+                  type: integer
+                durationMs:
                   type: integer
                   description: Duration in milliseconds
-              required: [chunksIndexed, duration]
+                errors:
+                  type: array
+                  items:
+                    type: string
+              required: [chunksIndexed, productsProcessed, durationMs, errors]
           required: [data]

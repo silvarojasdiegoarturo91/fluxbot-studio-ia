@@ -58,13 +58,52 @@ async function parseErrorBody(response: Response): Promise<string> {
   const contentType = response.headers.get('content-type') || '';
 
   if (contentType.includes('application/json')) {
-    const jsonError = await response.json().catch(() => null) as { error?: string; message?: string } | null;
-    if (jsonError?.error) return jsonError.error;
-    if (jsonError?.message) return jsonError.message;
+    const jsonError = await response.json().catch(() => null);
+    return describeBackendErrorPayload(jsonError);
   }
 
   const text = await response.text().catch(() => 'Unknown error');
   return text || 'Unknown error';
+}
+
+export function describeBackendErrorPayload(payload: unknown): string {
+  if (typeof payload === 'string') return payload;
+  if (!payload || typeof payload !== 'object') return 'Unknown error';
+
+  const record = payload as Record<string, unknown>;
+  const error = record.error;
+
+  if (typeof error === 'string') return error;
+  if (error && typeof error === 'object') {
+    const errorRecord = error as Record<string, unknown>;
+    const code = typeof errorRecord.code === 'string' ? errorRecord.code : null;
+    const message = typeof errorRecord.message === 'string' ? errorRecord.message : null;
+    const details = describeDetails(errorRecord.details);
+    return [message, code ? `Código: ${code}` : null, details].filter(Boolean).join(' | ') || JSON.stringify(errorRecord);
+  }
+
+  if (typeof record.message === 'string') return record.message;
+  if (typeof record.code === 'string') return `Código: ${record.code}`;
+  return JSON.stringify(record);
+}
+
+function describeDetails(details: unknown): string | null {
+  if (!details) return null;
+  if (typeof details === 'string') return details;
+  if (Array.isArray(details)) {
+    const messages = details
+      .map((detail) => {
+        if (typeof detail === 'string') return detail;
+        if (detail && typeof detail === 'object' && typeof (detail as { message?: unknown }).message === 'string') {
+          return (detail as { message: string }).message;
+        }
+        return null;
+      })
+      .filter(Boolean);
+    return messages.length > 0 ? messages.join(', ') : null;
+  }
+  if (typeof details === 'object') return JSON.stringify(details);
+  return String(details);
 }
 
 function getHttpStatusHint(status: number): string {
@@ -321,7 +360,9 @@ export interface CatalogSyncRequest {
 
 export interface CatalogSyncResponse {
   chunksIndexed: number;
-  duration: number;
+  productsProcessed?: number;
+  durationMs: number;
+  errors?: string[];
 }
 
 export interface BillingPlanResponse {

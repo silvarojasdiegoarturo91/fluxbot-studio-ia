@@ -334,6 +334,38 @@
         }
       },
       {
+        "id": "REQ-IA-AI-002",
+        "mirror_of": "REQ-ROOT-009",
+        "title": "[BUG] Personalizar la IA: error claro al sincronizar catálogo",
+        "user_story": "Como dueño de una tienda Shopify, quiero que el botón Sincronizar catálogo en Personalizar la IA termine correctamente o muestre un error claro y accionable, para poder actualizar el conocimiento del asistente sin ver errores técnicos incomprensibles.",
+        "description": "Espejo de REQ-ROOT-009. En /app/assistant-config, el click en 'Sincronizar catálogo' actualmente puede mostrar 'Error al sincronizar catálogo: IA backend request failed (POST http://localhost:3001/api/v1/catalog/sync) with status 500: [object Object]. Backend service is up but failing internally; inspect backend logs.'. El frontend debe normalizar errores JSON estructurados del backend IA, evitar [object Object], usar durationMs del contrato de sync y mostrar feedback localizado accionable.",
+        "priority": "critical",
+        "status": "planned",
+        "components": [
+          "apps/shopify-admin-app/app/routes/app.assistant-config.tsx",
+          "apps/shopify-admin-app/app/services/ia-backend.server.ts",
+          "apps/shopify-admin-app/test/unit/services/ia-backend.server.test.ts",
+          "apps/shopify-admin-app/test/integration/assistant-config-route.test.ts"
+        ],
+        "acceptance_criteria": [
+          "La acción catalog_sync de /app/assistant-config nunca muestra [object Object] al merchant.",
+          "ia-backend.server.ts extrae mensajes desde error.message, error.code, message, details y JSON anidado de forma determinística.",
+          "Los HTTP 500 del backend se presentan como mensaje español accionable y sanitizado, conservando contexto técnico solo para logs.",
+          "La UI usa durationMs del resultado de /api/v1/catalog/sync para mostrar duración de sincronización.",
+          "Si el backend devuelve errors parciales, la UI muestra resultado parcial con mensaje claro de revisión, no éxito silencioso.",
+          "Existe prueba automatizada que cubre un error JSON anidado y verifica que no aparezca [object Object]."
+        ],
+        "dependencies": [
+          "REQ-IA-AI-001",
+          "REQ-IA-SHOPIFY-001"
+        ],
+        "metrics": {
+          "quality_score": 90,
+          "completion_rate": 0,
+          "velocity": 1
+        }
+      },
+      {
         "id": "DOC-c2359dc-2026-07-04T08-46-01-834Z",
         "title": "Review documentation update (2 files)",
         "description": "Documentation changed in: specs/010-shopify-app-store-compliance/spec.md, specs/features/shopify-app-store-compliance/requirements.md. Review and align agent instructions, references, and related docs.",

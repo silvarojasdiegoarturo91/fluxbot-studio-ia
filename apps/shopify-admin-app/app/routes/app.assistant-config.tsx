@@ -20,7 +20,6 @@ import {
   Banner,
   FormLayout,
   InlineStack,
-  Card,
   Badge,
   Box,
   Divider,
@@ -42,7 +41,7 @@ interface ActionData {
   ok: boolean;
   message?: string;
   error?: string;
-  syncResult?: { chunksIndexed: number; duration: number };
+  syncResult?: { chunksIndexed: number; productsProcessed?: number; durationMs: number; errors?: string[] };
 }
 
 // ---------------------------------------------------------------------------
@@ -100,9 +99,16 @@ export async function action({ request }: ActionFunctionArgs): Promise<ActionDat
   if (intent === "catalog_sync") {
     try {
       const result = await iaClient.catalog.sync({ shopId: shop.id, fullSync: true }, shop.domain);
+      const hasErrors = Array.isArray(result.errors) && result.errors.length > 0;
+      const durationSeconds = (result.durationMs / 1000).toFixed(1);
       return {
-        ok: true,
-        message: `Sincronización completada: ${result.chunksIndexed} fragmentos indexados en ${(result.duration / 1000).toFixed(1)}s`,
+        ok: !hasErrors,
+        message: hasErrors
+          ? `Sincronización completada con advertencias: ${result.chunksIndexed} fragmentos indexados en ${durationSeconds}s. Revisa: ${result.errors?.slice(0, 2).join(" | ")}`
+          : `Sincronización completada: ${result.chunksIndexed} fragmentos indexados en ${durationSeconds}s`,
+        error: hasErrors
+          ? `La sincronización terminó con advertencias: ${result.errors?.slice(0, 2).join(" | ")}`
+          : undefined,
         syncResult: result,
       };
     } catch (err) {
@@ -381,7 +387,7 @@ export default function AssistantConfigPage() {
                       : `${actionData.syncResult.chunksIndexed} products indexed`}
                   </Badge>
                   <Badge>
-                    {`${(actionData.syncResult.duration / 1000).toFixed(1)}s`}
+                    {`${(actionData.syncResult.durationMs / 1000).toFixed(1)}s`}
                   </Badge>
                 </InlineStack>
               )}
