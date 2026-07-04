@@ -11,8 +11,8 @@ import {
   Text,
 } from "@shopify/polaris";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
-import { Form, redirect, useActionData, useLoaderData, useLocation, useNavigation } from "react-router";
-import { useState } from "react";
+import { Form, useActionData, useLoaderData, useLocation, useNavigation } from "react-router";
+import { useState, useEffect } from "react";
 import { useIsSpanish } from "../hooks/use-admin-language";
 import { authenticateAdminRequest } from "../utils/authenticate-admin.server";
 import { ensureShopForSession } from "../services/shop-context.server";
@@ -22,6 +22,7 @@ import { AdminPageHeader, AdminSectionCard, AdminStatusBadge } from "../componen
 interface BillingActionData {
   ok: boolean;
   error?: string;
+  confirmationUrl?: string;
 }
 
 export async function loader({ request }: LoaderFunctionArgs) {
@@ -97,7 +98,10 @@ export async function action({ request }: ActionFunctionArgs): Promise<BillingAc
       accessToken: (session as unknown as { accessToken?: string }).accessToken,
     });
 
-    return redirect(result.confirmationUrl);
+    return {
+      ok: true,
+      confirmationUrl: result.confirmationUrl,
+    };
   } catch (error) {
     return {
       ok: false,
@@ -117,6 +121,17 @@ export default function BillingPage() {
 
   const isSubmitting = navigation.state === "submitting";
   const backToDashboardUrl = `/app${location.search || ""}`;
+
+  // When Shopify returns a confirmationUrl, navigate the TOP-LEVEL frame.
+  // A simple redirect() navigates the iframe itself, which causes admin.shopify.com
+  // to reject the connection because the parent domain blocks iframe navigation.
+  useEffect(() => {
+    const url = actionData && "confirmationUrl" in actionData ? actionData.confirmationUrl : undefined;
+    if (url) {
+      const target = typeof window !== "undefined" && window.top ? window.top : window;
+      target.location.href = url;
+    }
+  }, [actionData]);
 
   const { usageStatus } = data;
   const usagePct = usageStatus.includedUsage > 0

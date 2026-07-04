@@ -112,7 +112,7 @@ describe("app.billing route", () => {
     expect(data.error).toBe("Billing unavailable");
   });
 
-  it("creates a Shopify subscription and redirects to the confirmation URL", async () => {
+  it("creates a Shopify subscription and returns the confirmation URL as data", async () => {
     mockBillingService.createSubscription.mockResolvedValue({
       confirmationUrl: "https://shopify.example/confirm",
       subscriptionId: "sub-123",
@@ -129,9 +129,11 @@ describe("app.billing route", () => {
       ),
     } as any);
 
-    expect(response).toBeInstanceOf(Response);
-    expect((response as Response).status).toBe(302);
-    expect((response as Response).headers.get("Location")).toBe("https://shopify.example/confirm");
+    // Action now returns data instead of a redirect so the client can navigate
+    // window.top (required for Shopify embedded apps to break out of the iframe).
+    expect(response).not.toBeInstanceOf(Response);
+    expect((response as any).ok).toBe(true);
+    expect((response as any).confirmationUrl).toBe("https://shopify.example/confirm");
     expect(mockBillingService.createSubscription).toHaveBeenCalledWith({
       shopId: "shop-1",
       planId: "starter",
