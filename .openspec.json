@@ -5,7 +5,7 @@
     "description": "OpenSpec local para requisitos de fluxbot-studio-ia-shopify. Los requisitos aquí son espejo de los requisitos root que afectan este repositorio.",
     "owner": "frontend_shopify",
     "status": "in-development",
-    "last_updated": "2026-07-05T02:54:26.317Z",
+    "last_updated": "2026-07-05T09:54:00.092Z",
     "source_of_truth": ".openspec.json",
     "mirror_root": "../.openspec.json"
   },
@@ -644,6 +644,35 @@
         ],
         "source_files": [
           "specs/features/auth-install-recovery/requirements.md"
+        ],
+        "acceptance_criteria": [
+          "Documentation references remain synchronized",
+          "Agent instructions stay aligned with the latest docs",
+          "Follow-up work is tracked in OpenSpec"
+        ],
+        "dependencies": [],
+        "metrics": {
+          "quality_score": 90,
+          "completion_rate": 0,
+          "velocity": 1
+        }
+      },
+      {
+        "id": "DOC-d332001-2026-07-05T09-54-00-091Z",
+        "title": "Review documentation update (3 files)",
+        "description": "Documentation changed in: specs/features/auth-install-recovery/test-cases.md, specs/features/shopify-app-store-compliance/requirements.md, specs/features/shopify-app-store-compliance/test-cases.md. Review and align agent instructions, references, and related docs.",
+        "priority": "medium",
+        "status": "planned",
+        "owner": "docs",
+        "components": [
+          "specs/features/auth-install-recovery/test-cases.md",
+          "specs/features/shopify-app-store-compliance/requirements.md",
+          "specs/features/shopify-app-store-compliance/test-cases.md"
+        ],
+        "source_files": [
+          "specs/features/auth-install-recovery/test-cases.md",
+          "specs/features/shopify-app-store-compliance/requirements.md",
+          "specs/features/shopify-app-store-compliance/test-cases.md"
         ],
         "acceptance_criteria": [
           "Documentation references remain synchronized",
