@@ -67,3 +67,42 @@ describe("auth.$ route - session token bounce", () => {
     }
   });
 });
+
+describe("root route - install entry behavior", () => {
+  it("redirects shop-only install entry to OAuth login", async () => {
+    const { loader } = await import("../../app/routes/_index");
+    const request = new Request("http://localhost/?shop=test-install.myshopify.com", {
+      headers: { accept: "text/html" },
+    });
+
+    try {
+      await loader({ request } as any);
+      throw new Error("Expected root loader to redirect");
+    } catch (error) {
+      expect(error).toBeInstanceOf(Response);
+      const response = error as Response;
+      expect(response.status).toBe(302);
+      expect(response.headers.get("Location")).toBe("/app?shop=test-install.myshopify.com");
+    }
+  });
+
+  it("redirects embedded bootstrap entry to /app preserving context", async () => {
+    const { loader } = await import("../../app/routes/_index");
+    const request = new Request(
+      "http://localhost/?shop=test-install.myshopify.com&host=encoded-host&embedded=1",
+      { headers: { accept: "text/html" } },
+    );
+
+    try {
+      await loader({ request } as any);
+      throw new Error("Expected root loader to redirect");
+    } catch (error) {
+      expect(error).toBeInstanceOf(Response);
+      const response = error as Response;
+      expect(response.status).toBe(302);
+      expect(response.headers.get("Location")).toBe(
+        "/app?shop=test-install.myshopify.com&host=encoded-host&embedded=1",
+      );
+    }
+  });
+});

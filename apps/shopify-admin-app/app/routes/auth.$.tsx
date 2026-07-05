@@ -1,7 +1,6 @@
 import type { HeadersFunction, LoaderFunctionArgs } from "react-router";
 import { redirect } from "react-router";
 import { useRouteError } from "react-router";
-import { authenticateAdminRequest } from "../utils/authenticate-admin.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 
 const SESSION_TOKEN_CONTEXT_KEYS = ["shop", "host", "embedded", "plan", "charge_id"] as const;
@@ -49,6 +48,7 @@ function resolveSafeSessionTokenReloadPath(requestUrl: URL): string {
 }
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
+  const { authenticateAdminRequest } = await import("../utils/authenticate-admin.server");
   await authenticateAdminRequest(request);
   const requestUrl = new URL(request.url);
 

@@ -277,6 +277,42 @@
         "user_story": "Como equipo de Fluxbot, quiero que cada cambio del Shopify Admin pase Playwright E2E para bloquear regresiones de onboarding y flujos críticos antes de llegar a CI."
       },
       {
+        "id": "REQ-IA-SHOPIFY-008",
+        "mirror_of": "REQ-ROOT-011",
+        "title": "[BUG] Instalación OAuth y reinstalación sin dead-ends",
+        "description": "Espejo de REQ-ROOT-011. El flujo de instalación/reinstalación debe iniciar OAuth grant inmediatamente cuando Shopify entra con `/?shop=...`, evitar pantallas terminales ('Handling response') o fatales post-instalación, y restaurar una ruta usable con contexto embebido preservado. Reinstalación debe mantener onboarding forzado hasta completarse de nuevo.",
+        "priority": "critical",
+        "status": "planned",
+        "owner": "frontend_shopify",
+        "affected_apps": [
+          "fluxbot-studio-ia-shopify"
+        ],
+        "components": [
+          "apps/shopify-admin-app/app/routes/_index.tsx",
+          "apps/shopify-admin-app/app/routes/auth.$.tsx",
+          "apps/shopify-admin-app/app/utils/authenticate-admin.server.ts",
+          "apps/shopify-admin-app/app/services/shop-context.server.ts",
+          "apps/shopify-admin-app/test/integration/auth-session-token-route.test.ts",
+          "apps/shopify-admin-app/test/unit/authenticate-admin.server.test.ts",
+          "apps/shopify-admin-app/tests/e2e/smoke/install-auth-flow.spec.ts",
+          "specs/features/auth-install-recovery/requirements.md",
+          "specs/features/auth-install-recovery/test-cases.md"
+        ],
+        "acceptance_criteria": [
+          "Cuando Shopify solicita `/?shop=<domain>` sin `host` ni `embedded=1`, la app redirige inmediatamente a `/auth/login?shop=<domain>` para iniciar grant OAuth.",
+          "Cuando la entrada ya trae contexto embebido (`shop`, `host`, `embedded`), la app redirige a `/app` conservando esos parámetros.",
+          "La instalación/reinstalación no termina en pantalla terminal 'Handling response' ni requiere refresh manual.",
+          "Los document requests con sesión inválida recuperan por `/auth/session-token` con `shopify-reload` limpio y sin anidación recursiva.",
+          "El flujo conserva/obtiene access token válido para la tienda en el contexto de sesión.",
+          "En reinstalación, el estado onboarding se reinicia y las rutas no onboarding quedan bloqueadas hasta completar onboarding.",
+          "Existe cobertura automatizada para entrada install, bounce auth, y ruta esperada de reinstalación."
+        ],
+        "dependencies": [
+          "REQ-IA-SHOPIFY-003"
+        ],
+        "user_story": "Como merchant de Shopify, quiero que instalar o reinstalar Fluxbot me lleve de inmediato a OAuth y luego a una pantalla usable para operar sin bloqueos ni refresh manual."
+      },
+      {
         "id": "DOC-34c0919-2026-07-02T08-18-18-907Z",
         "title": "Review documentation update (9 files)",
         "description": "Documentation changed in: apps/shopify-admin-app/TESTING.md, specs/010-shopify-app-store-compliance/checklists/requirements.md, specs/010-shopify-app-store-compliance/plan.md, specs/010-shopify-app-store-compliance/spec.md, specs/010-shopify-app-store-compliance/tasks.md, specs/features/shopify-app-store-compliance/README.md, specs/features/shopify-app-store-compliance/manual-evidence.md, specs/features/shopify-app-store-compliance/requirements.md, specs/features/shopify-app-store-compliance/test-cases.md. Review and align agent instructions, references, and related docs.",
