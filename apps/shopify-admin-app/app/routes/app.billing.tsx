@@ -20,12 +20,7 @@ import { useEffect } from "react";
 import { useIsSpanish } from "../hooks/use-admin-language";
 import { authenticateAdminRequest } from "../utils/authenticate-admin.server";
 import { ensureShopForSession } from "../services/shop-context.server";
-import {
-  BillingService,
-  type ActiveSubscription,
-  type BillingPlan,
-  type BillingPlanId,
-} from "../services/billing.server";
+import type { ActiveSubscription, BillingPlan, BillingPlanId } from "../services/billing.server";
 import { AdminPageHeader, AdminSectionCard, AdminStatusBadge } from "../components/admin-ui";
 
 interface BillingActionData {
@@ -265,6 +260,7 @@ export function buildBillingPlanCards(options: {
 }
 
 export async function loader({ request }: LoaderFunctionArgs) {
+  const { BillingService } = await import("../services/billing.server");
   const { session } = await authenticateAdminRequest(request);
   const shop = await ensureShopForSession(session);
 
@@ -303,6 +299,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 }
 
 export async function action({ request }: ActionFunctionArgs): Promise<BillingActionData | Response> {
+  const { BillingService } = await import("../services/billing.server");
   if (request.method !== "POST") {
     return { ok: false, error: "Method not allowed" };
   }

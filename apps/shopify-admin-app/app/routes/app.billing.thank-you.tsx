@@ -5,7 +5,7 @@ import { useLoaderData } from "react-router";
 import { useIsSpanish } from "../hooks/use-admin-language";
 import { authenticateAdminRequest } from "../utils/authenticate-admin.server";
 import { ensureShopForSession } from "../services/shop-context.server";
-import { BillingService, type BillingPlanId } from "../services/billing.server";
+import type { BillingPlanId } from "../services/billing.server";
 import { AdminPageHeader, AdminSectionCard, AdminStatusBadge } from "../components/admin-ui";
 
 const EMBEDDED_QUERY_KEYS = ["shop", "host", "embedded"] as const;
@@ -23,6 +23,7 @@ function buildDashboardUrl(searchParams: URLSearchParams): string {
 }
 
 export async function loader({ request }: LoaderFunctionArgs) {
+  const { BillingService } = await import("../services/billing.server");
   const { session } = await authenticateAdminRequest(request);
   const shop = await ensureShopForSession(session);
   if (!shop) {
