@@ -688,7 +688,11 @@
         }
       },
       {
+<<<<<<< HEAD
         "id": "DOC-d332001-2026-07-05T09-54-00-091Z",
+=======
+        "id": "DOC-cbb2d65-2026-07-05T09-19-13-281Z",
+>>>>>>> 7a050ec (chore: auto-update openspec after qa:gate)
         "title": "Review documentation update (3 files)",
         "description": "Documentation changed in: specs/features/auth-install-recovery/test-cases.md, specs/features/shopify-app-store-compliance/requirements.md, specs/features/shopify-app-store-compliance/test-cases.md. Review and align agent instructions, references, and related docs.",
         "priority": "medium",
@@ -715,6 +719,7 @@
           "completion_rate": 0,
           "velocity": 1
         }
+<<<<<<< HEAD
       },
       {
         "id": "DOC-5d11688-2026-07-11T02-39-02-315Z",
@@ -846,6 +851,8 @@
           "completion_rate": 0,
           "velocity": 1
         }
+=======
+>>>>>>> 7a050ec (chore: auto-update openspec after qa:gate)
       }
     ]
   }
