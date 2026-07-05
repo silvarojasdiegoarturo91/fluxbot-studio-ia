@@ -8,6 +8,11 @@ import { getConfig } from '../config.server';
 import { EmbeddingsService } from './embeddings.server';
 import { CommerceActionsService } from './commerce-actions.server';
 import { HandoffService } from './handoff.server';
+import {
+  detectBasicIntent,
+  safeFallbackMessage,
+  sanitizeAssistantMessage,
+} from './chat-safety.server';
 import type { ConversationMessage, MessageRole, Prisma } from '@prisma/client';
 
 // ============================================================================
@@ -362,10 +367,11 @@ export class AIOrchestrationService {
     shopId: string,
     conversationId: string,
     userMessage: string,
-    language: string = 'en'
+    language: string = 'es'
   ): Promise<ChatResponse> {
     const config = getConfig();
     const humanHandoffEnabled = config.features?.humanHandoff === true;
+    const basicIntent = detectBasicIntent(userMessage);
 
     // 1. Get conversation context
     const conversation = await prisma.conversation.findUniqueOrThrow({
@@ -418,8 +424,12 @@ export class AIOrchestrationService {
         history
       );
     } catch (error) {
-      botMessage = 'I apologize, but I encountered an issue processing your request. Please try again.';
+      botMessage =
+        basicIntent === 'unknown'
+          ? "I apologize, but I couldn't process that request right now. Please try again."
+          : safeFallbackMessage(basicIntent);
     }
+    botMessage = sanitizeAssistantMessage(botMessage, basicIntent);
 
     // 6. Apply guardrails
     const guardrailResult = this.applyGuardrails(botMessage, intent);

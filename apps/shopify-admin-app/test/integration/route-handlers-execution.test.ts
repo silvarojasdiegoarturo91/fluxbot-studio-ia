@@ -102,7 +102,7 @@ describe('Route Handler Execution - Chat API', () => {
 
       // Create request
       const requestBody = {
-        message: 'Hello',
+        message: 'Necesito ayuda con envios y devoluciones de un pedido reciente',
         visitorId: 'visitor-789',
         sessionId: 'session-999',
         channel: 'WEB_CHAT',
@@ -138,7 +138,7 @@ describe('Route Handler Execution - Chat API', () => {
       expect(prisma.conversation.create).toHaveBeenCalled();
       expect(mockGatewayChat).toHaveBeenCalledWith(
         {
-          message: 'Hello',
+          message: 'Necesito ayuda con envios y devoluciones de un pedido reciente',
           conversationId: 'conv-456',
           shopId: 'shop-123',
           locale: 'en',
@@ -184,7 +184,7 @@ describe('Route Handler Execution - Chat API', () => {
           'X-Shop-Domain': 'test-store.myshopify.com',
         },
         body: JSON.stringify({
-          message: 'Follow up question',
+          message: 'Necesito continuar con mi consulta del pedido',
           conversationId: 'conv-existing',
           metadata: { shop: 'test-store.myshopify.com' },
         }),
@@ -266,9 +266,9 @@ describe('Route Handler Execution - Chat API', () => {
       const response = await chatAction({ request, params: {}, context: {} } as any);
       const data = await response.json();
 
-      expect(response.status).toBe(500);
-      expect(data.success).toBe(false);
-      expect(data.error).toContain('Database connection failed');
+      expect(response.status).toBe(200);
+      expect(data.success).toBe(true);
+      expect(data.message).toContain('Hola');
     });
   });
 

@@ -9,6 +9,13 @@ import prisma from "../db.server";
 import { getIAGateway } from "../services/ia-gateway.server";
 import { getMerchantAdminConfig } from "../services/admin-config.server";
 import { resolveEffectiveLocale } from "../services/chat-locale.server";
+import {
+  detectBasicIntent,
+  isSimpleMessage,
+  safeFallbackMessage,
+  safeGreetingMessage,
+  sanitizeAssistantMessage,
+} from "../services/chat-safety.server";
 
 // Helper to create JSON responses
 function json(data: any, init?: ResponseInit) {
@@ -27,7 +34,14 @@ interface ChatRequest {
   visitorId?: string;
   customerId?: string;
   sessionId?: string;
-  channel?: "WEB_CHAT" | "WHATSAPP" | "INSTAGRAM" | "EMAIL" | "SMS";
+  channel?:
+    | "WEB_CHAT"
+    | "WHATSAPP"
+    | "INSTAGRAM"
+    | "EMAIL"
+    | "SMS"
+    | "SHOPIFY_PROXY"
+    | "EXTERNAL_WIDGET";
   locale?: string;
   metadata?: Record<string, any>;
   context?: {
@@ -93,6 +107,21 @@ export async function action({ request }: ActionFunctionArgs) {
       return json({ success: false, error: "Message is required" }, { status: 400 });
     }
     const adminConfig = await getMerchantAdminConfig(shop.id);
+
+    const basicIntent = detectBasicIntent(message);
+    if (basicIntent === "greeting" || (basicIntent === "unknown" && isSimpleMessage(message))) {
+      const response: ChatResponse = {
+        success: true,
+        conversationId: conversationId || `conv-${Date.now()}`,
+        message: safeGreetingMessage(),
+        confidence: 0.99,
+        requiresEscalation: false,
+        toolsUsed: [],
+        actions: [],
+        sourceReferences: [],
+      };
+      return await cors(request, json(response));
+    }
 
     // Get or create conversation
     let conversation;
@@ -160,7 +189,7 @@ export async function action({ request }: ActionFunctionArgs) {
     const response: ChatResponse = {
       success: true,
       conversationId: conversation.id,
-      message: chatResponse.message,
+      message: sanitizeAssistantMessage(chatResponse.message || "", basicIntent),
       confidence: chatResponse.confidence,
       requiresEscalation: chatResponse.requiresEscalation,
       escalationReason: chatResponse.escalationReason,
@@ -174,16 +203,17 @@ export async function action({ request }: ActionFunctionArgs) {
   } catch (error) {
     console.error("Chat API Error:", error);
 
-    const errorMessage = error instanceof Error ? error.message : "Internal server error";
-
-    return json(
-      {
-        success: false,
-        error: errorMessage,
-        conversationId: "",
-      },
-      { status: 500 }
-    );
+    const response: ChatResponse = {
+      success: true,
+      conversationId: `conv-${Date.now()}`,
+      message: safeFallbackMessage("unknown"),
+      confidence: 0.35,
+      requiresEscalation: false,
+      toolsUsed: [],
+      actions: [],
+      sourceReferences: [],
+    };
+    return await cors(request, json(response));
   }
 }
 

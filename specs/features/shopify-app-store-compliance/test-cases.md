@@ -5,6 +5,8 @@
 1. Given a document request after install or reinstall, when Shopify returns a reauth response, then the app rewrites the request through the session-token bounce path without nested `shopify-reload`.
 2. Given the embedded app shell loads, when the route renders, then the app uses Shopify embedded providers and the navigation menu only appears after onboarding is complete.
 3. Given the app is installed or reinstalled, when the merchant reaches the app UI, then onboarding-gated routes remain protected and the merchant is not asked to enter a shop domain manually.
+4. Given Shopify calls `/?shop=<domain>` during install/reinstall, when root loader runs, then the app redirects immediately to `/auth/login?shop=<domain>`.
+5. Given authorization code grant completes, when auth/session is established, then a valid shop access token is persisted for protected route usage.
 
 ## Billing and Shopify API usage
 

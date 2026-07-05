@@ -19,6 +19,8 @@ This suite validates that Fluxbot does not remain stuck on Shopify's intermediat
   - Rebuilds `shopify-reload` without recursion (no nested `shopify-reload=`).
 - **UT-AIR-003** `test/unit/authenticate-admin.server.test.ts`
   - Keeps non-document requests behavior unchanged (no false redirect).
+- **UT-AIR-004** `test/integration/auth-session-token-route.test.ts`
+  - Root loader redirects `/?shop=...` directly to `/auth/login?shop=...` for install/reinstall OAuth grant start.
 
 ### Integration tests
 
@@ -26,6 +28,8 @@ This suite validates that Fluxbot does not remain stuck on Shopify's intermediat
   - `app/uninstalled` resets onboarding metadata and completion state.
 - **IT-AIR-002** `test/integration/webhooks-lifecycle.test.ts`
   - Unauthenticated webhook requests are rejected (lifecycle safety).
+- **IT-AIR-003** `test/unit/services/shop-context.server.test.ts`
+  - `ensureShopRecord()` syncs `accessToken` to IA backend and resets onboarding when reinstalling cancelled shops.
 
 ### E2E smoke tests
 

@@ -17,7 +17,7 @@ strict_require_hooks_active() {
     strict_fail "core.hooksPath must be .githooks. Run: git config core.hooksPath .githooks"
   fi
 
-  for hook in ./.githooks/pre-commit ./.githooks/post-commit ./.githooks/pre-push ./.githooks/strict-flow.sh; do
+  for hook in ./.githooks/pre-commit ./.githooks/post-commit ./.githooks/pre-push ./.githooks/post-merge ./.githooks/strict-flow.sh; do
     if [ ! -x "$hook" ]; then
       strict_fail "$hook must exist and be executable."
     fi
@@ -101,4 +101,12 @@ strict_post_commit_sync_and_push() {
 
   echo "[strict-flow] Pushing branch '$branch'..."
   git push --set-upstream origin "$branch" || strict_fail "git push failed. Do not close the task until the branch is pushed."
+}
+
+strict_post_merge_verify() {
+  strict_require_hooks_active
+  strict_run_doc_hook post-merge
+  strict_run_qa
+  strict_require_clean_worktree
+  echo "[strict-flow] post-merge verification passed."
 }

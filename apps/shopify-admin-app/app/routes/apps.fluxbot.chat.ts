@@ -18,6 +18,13 @@ import { getIAGateway } from "../services/ia-gateway.server";
 import { getMerchantAdminConfig } from "../services/admin-config.server";
 import { getCatalogFallbackMessage, resolveEffectiveLocale } from "../services/chat-locale.server";
 import { verifyShopifyProxyRequest } from "../services/shopify-proxy-auth.server";
+import {
+  detectBasicIntent,
+  isSimpleMessage,
+  safeFallbackMessage,
+  safeGreetingMessage,
+  sanitizeAssistantMessage,
+} from "../services/chat-safety.server";
 
 // ── W7 — Startup diagnostics ─────────────────────────────────────────────────
 
@@ -469,7 +476,7 @@ export async function action({ request }: ActionFunctionArgs) {
       visitorId,
       customerId,
       sessionId,
-      locale,
+      locale = "es",
       context = {},
     } = body as Record<string, any>;
 
@@ -489,6 +496,20 @@ export async function action({ request }: ActionFunctionArgs) {
 
     if (!message?.trim()) {
       return json({ success: false, error: "Message is required" }, { status: 400 }, traceId);
+    }
+
+    const basicIntent = detectBasicIntent(message);
+    if (basicIntent === "greeting" || (basicIntent === "unknown" && isSimpleMessage(message))) {
+      return json({
+        success: true,
+        conversationId: conversationId || `conv-${Date.now()}`,
+        message: safeGreetingMessage(),
+        confidence: 0.99,
+        requiresEscalation: false,
+        actions: [],
+        metadata: { products: [] },
+        sourceReferences: [],
+      });
     }
 
     const shop = await prisma.shop.findUnique({ where: { domain: shopDomain } });
@@ -517,7 +538,7 @@ export async function action({ request }: ActionFunctionArgs) {
       conversation = await prisma.conversation.create({
         data: {
           shopId: shop.id,
-          channel: "WEB_CHAT",
+          channel: "SHOPIFY_PROXY",
           visitorId: visitorId ?? context.visitorId,
           customerId: customerId ?? context.customerId,
           sessionId: sessionId ?? context.sessionId,
@@ -646,6 +667,15 @@ export async function action({ request }: ActionFunctionArgs) {
     }, undefined, traceId);
   } catch (error) {
     console.error("[ProxyChat] Error:", error);
-    return json({ success: false, error: "Internal error" }, { status: 500 });
+    return json({
+      success: true,
+      conversationId: `conv-${Date.now()}`,
+      message: safeFallbackMessage("unknown"),
+      confidence: 0.35,
+      requiresEscalation: false,
+      actions: [],
+      metadata: { products: [] },
+      sourceReferences: [],
+    });
   }
 }

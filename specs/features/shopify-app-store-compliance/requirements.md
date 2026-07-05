@@ -37,6 +37,8 @@ As the Fluxbot team, I want the compliance matrix to mark payments apps, purchas
 - **FR-CS-003**: The app MUST preserve embedded context (`shop`, `host`, `embedded`) across auth bounces and reloads.
 - **FR-CS-004**: The app MUST redirect back to the app UI after install/reinstall instead of leaving the merchant on a dead-end response page.
 - **FR-CS-005**: The app MUST use Shopify session tokens and must not rely on third-party cookies or local storage for embedded auth.
+- **FR-CS-032**: Authorization code grant flow MUST exchange the code successfully and persist a valid access token for the shop session before protected app routes are considered authenticated.
+- **FR-CS-033**: Redirect URLs used in install/reinstall OAuth MUST land merchants in usable UI (`/app` or `/app/onboarding`) and MUST support reinstalling stores that had previous installations.
 
 ### Shopify APIs and billing
 

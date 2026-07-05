@@ -5,13 +5,17 @@ import { login } from "../shopify.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const url = new URL(request.url);
+  const hasShopParam = Boolean(url.searchParams.get("shop"));
+  const hasHostParam = Boolean(url.searchParams.get("host"));
+  const isEmbeddedParam = url.searchParams.get("embedded") === "1";
+
+  if (hasShopParam && !hasHostParam && !isEmbeddedParam) {
+    throw redirect(`/auth/login?shop=${encodeURIComponent(url.searchParams.get("shop") || "")}`);
+  }
 
   // Embedded loads can include shop, host, and/or embedded params at "/".
   // Forward to /app preserving all query params so App Bridge gets the expected context.
-  const isEmbeddedBootstrap =
-    url.searchParams.has("shop") ||
-    url.searchParams.has("host") ||
-    url.searchParams.get("embedded") === "1";
+  const isEmbeddedBootstrap = hasShopParam || hasHostParam || isEmbeddedParam;
 
   if (isEmbeddedBootstrap) {
     throw redirect(`/app?${url.searchParams.toString()}`);

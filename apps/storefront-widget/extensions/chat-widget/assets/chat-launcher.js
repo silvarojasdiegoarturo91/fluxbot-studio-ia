@@ -137,7 +137,7 @@
       addedToCart: 'Added to cart.', viewCart: 'View cart',
       cartError: 'Sorry, I could not add this item to your cart right now.',
       typing: 'Assistant is typing…',
-      errorRetry: 'Sorry, I had trouble processing that. Please try again.',
+      errorRetry: 'I could not complete that request. Please try again or ask about products, orders, or FAQs.',
       errorMax: 'I\'m experiencing technical difficulties. Please try again later or contact support.',
       cartVariantError: 'I could not resolve the product variant for cart addition.',
       consentTitle: 'Before we chat…',
@@ -1256,6 +1256,7 @@
       hideTypingIndicator();
 
       if (response.message) {
+        response.message = sanitizeAssistantMessage(response.message);
         var mergedMetadata = response.metadata || {};
         if (Array.isArray(response.actions)) {
           var actionProducts = response.actions
@@ -1460,6 +1461,23 @@
         data.metadata && Array.isArray(data.metadata.products) ? data.metadata.products.length : 0,
     });
     return data;
+  }
+
+  function sanitizeAssistantMessage(text) {
+    if (typeof text !== 'string') return i18n.greeting;
+    var normalized = text.trim();
+    if (!normalized) return i18n.greeting;
+
+    var blocked = [
+      'Sorry, I had trouble processing that. Please try again.',
+      'I apologize, but I encountered an issue processing your request. Please try again.',
+    ];
+
+    if (blocked.indexOf(normalized) !== -1) {
+      return i18n.greeting;
+    }
+
+    return normalized;
   }
 
   // ─── W6 — Safe markdown rendering (no innerHTML) ─────────────────────────

@@ -82,7 +82,7 @@ describe("root route - install entry behavior", () => {
       expect(error).toBeInstanceOf(Response);
       const response = error as Response;
       expect(response.status).toBe(302);
-      expect(response.headers.get("Location")).toBe("/app?shop=test-install.myshopify.com");
+      expect(response.headers.get("Location")).toBe("/auth/login?shop=test-install.myshopify.com");
     }
   });
 

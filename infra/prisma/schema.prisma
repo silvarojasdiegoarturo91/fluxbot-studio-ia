@@ -29,6 +29,8 @@ enum UserRole {
 
 enum ConversationChannel {
   WEB_CHAT
+  SHOPIFY_PROXY
+  EXTERNAL_WIDGET
   WHATSAPP
   INSTAGRAM
   EMAIL
@@ -916,4 +918,3 @@ model LlmsTxtCache {
 
   @@map("llms_txt_cache")
 }
-
