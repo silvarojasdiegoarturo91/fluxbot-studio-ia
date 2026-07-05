@@ -5,7 +5,7 @@
     "description": "OpenSpec local para requisitos de fluxbot-studio-ia-shopify. Los requisitos aquí son espejo de los requisitos root que afectan este repositorio.",
     "owner": "frontend_shopify",
     "status": "in-development",
-    "last_updated": "2026-07-05T02:14:21.173Z",
+    "last_updated": "2026-07-05T02:54:26.317Z",
     "source_of_truth": ".openspec.json",
     "mirror_root": "../.openspec.json"
   },
@@ -619,6 +619,31 @@
           ".github/copilot-instructions.md",
           "AGENTS.md",
           "CLAUDE.md"
+        ],
+        "acceptance_criteria": [
+          "Documentation references remain synchronized",
+          "Agent instructions stay aligned with the latest docs",
+          "Follow-up work is tracked in OpenSpec"
+        ],
+        "dependencies": [],
+        "metrics": {
+          "quality_score": 90,
+          "completion_rate": 0,
+          "velocity": 1
+        }
+      },
+      {
+        "id": "DOC-2e67e34-2026-07-05T02-54-26-316Z",
+        "title": "Review documentation update (1 files)",
+        "description": "Documentation changed in: specs/features/auth-install-recovery/requirements.md. Review and align agent instructions, references, and related docs.",
+        "priority": "medium",
+        "status": "planned",
+        "owner": "docs",
+        "components": [
+          "specs/features/auth-install-recovery/requirements.md"
+        ],
+        "source_files": [
+          "specs/features/auth-install-recovery/requirements.md"
         ],
         "acceptance_criteria": [
           "Documentation references remain synchronized",
