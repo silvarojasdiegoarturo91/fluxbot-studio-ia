@@ -15,6 +15,7 @@ vi.mock("../../app/services/billing.server", () => ({
     listPlans: vi.fn(),
     getPlan: vi.fn(),
     createSubscription: vi.fn(),
+    resolveCurrentPlan: vi.fn(),
   },
 }));
 
@@ -81,6 +82,11 @@ describe("app.billing route", () => {
       billedBlocks: 0,
       cappedAmount: 100,
       status: "active",
+    } as any);
+    mockBillingService.resolveCurrentPlan.mockResolvedValue({
+      planId: "starter",
+      source: "shopify",
+      hasActiveSubscription: true,
     } as any);
     mockBillingService.getPlan.mockReturnValue({
       id: "starter",

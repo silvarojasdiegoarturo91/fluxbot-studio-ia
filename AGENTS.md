@@ -24,6 +24,13 @@ Este repo debe tener hooks activos (`npm run githooks:install`) con este flujo:
 4. `post-commit` hace `push`.
 5. Si hay conflicto, resolver y repetir `qa:gate` antes de empujar.
 
+**Regla de cierre obligatoria para agentes y humanos:**
+- Ningún cambio se considera terminado si no quedó **commiteado y empujado** al remoto del branch.
+- Si el remoto avanzó, es obligatorio **bajar cambios** (`git fetch` + `git pull --rebase --autostash`) antes del push final.
+- Si falla `fetch`, `pull --rebase` o `push`, la tarea queda **abierta/bloqueada** hasta resolverlo.
+- Está prohibido cerrar tareas con worktree sucio (tracked, staged o untracked sin ignorar).
+- No usar `--no-verify` para saltar hooks.
+
 Además, todo cambio del Admin Shopify debe ejecutar la suite E2E aplicable antes de cerrarse. Para cambios de rutas, loaders, actions, UI, configuración, specs o hooks, usar Playwright completo (`npm --workspace @fluxbot/shopify-admin-app run test:e2e` desde este repo o el job CI equivalente). Si E2E falla en local o GitHub Actions, el agente debe corregir el fallo y repetir E2E antes de commit/push/cierre.
 
 Regla de regresión para "Sincronizar catálogo": cualquier cambio que toque `/app/assistant-config`, `iaClient.catalog.sync`, `ensureShopRecord`, `syncShopReferenceToIABackend` o el contrato de shop sync debe revisar `REQ-IA-AI-001`, `REQ-IA-AI-002`, `REQ-ROOT-AI-001` y `REQ-ROOT-009`, actualizar SpecKit/OpenSpec local si cambia el comportamiento y mantener pruebas para propagación de `accessToken`, bypass de throttle con token, header `X-Shop-Domain`, unwrap de `data`, `durationMs`, `errors[]` parciales y mensajes sin `[object Object]`.

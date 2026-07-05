@@ -4,6 +4,10 @@ vi.mock("../../../app/db.server", () => ({
   default: {
     shop: {
       findUnique: vi.fn(),
+      update: vi.fn(),
+    },
+    shopInstallation: {
+      updateMany: vi.fn(),
     },
   },
 }));
@@ -20,7 +24,11 @@ vi.mock("../../../app/services/ia-backend.server", () => ({
 
 import prisma from "../../../app/db.server";
 import { iaClient } from "../../../app/services/ia-backend.server";
-import { BillingService, resolveBillingEnvironmentMode } from "../../../app/services/billing.server";
+import {
+  BillingService,
+  normalizePlanId,
+  resolveBillingEnvironmentMode,
+} from "../../../app/services/billing.server";
 
 const mockPrisma = vi.mocked(prisma);
 const mockBilling = vi.mocked(iaClient.billing);
@@ -28,8 +36,8 @@ const mockBilling = vi.mocked(iaClient.billing);
 describe("BillingService.listPlans", () => {
   it("returns built-in plans when no shop is provided", async () => {
     const plans = await BillingService.listPlans();
-    expect(plans).toHaveLength(3);
-    expect(plans[0].id).toBe("starter");
+    expect(plans).toHaveLength(5);
+    expect(plans[0].id).toBe("free");
   });
 
   it("loads plans from the backend when a shop id is provided", async () => {
@@ -53,14 +61,26 @@ describe("BillingService.listPlans", () => {
     expect(mockBilling.plans).toHaveBeenCalledWith("shop.example.myshopify.com");
     expect(plans).toHaveLength(1);
     expect(plans[0].id).toBe("starter");
-    expect(plans[0].amountUsd).toBe(18.5);
+    expect(plans[0].amountUsd).toBe(19);
   });
 });
 
 describe("BillingService.getPlan", () => {
   it("returns known plans synchronously for validation", () => {
     expect(BillingService.getPlan("starter")?.name).toBe("FluxBot Starter");
+    expect(BillingService.getPlan("FREE")?.id).toBe("free");
+    expect(BillingService.getPlan("FluxBot Scale")?.id).toBe("scale");
     expect(BillingService.getPlan("unknown")).toBeNull();
+  });
+});
+
+describe("normalizePlanId", () => {
+  it("normalizes Shopify plan labels and mixed case", () => {
+    expect(normalizePlanId("FluxBot Starter")).toBe("starter");
+    expect(normalizePlanId("starter")).toBe("starter");
+    expect(normalizePlanId("FREE")).toBe("free");
+    expect(normalizePlanId("Free")).toBe("free");
+    expect(normalizePlanId("FluxBot Growth")).toBe("growth");
   });
 });
 
@@ -262,6 +282,16 @@ describe("BillingService.createSubscription", () => {
     expect(global.fetch).toHaveBeenCalledTimes(1);
   });
 
+  it("rejects attempting to subscribe to free plan via Shopify billing", async () => {
+    await expect(
+      BillingService.createSubscription({
+        shopId: "shop-1",
+        planId: "free",
+        returnUrl: "https://app.example.com/app/billing",
+      }),
+    ).rejects.toThrow("Free plan does not require Shopify billing approval.");
+  });
+
   it("uses immediate replacement for upgrade/downgrade proration", async () => {
     mockPrisma.shop.findUnique.mockResolvedValue({
       domain: "shop.example.myshopify.com",
@@ -307,6 +337,96 @@ describe("BillingService.createSubscription", () => {
       shopId: "shop-1",
       planId: "growth",
       returnUrl: "https://app.example.com/app/billing",
+    });
+
+    describe("BillingService.resolveCurrentPlan", () => {
+      beforeEach(() => {
+        vi.clearAllMocks();
+      });
+
+      it("uses Shopify active subscription as source of truth and syncs local plan", async () => {
+        mockPrisma.shop.findUnique
+          .mockResolvedValueOnce({
+            domain: "shop.example.myshopify.com",
+            accessToken: "shpat_valid_token",
+          } as any)
+          .mockResolvedValueOnce({
+            plan: "FREE",
+            installations: [],
+          } as any);
+        mockPrisma.shop.update.mockResolvedValue({ id: "shop-1" } as any);
+        mockPrisma.shopInstallation.updateMany.mockResolvedValue({ count: 1 } as any);
+
+        global.fetch = vi.fn().mockResolvedValue({
+          ok: true,
+          json: async () => ({
+            data: {
+              currentAppInstallation: {
+                activeSubscriptions: [
+                  {
+                    id: "gid://shopify/AppSubscription/1",
+                    name: "FluxBot Starter",
+                    test: true,
+                    status: "ACTIVE",
+                    lineItems: [
+                      {
+                        plan: {
+                          pricingDetails: {
+                            __typename: "AppRecurringPricing",
+                            price: { amount: "19.00", currencyCode: "USD" },
+                            interval: "EVERY_30_DAYS",
+                          },
+                        },
+                      },
+                    ],
+                  },
+                ],
+              },
+            },
+          }),
+        }) as any;
+
+        const resolved = await BillingService.resolveCurrentPlan("shop-1");
+        expect(resolved.planId).toBe("starter");
+        expect(resolved.source).toBe("shopify");
+        expect(mockPrisma.shop.update).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: expect.objectContaining({ plan: "starter" }),
+          }),
+        );
+      });
+
+      it("falls back to local normalized plan when Shopify has no active subscription", async () => {
+        const status = {
+          hasActiveSubscription: false,
+          subscriptions: [],
+        };
+        mockPrisma.shop.findUnique.mockResolvedValue({
+          plan: "FluxBot Growth",
+          installations: [],
+        } as any);
+
+        const resolved = await BillingService.resolveCurrentPlan("shop-1", status as any);
+        expect(resolved.planId).toBe("growth");
+        expect(resolved.source).toBe("local");
+      });
+
+      it("defaults to free when Shopify has no active subscription and local plan is missing", async () => {
+        const status = {
+          hasActiveSubscription: false,
+          subscriptions: [],
+        };
+        mockPrisma.shop.findUnique.mockResolvedValue({
+          plan: null,
+          installations: [],
+        } as any);
+        mockPrisma.shop.update.mockResolvedValue({ id: "shop-1" } as any);
+        mockPrisma.shopInstallation.updateMany.mockResolvedValue({ count: 1 } as any);
+
+        const resolved = await BillingService.resolveCurrentPlan("shop-1", status as any);
+        expect(resolved.planId).toBe("free");
+        expect(resolved.source).toBe("default");
+      });
     });
 
     const [, options] = vi.mocked(global.fetch).mock.calls[1] as [string, RequestInit];

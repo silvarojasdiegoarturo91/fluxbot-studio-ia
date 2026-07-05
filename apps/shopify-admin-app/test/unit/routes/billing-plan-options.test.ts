@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { ActiveSubscription, BillingPlan } from "../../../app/services/billing.server";
 import { buildBillingPlanCards, resolveActivePlanId } from "../../../app/routes/app.billing";
 
-function makePlan(id: "starter" | "growth" | "pro", amountUsd: number, name?: string): BillingPlan {
+function makePlan(id: "free" | "starter" | "growth" | "pro" | "scale", amountUsd: number, name?: string): BillingPlan {
   return {
     id,
     name: name ?? `Plan ${id}`,
@@ -30,9 +30,11 @@ function makeSubscription(name: string): ActiveSubscription {
 
 describe("billing plan options", () => {
   const plans: BillingPlan[] = [
+    makePlan("free", 0, "Free"),
     makePlan("starter", 19, "FluxBot Starter"),
     makePlan("growth", 49, "FluxBot Growth"),
     makePlan("pro", 99, "FluxBot Pro"),
+    makePlan("scale", 149, "FluxBot Scale"),
   ];
 
   it("merchant with no active plan sees all plans", () => {
@@ -43,7 +45,7 @@ describe("billing plan options", () => {
       isEs: false,
     });
 
-    expect(cards.map((card) => card.plan.id)).toEqual(["starter", "growth", "pro"]);
+    expect(cards.map((card) => card.plan.id)).toEqual(["free", "starter", "growth", "pro", "scale"]);
     expect(cards.every((card) => card.direction === "initial")).toBe(true);
   });
 
@@ -55,11 +57,11 @@ describe("billing plan options", () => {
       isEs: false,
     });
 
-    expect(cards).toHaveLength(3);
+    expect(cards).toHaveLength(5);
     expect(cards.every((card) => card.direction === "upgrade")).toBe(true);
   });
 
-  it("merchant on starter does not see starter and only sees upgrades", () => {
+  it("merchant on starter does not see starter and sees valid downgrade/upgrade options", () => {
     const cards = buildBillingPlanCards({
       plans,
       activePlanId: "starter",
@@ -67,8 +69,13 @@ describe("billing plan options", () => {
       isEs: false,
     });
 
-    expect(cards.map((card) => card.plan.id)).toEqual(["growth", "pro"]);
-    expect(cards.every((card) => card.direction === "upgrade")).toBe(true);
+    expect(cards.map((card) => card.plan.id)).toEqual(["free", "growth", "pro", "scale"]);
+    expect(cards.map((card) => [card.plan.id, card.direction])).toEqual([
+      ["free", "downgrade"],
+      ["growth", "upgrade"],
+      ["pro", "upgrade"],
+      ["scale", "upgrade"],
+    ]);
   });
 
   it("merchant on growth sees downgrade and upgrade labels", () => {
@@ -80,20 +87,22 @@ describe("billing plan options", () => {
     });
 
     expect(cards.map((card) => [card.plan.id, card.direction])).toEqual([
+      ["free", "downgrade"],
       ["starter", "downgrade"],
       ["pro", "upgrade"],
+      ["scale", "upgrade"],
     ]);
   });
 
-  it("merchant on highest plan only sees downgrades", () => {
+  it("merchant on scale only sees downgrades", () => {
     const cards = buildBillingPlanCards({
       plans,
-      activePlanId: "pro",
+      activePlanId: "scale",
       hasUnknownActivePlan: false,
       isEs: false,
     });
 
-    expect(cards.map((card) => card.plan.id)).toEqual(["starter", "growth"]);
+    expect(cards.map((card) => card.plan.id)).toEqual(["free", "starter", "growth", "pro"]);
     expect(cards.every((card) => card.direction === "downgrade")).toBe(true);
   });
 
@@ -101,10 +110,10 @@ describe("billing plan options", () => {
     expect(
       resolveActivePlanId({
         plans,
-        activePlanCode: "growth",
+        activePlanCode: "FREE",
         subscriptions: [],
       }),
-    ).toBe("growth");
+    ).toBe("free");
 
     expect(
       resolveActivePlanId({
@@ -113,6 +122,14 @@ describe("billing plan options", () => {
         subscriptions: [makeSubscription("FluxBot Pro")],
       }),
     ).toBe("pro");
+
+    expect(
+      resolveActivePlanId({
+        plans,
+        activePlanCode: "free",
+        subscriptions: [makeSubscription("FluxBot Starter")],
+      }),
+    ).toBe("starter");
   });
 
   it("provides card metadata for visual pricing cards", () => {
@@ -123,9 +140,10 @@ describe("billing plan options", () => {
       isEs: false,
     });
 
-    expect(cards[0].badgeLabel).toBe("Upgrade");
-    expect(cards[0].ctaLabel).toContain("Upgrade to");
-    expect(cards[0].iconLabel).toBe("G");
-    expect(cards[0].featureBullets.length).toBeGreaterThanOrEqual(5);
+    const growthCard = cards.find((card) => card.plan.id === "growth");
+    expect(growthCard?.badgeLabel).toBe("Upgrade");
+    expect(growthCard?.ctaLabel).toContain("Upgrade to");
+    expect(growthCard?.iconLabel).toBe("G");
+    expect((growthCard?.featureBullets.length ?? 0)).toBeGreaterThanOrEqual(5);
   });
 });

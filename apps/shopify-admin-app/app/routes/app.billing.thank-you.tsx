@@ -33,10 +33,16 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const planId = requestUrl.searchParams.get("plan") as BillingPlanId | null;
   const selectedPlan = planId ? BillingService.getPlan(planId) : null;
   const status = await BillingService.getStatus(shop.id).catch(() => null);
+  const resolvedCurrentPlan = status
+    ? await BillingService.resolveCurrentPlan(shop.id, status).catch(() => null)
+    : null;
 
   return {
-    selectedPlan,
-    hasActiveSubscription: Boolean(status?.hasActiveSubscription),
+    selectedPlan: selectedPlan
+      ?? (resolvedCurrentPlan?.planId ? BillingService.getPlan(resolvedCurrentPlan.planId) : null),
+    hasActiveSubscription: Boolean(
+      resolvedCurrentPlan?.hasActiveSubscription ?? status?.hasActiveSubscription,
+    ),
     dashboardUrl: buildDashboardUrl(requestUrl.searchParams),
   };
 }

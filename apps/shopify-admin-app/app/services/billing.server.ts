@@ -7,6 +7,17 @@ const DEFAULT_BILLING_ERROR_MESSAGE =
 
 const BILLING_PLANS = [
   {
+    id: 'free',
+    name: 'Free',
+    amountUsd: 0,
+    interval: 'EVERY_30_DAYS' as const,
+    description: 'Free baseline plan',
+    includedMessages: 75,
+    extraBlockSize: 0,
+    extraBlockPrice: 0,
+    cappedAmountUsd: 0,
+  },
+  {
     id: 'starter',
     name: 'FluxBot Starter',
     amountUsd: 19,
@@ -37,6 +48,17 @@ const BILLING_PLANS = [
     includedMessages: 10000,
     extraBlockSize: 2000,
     extraBlockPrice: 5,
+    cappedAmountUsd: 100,
+  },
+  {
+    id: 'scale',
+    name: 'FluxBot Scale',
+    amountUsd: 149,
+    interval: 'EVERY_30_DAYS' as const,
+    description: 'Global scale, governance and multi-team controls',
+    includedMessages: 30000,
+    extraBlockSize: 5000,
+    extraBlockPrice: 4,
     cappedAmountUsd: 100,
   },
 ] as const;
@@ -206,21 +228,95 @@ type ActiveSubscriptionSummary = {
   status: string;
 };
 
-function normalizeSubscriptionName(name: string): string {
-  return name.trim().toLowerCase();
+function normalizePlanText(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/^fluxbot\s+/i, '')
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ');
 }
 
-function findActivePlanIdBySubscriptionName(subscriptionName: string): BillingPlanId | null {
-  const normalized = normalizeSubscriptionName(subscriptionName);
-  const matched = BILLING_PLANS.find((plan) =>
-    normalizeSubscriptionName(plan.name) === normalized ||
-    normalized.includes(plan.id),
-  );
+export function normalizePlanId(raw: string | null | undefined): BillingPlanId | null {
+  if (!raw) return null;
+  const normalized = normalizePlanText(raw);
+  if (!normalized) return null;
+
+  if (normalized === 'free') return 'free';
+  if (normalized === 'starter') return 'starter';
+  if (normalized === 'growth') return 'growth';
+  if (normalized === 'pro') return 'pro';
+  if (normalized === 'scale') return 'scale';
+
+  const tokens = normalized.split(' ');
+  if (tokens.includes('free')) return 'free';
+  if (tokens.includes('starter')) return 'starter';
+  if (tokens.includes('growth')) return 'growth';
+  if (tokens.includes('pro')) return 'pro';
+  if (tokens.includes('scale')) return 'scale';
+
+  return null;
+}
+
+export function findActivePlanIdBySubscriptionName(subscriptionName: string): BillingPlanId | null {
+  const normalized = normalizePlanText(subscriptionName);
+  const directMatch = normalizePlanId(normalized);
+  if (directMatch) {
+    return directMatch;
+  }
+
+  const matched = BILLING_PLANS.find((plan) => normalizePlanText(plan.name) === normalized);
   return matched?.id ?? null;
 }
 
 function isLiveSubscriptionStatus(status: string): boolean {
   return ["ACTIVE", "PENDING", "ACCEPTED", "FROZEN"].includes(String(status || "").toUpperCase());
+}
+
+async function loadLocalPlanId(shopId: string): Promise<BillingPlanId | null> {
+  const shop = await prisma.shop.findUnique({
+    where: { id: shopId },
+    select: {
+      plan: true,
+      installations: {
+        where: { uninstalledAt: null },
+        orderBy: { installedAt: 'desc' },
+        take: 1,
+        select: { billingPlan: true },
+      },
+    },
+  });
+
+  const installationPlan = shop?.installations?.[0]?.billingPlan ?? null;
+  return normalizePlanId(installationPlan) ?? normalizePlanId(shop?.plan ?? null);
+}
+
+async function persistResolvedPlan(params: {
+  shopId: string;
+  planId: BillingPlanId;
+  billingStatus?: string;
+}): Promise<void> {
+  await prisma.shop.update({
+    where: { id: params.shopId },
+    data: { plan: params.planId },
+  });
+
+  await prisma.shopInstallation.updateMany({
+    where: {
+      shopId: params.shopId,
+      uninstalledAt: null,
+    },
+    data: {
+      billingPlan: params.planId,
+      ...(params.billingStatus ? { billingStatus: params.billingStatus } : {}),
+    },
+  });
+}
+
+export interface ResolvedCurrentPlan {
+  planId: BillingPlanId | null;
+  source: 'shopify' | 'local' | 'default';
+  hasActiveSubscription: boolean;
 }
 
 export class BillingService {
@@ -230,23 +326,30 @@ export class BillingService {
     }
 
     const shopDomain = await getShopDomain(shopId);
-    const plans = await iaClient.billing.plans(shopDomain);
+    const remotePlans = await iaClient.billing.plans(shopDomain);
+    const remotePlanIds = new Set(
+      remotePlans
+        .map((plan) => normalizePlanId(plan.code))
+        .filter((planId): planId is BillingPlanId => Boolean(planId)),
+    );
 
-    return plans.map((plan) => ({
-      id: plan.code as BillingPlanId,
-      name: plan.name,
-      amountUsd: plan.basePrice ?? 0,
-      interval: 'EVERY_30_DAYS',
-      description: `${plan.name} plan`,
-      includedMessages: plan.includedMessages,
-      extraBlockSize: plan.extraBlockSize ?? 0,
-      extraBlockPrice: plan.extraBlockPrice ?? 0,
-      cappedAmountUsd: plan.cappedAmount ?? 0,
-    }));
+    if (remotePlanIds.size === 0) {
+      return BILLING_PLANS.map((plan) => ({ ...plan }));
+    }
+
+    return BILLING_PLANS
+      .filter((plan) => remotePlanIds.has(plan.id))
+      .map((plan) => ({ ...plan }));
   }
 
   static getPlan(planId: string): BillingPlan | null {
-    return BILLING_PLANS.find((plan) => plan.id === planId) ? { ...BILLING_PLANS.find((plan) => plan.id === planId)! } : null;
+    const normalizedPlanId = normalizePlanId(planId);
+    if (!normalizedPlanId) {
+      return null;
+    }
+    return BILLING_PLANS.find((plan) => plan.id === normalizedPlanId)
+      ? { ...BILLING_PLANS.find((plan) => plan.id === normalizedPlanId)! }
+      : null;
   }
 
   static async getStatus(shopId: string): Promise<BillingStatus> {
@@ -320,9 +423,66 @@ export class BillingService {
       };
     });
 
+    const liveSubscriptions = subscriptions.filter((subscription) => isLiveSubscriptionStatus(subscription.status));
+
     return {
-      hasActiveSubscription: subscriptions.length > 0,
+      hasActiveSubscription: liveSubscriptions.length > 0,
       subscriptions,
+    };
+  }
+
+  static async resolveCurrentPlan(shopId: string, status?: BillingStatus): Promise<ResolvedCurrentPlan> {
+    const billingStatus = status ?? await BillingService.getStatus(shopId);
+    const liveSubscriptions = billingStatus.subscriptions.filter((subscription) =>
+      isLiveSubscriptionStatus(subscription.status),
+    );
+
+    if (liveSubscriptions.length > 0) {
+      for (const subscription of liveSubscriptions) {
+        const mappedPlanId = findActivePlanIdBySubscriptionName(subscription.name);
+        if (!mappedPlanId) {
+          continue;
+        }
+
+        await persistResolvedPlan({
+          shopId,
+          planId: mappedPlanId,
+          billingStatus: subscription.status,
+        });
+
+        return {
+          planId: mappedPlanId,
+          source: 'shopify',
+          hasActiveSubscription: true,
+        };
+      }
+
+      return {
+        planId: null,
+        source: 'shopify',
+        hasActiveSubscription: true,
+      };
+    }
+
+    const localPlanId = await loadLocalPlanId(shopId);
+    if (localPlanId) {
+      return {
+        planId: localPlanId,
+        source: 'local',
+        hasActiveSubscription: false,
+      };
+    }
+
+    await persistResolvedPlan({
+      shopId,
+      planId: 'free',
+      billingStatus: 'INACTIVE',
+    });
+
+    return {
+      planId: 'free',
+      source: 'default',
+      hasActiveSubscription: false,
     };
   }
 
@@ -337,6 +497,10 @@ export class BillingService {
     const plan = BILLING_PLANS.find((candidate) => candidate.id === params.planId);
     if (!plan) {
       throw new Error('Invalid billing plan');
+    }
+
+    if (plan.id === 'free') {
+      throw new Error('Free plan does not require Shopify billing approval.');
     }
 
     let domain: string;

@@ -108,56 +108,89 @@ function formatIsoDateLabel(value?: string, isEs = false): string {
   });
 }
 
-function resolvePlanIdFromSubscriptionName(name: string, plans: BillingPlan[]): BillingPlanId | null {
-  const normalized = name.trim().toLowerCase();
-  const matched = plans.find((plan) =>
-    plan.name.trim().toLowerCase() === normalized || normalized.includes(plan.id),
-  );
-  return matched?.id ?? null;
-}
-
 export function resolveActivePlanId(options: {
   plans: BillingPlan[];
   activePlanCode?: string;
   subscriptions: ActiveSubscription[];
 }): BillingPlanId | null {
   const { plans, activePlanCode, subscriptions } = options;
-  if (activePlanCode && plans.some((plan) => plan.id === activePlanCode)) {
-    return activePlanCode as BillingPlanId;
-  }
+  const liveStatuses = new Set(["ACTIVE", "PENDING", "ACCEPTED", "FROZEN"]);
+  const normalizeValue = (value: string): string =>
+    value
+      .trim()
+      .toLowerCase()
+      .replace(/^fluxbot\s+/i, "")
+      .replace(/[_-]+/g, " ")
+      .replace(/\s+/g, " ");
+
+  const mapPlanCode = (raw: string | undefined): BillingPlanId | null => {
+    if (!raw) return null;
+    const normalized = normalizeValue(raw);
+    if (normalized === "free") return "free";
+    if (normalized === "starter") return "starter";
+    if (normalized === "growth") return "growth";
+    if (normalized === "pro") return "pro";
+    if (normalized === "scale") return "scale";
+
+    const tokens = normalized.split(" ");
+    if (tokens.includes("free")) return "free";
+    if (tokens.includes("starter")) return "starter";
+    if (tokens.includes("growth")) return "growth";
+    if (tokens.includes("pro")) return "pro";
+    if (tokens.includes("scale")) return "scale";
+    return null;
+  };
 
   for (const subscription of subscriptions) {
-    const candidate = resolvePlanIdFromSubscriptionName(subscription.name, plans);
-    if (candidate) {
+    if (!liveStatuses.has(String(subscription.status || "").toUpperCase())) {
+      continue;
+    }
+    const candidate = mapPlanCode(subscription.name);
+    if (candidate && plans.some((plan) => plan.id === candidate)) {
       return candidate;
     }
   }
+
+  const normalizedActivePlanCode = mapPlanCode(activePlanCode);
+  if (normalizedActivePlanCode && plans.some((plan) => plan.id === normalizedActivePlanCode)) {
+    return normalizedActivePlanCode;
+  }
+
   return null;
 }
 
 function planIconLabel(planId: BillingPlanId): string {
+  if (planId === "free") return "F";
   if (planId === "starter") return "S";
   if (planId === "growth") return "G";
+  if (planId === "scale") return "SC";
   return "P";
 }
 
 function buildPlanFeatureBullets(plan: BillingPlan, isEs: boolean): string[] {
-  const conversationLimit =
-    plan.id === "starter" ? 500 : plan.id === "growth" ? 2000 : 10000;
+  const conversationLimit = plan.includedMessages;
   const agentLimit =
-    plan.id === "starter" ? 1 : plan.id === "growth" ? 3 : 10;
+    plan.id === "free" ? 1 : plan.id === "starter" ? 1 : plan.id === "growth" ? 3 : plan.id === "pro" ? 10 : 20;
   const personalizationLabel =
-    plan.id === "starter"
+    plan.id === "free"
+      ? (isEs ? "Personalización inicial" : "Starter personalization")
+      : plan.id === "starter"
       ? (isEs ? "Personalización básica" : "Basic personalization")
       : plan.id === "growth"
         ? (isEs ? "Personalización avanzada" : "Advanced personalization")
-        : (isEs ? "Personalización enterprise" : "Enterprise personalization");
+        : plan.id === "pro"
+          ? (isEs ? "Personalización enterprise" : "Enterprise personalization")
+          : (isEs ? "Personalización a escala" : "Scaled personalization");
   const supportLabel =
-    plan.id === "starter"
+    plan.id === "free"
+      ? (isEs ? "Soporte por documentación" : "Documentation support")
+      : plan.id === "starter"
       ? (isEs ? "Soporte estándar" : "Standard support")
       : plan.id === "growth"
         ? (isEs ? "Soporte prioritario" : "Priority support")
-        : (isEs ? "Soporte dedicado" : "Dedicated support");
+        : plan.id === "pro"
+          ? (isEs ? "Soporte dedicado" : "Dedicated support")
+          : (isEs ? "Soporte enterprise 24/7" : "24/7 enterprise support");
   return [
     isEs
       ? `${conversationLimit.toLocaleString()} conversaciones/mes`
@@ -245,12 +278,15 @@ export async function loader({ request }: LoaderFunctionArgs) {
       BillingService.listPlans(shop.id),
       BillingService.getUsageStatus(shop.id),
     ]);
+    const resolvedCurrentPlan = await BillingService.resolveCurrentPlan(shop.id, status);
 
     return {
       shop,
       status,
       plans,
       usageStatus,
+      resolvedCurrentPlanId: resolvedCurrentPlan.planId,
+      resolvedHasActiveSubscription: resolvedCurrentPlan.hasActiveSubscription,
       error: null as string | null,
     };
   } catch (error) {
@@ -259,6 +295,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
       status: { hasActiveSubscription: false, subscriptions: [] },
       plans: await BillingService.listPlans(),
       usageStatus: { currentUsage: 0, includedUsage: 500, billedBlocks: 0, cappedAmount: 100, status: "active" },
+      resolvedCurrentPlanId: null as BillingPlanId | null,
+      resolvedHasActiveSubscription: false,
       error: error instanceof Error ? error.message : "Failed to load billing status",
     };
   }
@@ -347,14 +385,16 @@ export default function BillingPage() {
     ? Math.min(100, Math.round((usageStatus.currentUsage / usageStatus.includedUsage) * 100))
     : 0;
   const extraUsage = Math.max(0, usageStatus.currentUsage - usageStatus.includedUsage);
-  const activePlanId = resolveActivePlanId({
+  const fallbackActivePlanId = resolveActivePlanId({
     plans: data.plans,
     activePlanCode: data.usageStatus.activePlanCode,
     subscriptions: data.status.subscriptions,
   });
+  const activePlanId = data.resolvedCurrentPlanId ?? fallbackActivePlanId;
   const activeSubscription = data.status.subscriptions[0] ?? null;
   const activePlan = activePlanId ? data.plans.find((plan) => plan.id === activePlanId) ?? null : null;
-  const hasUnknownActivePlan = data.status.hasActiveSubscription && !activePlanId;
+  const hasActiveSubscription = data.resolvedHasActiveSubscription || data.status.hasActiveSubscription;
+  const hasUnknownActivePlan = hasActiveSubscription && !activePlanId;
   const availablePlanCards = buildBillingPlanCards({
     plans: data.plans,
     activePlanId,
@@ -390,7 +430,7 @@ export default function BillingPage() {
         backLabel={isEs ? "Panel" : "Dashboard"}
         badge={
           <AdminStatusBadge tone={data.status.hasActiveSubscription ? "success" : "attention"}>
-            {data.status.hasActiveSubscription
+            {hasActiveSubscription
               ? (isEs ? "Suscripción activa" : "Active subscription")
               : (isEs ? "Sin plan activo" : "No active plan")}
           </AdminStatusBadge>
@@ -523,7 +563,7 @@ export default function BillingPage() {
                       {isEs ? "Plan actual" : "Current plan"}
                     </Text>
                     <Badge tone={data.status.hasActiveSubscription ? "success" : "attention"}>
-                      {data.status.hasActiveSubscription
+                      {hasActiveSubscription
                         ? (isEs ? "Activo" : "Active")
                         : (isEs ? "Sin plan de pago" : "No paid plan")}
                     </Badge>
