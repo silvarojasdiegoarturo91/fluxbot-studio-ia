@@ -130,6 +130,8 @@ describe("widget proxy routes", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     process.env.SHOPIFY_API_SECRET = "test-secret";
+    delete process.env.SHOPIFY_APP_URL;
+    delete process.env.APP_URL;
     mockHandoffEnabled.mockReturnValue(true);
   });
 
@@ -363,6 +365,8 @@ describe("widget proxy routes", () => {
     expect(data).toEqual({
       success: true,
       configVersion: expect.any(String),
+      apiBaseUrl: "http://localhost",
+      chatEndpoint: "http://localhost/chat",
       widgetBranding: {
         launcherLabel: "Compra ahora",
         avatarStyle: "spark",
@@ -421,6 +425,8 @@ describe("widget proxy routes", () => {
     expect(data).toEqual({
       success: true,
       configVersion: expect.any(String),
+      apiBaseUrl: "http://localhost",
+      chatEndpoint: "http://localhost/chat",
       widgetBranding: {
         launcherLabel: "Asistente",
         avatarStyle: "assistant",
@@ -431,6 +437,70 @@ describe("widget proxy routes", () => {
         botGoal: "SALES_SUPPORT",
         adminLanguage: "es",
         onboardingCompleted: false,
+      },
+    });
+  });
+
+  it("returns direct app chat endpoint from SHOPIFY_APP_URL when configured", async () => {
+    process.env.SHOPIFY_APP_URL = "https://dev-tunnel.example.com";
+
+    // First call: from ensureShopRecord checking if it's a new/reinstall
+    mockShopFindUnique.mockResolvedValueOnce({
+      id: "shop-1",
+      status: "ACTIVE",
+    });
+    // Second call: from getMerchantAdminConfig getting metadata
+    mockShopFindUnique.mockResolvedValueOnce({
+      metadata: {
+        adminSetup: {
+          adminLanguage: "es",
+          onboardingCompleted: true,
+          onboardingStep: 7,
+          botName: "Flux Advisor",
+          botGoal: "SALES_SUPPORT",
+          welcomeMessage: "¡Hola! ¿En qué puedo ayudarte?",
+          widgetBranding: {
+            launcherLabel: "Compra ahora",
+            avatarStyle: "spark",
+            primaryColor: "#008060",
+            launcherPosition: "bottom-right",
+          },
+        },
+      },
+    });
+    mockChatbotConfigFindUnique.mockResolvedValue({
+      name: "Flux Advisor",
+      tone: "friendly",
+      language: "es",
+    });
+
+    const { loader } = await import("../../app/routes/apps.fluxbot.widget-config");
+    const response = await loader({
+      request: makeProxyRequest({
+        path: "/apps/fluxbot/widget-config",
+        query: { shop: "store.myshopify.com", timestamp: "1710400007" },
+      }),
+      params: {},
+      context: {},
+    } as never);
+
+    const data = await response.json();
+
+    expect(data).toEqual({
+      success: true,
+      configVersion: expect.any(String),
+      apiBaseUrl: "https://dev-tunnel.example.com",
+      chatEndpoint: "https://dev-tunnel.example.com/chat",
+      widgetBranding: {
+        launcherLabel: "Compra ahora",
+        avatarStyle: "spark",
+        primaryColor: "#008060",
+        launcherPosition: "bottom-right",
+        welcomeMessage: "¡Hola! ¿En qué puedo ayudarte?",
+        botName: "Flux Advisor",
+        botGoal: "SALES_SUPPORT",
+        adminLanguage: "es",
+        onboardingCompleted: true,
       },
     });
   });

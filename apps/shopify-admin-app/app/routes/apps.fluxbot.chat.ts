@@ -17,8 +17,33 @@ import { verifyShopifyProxyRequest } from "../services/shopify-proxy-auth.server
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, PATCH, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Accept, X-Shopify-Shop-Domain",
+  "Access-Control-Allow-Headers": "Content-Type, Accept, X-Shopify-Shop-Domain, ngrok-skip-browser-warning",
 };
+
+function buildAssistantMetadata(chatResponse: {
+  toolsUsed?: unknown;
+  sourceReferences?: unknown;
+}): Prisma.InputJsonValue | undefined {
+  const metadata: Record<string, unknown> = {};
+
+  if (Array.isArray(chatResponse.toolsUsed) && chatResponse.toolsUsed.length > 0) {
+    metadata.toolsUsed = chatResponse.toolsUsed;
+  }
+
+  if (
+    Array.isArray(chatResponse.sourceReferences) &&
+    chatResponse.sourceReferences.length > 0
+  ) {
+    metadata.sourceReferences = chatResponse.sourceReferences;
+  }
+
+  if (Object.keys(metadata).length === 0) {
+    return undefined;
+  }
+
+  // Strip undefined values recursively to keep Prisma JSON input valid.
+  return JSON.parse(JSON.stringify(metadata)) as Prisma.InputJsonValue;
+}
 
 function json(data: unknown, init?: ResponseInit) {
   return new Response(JSON.stringify(data), {
@@ -62,6 +87,11 @@ export async function action({ request }: ActionFunctionArgs) {
   }
 
   try {
+    console.info("[ProxyChat] action start", {
+      url: request.url,
+      method: request.method,
+    });
+
     const body = await request.json();
     const {
       message,
@@ -123,6 +153,10 @@ export async function action({ request }: ActionFunctionArgs) {
     }
 
     const gateway = getIAGateway();
+    console.info("[ProxyChat] gateway.chat start", {
+      shopDomain,
+      conversationId: conversationId || conversation.id,
+    });
     const chatResponse = await gateway.chat(
       {
         message,
@@ -134,21 +168,26 @@ export async function action({ request }: ActionFunctionArgs) {
       shopDomain,
     );
 
+    console.info("[ProxyChat] gateway.chat done", {
+      shopDomain,
+      conversationId: conversationId || conversation.id,
+      confidence: chatResponse.confidence,
+      requiresEscalation: chatResponse.requiresEscalation,
+    });
+
     // Persist messages
     await prisma.conversationMessage.create({
       data: { conversationId: conversation.id, role: "USER", content: message },
     });
     if (chatResponse.message) {
+      const assistantMetadata = buildAssistantMetadata(chatResponse);
       await prisma.conversationMessage.create({
         data: {
           conversationId: conversation.id,
           role: "ASSISTANT",
           content: chatResponse.message,
           confidence: chatResponse.confidence,
-          metadata: {
-            toolsUsed: chatResponse.toolsUsed,
-            sourceReferences: chatResponse.sourceReferences,
-          } as unknown as Prisma.InputJsonValue,
+          ...(assistantMetadata ? { metadata: assistantMetadata } : {}),
         },
       });
     }

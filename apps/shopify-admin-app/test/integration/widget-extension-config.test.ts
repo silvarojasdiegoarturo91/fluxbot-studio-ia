@@ -82,8 +82,8 @@ describe("Theme App Extension — chat_launcher.liquid", () => {
     expect(liquid).toMatch(/data-locale=.*request\.locale\.iso_code/);
   });
 
-  it("exposes launcher position from block settings", () => {
-    expect(liquid).toMatch(/block\.settings\.launcher_position/);
+  it("exposes chat endpoint override from block settings", () => {
+    expect(liquid).toMatch(/block\.settings\.chat_endpoint/);
   });
 
   it("has ARIA role dialog on chat window", () => {

@@ -13,7 +13,7 @@ import { verifyShopifyProxyRequest } from "../services/shopify-proxy-auth.server
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Accept, X-Shopify-Shop-Domain",
+  "Access-Control-Allow-Headers": "Content-Type, Accept, X-Shopify-Shop-Domain, ngrok-skip-browser-warning",
 };
 
 function json(data: unknown, init?: ResponseInit) {
@@ -50,6 +50,33 @@ function buildSafeWidgetBranding(adminLanguage: "es" | "en") {
   };
 }
 
+function buildWidgetEndpoints(request: Request) {
+  const requestUrl = new URL(request.url);
+  const configuredAppUrl = process.env.SHOPIFY_APP_URL || process.env.APP_URL || "";
+  const forwardedHost = request.headers.get("x-forwarded-host") || requestUrl.host;
+  const forwardedProto =
+    request.headers.get("x-forwarded-proto") ||
+    (forwardedHost.includes("trycloudflare.com") ? "https" : requestUrl.protocol.replace(":", ""));
+
+  let appOrigin = `${forwardedProto}://${forwardedHost}`;
+
+  if (configuredAppUrl) {
+    try {
+      appOrigin = new URL(configuredAppUrl).origin;
+    } catch {
+      appOrigin = `${forwardedProto}://${forwardedHost}`;
+    }
+  }
+
+  // Shopify app proxy works reliably for GET config, but this dev storefront
+  // renders HTML for POST /apps/fluxbot/chat. Chat sends must target the app
+  // server route that Shopify forwards to: /chat.
+  return {
+    apiBaseUrl: appOrigin,
+    chatEndpoint: `${appOrigin}/chat`,
+  };
+}
+
 export async function loader({ request }: LoaderFunctionArgs) {
   if (!verifyShopifyProxyRequest(request, { allowUnsignedInDevelopment: true })) {
     return json({ error: "Unauthorized" }, { status: 401 });
@@ -76,11 +103,24 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
   const config = await getMerchantAdminConfig(shop.id);
   const configVersion = config.updatedAt;
+  const endpoints = buildWidgetEndpoints(request);
+
+  console.info("[ProxyWidgetConfig] resolved endpoints", {
+    requestUrl: request.url,
+    shopDomain,
+    apiBaseUrl: endpoints.apiBaseUrl,
+    chatEndpoint: endpoints.chatEndpoint,
+    configuredAppUrlPresent: Boolean(process.env.SHOPIFY_APP_URL || process.env.APP_URL),
+    forwardedHost: request.headers.get("x-forwarded-host"),
+    forwardedProto: request.headers.get("x-forwarded-proto"),
+  });
 
   if (!config.onboardingCompleted) {
     return json({
       success: true,
       configVersion,
+      apiBaseUrl: endpoints.apiBaseUrl,
+      chatEndpoint: endpoints.chatEndpoint,
       widgetBranding: buildSafeWidgetBranding(config.adminLanguage),
     });
   }
@@ -88,6 +128,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
   return json({
     success: true,
     configVersion,
+    apiBaseUrl: endpoints.apiBaseUrl,
+    chatEndpoint: endpoints.chatEndpoint,
     widgetBranding: {
       avatarStyle: config.widgetBranding.avatarStyle,
       launcherLabel: config.widgetBranding.launcherLabel,

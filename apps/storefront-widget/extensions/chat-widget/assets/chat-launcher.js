@@ -14,8 +14,14 @@
 (function () {
   'use strict';
 
+  var DEBUG_VERSION = '2026-07-05-widget-proxy-debug-v2';
+  var DEBUG_PREFIX = '[FluxBot]';
+
   // ─── Endpoints ──────────────────────────────────────────────────────────────
+  // /chat can be intercepted by storefront/theme paths on some shops.
+  // Use a non-ambiguous proxy path for message sends.
   var API_ENDPOINT      = '/apps/fluxbot/chat';
+  var chatEndpoint      = API_ENDPOINT;
   var CART_ENDPOINT     = '/apps/fluxbot/cart/add';
   var EVENTS_ENDPOINT   = '/apps/fluxbot/events';
   var MESSAGES_ENDPOINT = '/apps/fluxbot/messages/'; // + sessionId
@@ -24,6 +30,80 @@
   var CONFIG_ENDPOINT   = '/apps/fluxbot/widget-config';
   // Avoid ngrok browser warning interstitials on same-origin proxy requests.
   var PROXY_BYPASS_HEADER = 'ngrok-skip-browser-warning';
+
+  function debugLog(label, data) {
+    if (typeof console === 'undefined' || !console.log) return;
+    if (data === undefined) {
+      console.log(DEBUG_PREFIX + ' ' + label);
+    } else {
+      console.log(DEBUG_PREFIX + ' ' + label, data);
+    }
+  }
+
+  function debugWarn(label, data) {
+    if (typeof console === 'undefined' || !console.warn) return;
+    console.warn(DEBUG_PREFIX + ' ' + label, data);
+  }
+
+  function debugError(label, data) {
+    if (typeof console === 'undefined' || !console.error) return;
+    console.error(DEBUG_PREFIX + ' ' + label, data);
+  }
+
+  function maskEmail(value) {
+    if (!value || typeof value !== 'string') return undefined;
+    var parts = value.split('@');
+    if (parts.length !== 2) return '[invalid-email]';
+    return parts[0].slice(0, 2) + '***@' + parts[1];
+  }
+
+  function getScriptSrc() {
+    if (document.currentScript && document.currentScript.src) return document.currentScript.src;
+    var scripts = document.querySelectorAll('script[src*="chat-launcher"]');
+    return scripts.length ? scripts[scripts.length - 1].src : '';
+  }
+
+  function summarizeLauncherDataset() {
+    if (!launcher) return {};
+    return {
+      shop: sanitizeAttr(launcher.dataset.shop),
+      locale: sanitizeAttr(launcher.dataset.locale),
+      customerIdPresent: !!sanitizeAttr(launcher.dataset.customerId),
+      customerEmail: maskEmail(sanitizeAttr(launcher.dataset.customerEmail)),
+      showLauncher: sanitizeAttr(launcher.dataset.showLauncher),
+      primaryColor: sanitizeAttr(launcher.dataset.primaryColor),
+      chatEndpointOverride: sanitizeAttr(launcher.dataset.chatEndpoint),
+      apiEndpoint: API_ENDPOINT,
+      configEndpoint: CONFIG_ENDPOINT,
+      chatEndpoint: chatEndpoint,
+    };
+  }
+
+  function publishDebugState(extra) {
+    window.__FLUXBOT_WIDGET_DEBUG__ = Object.assign({
+      debugVersion: DEBUG_VERSION,
+      scriptSrc: getScriptSrc(),
+      pageUrl: window.location.href,
+      origin: window.location.origin,
+      apiEndpoint: API_ENDPOINT,
+      configEndpoint: CONFIG_ENDPOINT,
+      chatEndpoint: chatEndpoint,
+      widgetConfigLoaded: widgetConfigLoaded,
+      sessionId: sessionId,
+      visitorId: visitorId,
+      conversationId: conversationId,
+      launcherDataset: summarizeLauncherDataset(),
+    }, extra || {});
+  }
+
+  async function readResponsePreview(response) {
+    try {
+      var text = await response.clone().text();
+      return text.length > 800 ? text.slice(0, 800) + '…' : text;
+    } catch (error) {
+      return '[unreadable response body]';
+    }
+  }
 
   // ─── W5 — i18n ──────────────────────────────────────────────────────────────
   var I18N = {
@@ -284,6 +364,8 @@
   var launcherLabelText = '';
   var launcherAvatarStyle = 'assistant';
   var lastAppliedConfigVersion = '';
+  var widgetConfigLoaded = false;
+  var widgetConfigLoadPromise = null;
 
   // W6 — Rate limiting
   var msgTimestamps  = [];
@@ -304,18 +386,37 @@
   }
 
   function init() {
-    console.log('[FluxBot] Initializing widget...');
+    debugLog('Initializing widget', {
+      debugVersion: DEBUG_VERSION,
+      scriptSrc: getScriptSrc(),
+      pageUrl: window.location.href,
+      origin: window.location.origin,
+      readyState: document.readyState,
+    });
     
     launcher = document.getElementById('fluxbot-chat-launcher');
     if (!launcher) {
-      console.error('[FluxBot] Launcher element not found');
+      debugError('Launcher element not found', {
+        debugVersion: DEBUG_VERSION,
+        scriptSrc: getScriptSrc(),
+      });
       return;
     }
-    console.log('[FluxBot] Launcher element found');
+    debugLog('Launcher element found', summarizeLauncherDataset());
+
+    var configuredChatEndpoint = sanitizeAttr(launcher.dataset.chatEndpoint);
+    if (configuredChatEndpoint) {
+      chatEndpoint = configuredChatEndpoint;
+      debugWarn('Using Liquid chat endpoint override', {
+        chatEndpoint: chatEndpoint,
+        source: 'data-chat-endpoint',
+      });
+    }
 
     // W6 — Sanitize data attributes before use
     var showLauncher = sanitizeAttr(launcher.dataset.showLauncher);
     if (showLauncher === 'false') {
+      debugWarn('Launcher disabled by data-show-launcher=false', summarizeLauncherDataset());
       launcher.style.display = 'none';
       return;
     }
@@ -335,6 +436,11 @@
       sessionId = generateId();
       safeSet(sessionStorage, 'fluxbot_session_id', sessionId);
     }
+    debugLog('Identity resolved', {
+      visitorId: visitorId,
+      sessionId: sessionId,
+      existingConversationId: conversationId,
+    });
 
     // W4 — Consent check
     var storedConsent = safeGet(localStorage, 'fluxbot_consent');
@@ -344,6 +450,7 @@
         hasConsent = parsed && parsed.granted === true;
       } catch (e) { hasConsent = false; }
     }
+    debugLog('Consent state resolved', { hasConsent: hasConsent });
 
     // DOM elements
     launcherButton    = launcher.querySelector('.fluxbot-launcher__button');
@@ -352,18 +459,31 @@
     chatForm          = document.getElementById('fluxbot-chat-form');
     chatInput         = document.getElementById('fluxbot-chat-input');
 
-    console.log('[FluxBot] Elements:', { launcherButton, chatWindow, messagesContainer, chatForm, chatInput });
+    debugLog('DOM elements resolved', {
+      hasLauncherButton: !!launcherButton,
+      hasChatWindow: !!chatWindow,
+      hasMessagesContainer: !!messagesContainer,
+      hasChatForm: !!chatForm,
+      hasChatInput: !!chatInput,
+    });
 
     if (!launcherButton || !chatWindow || !messagesContainer || !chatForm || !chatInput) {
-      console.error('[FluxBot] Missing required DOM elements, aborting init');
+      debugError('Missing required DOM elements, aborting init', {
+        hasLauncherButton: !!launcherButton,
+        hasChatWindow: !!chatWindow,
+        hasMessagesContainer: !!messagesContainer,
+        hasChatForm: !!chatForm,
+        hasChatInput: !!chatInput,
+      });
       return;
     }
-    console.log('[FluxBot] All required DOM elements found');
+    debugLog('All required DOM elements found');
 
     // Apply primary color
     var primaryColor = sanitizeAttr(launcher.dataset.primaryColor);
     if (primaryColor && /^#[0-9a-fA-F]{3,8}$/.test(primaryColor)) {
       document.documentElement.style.setProperty('--fluxbot-primary-color', primaryColor);
+      debugLog('Primary color applied', { primaryColor: primaryColor });
     }
 
     // W5 — Localise static labels
@@ -385,14 +505,15 @@
     }
 
     // Event listeners
-    console.log('[FluxBot] Adding event listeners...');
+    debugLog('Adding event listeners');
     launcherButton.addEventListener('click', toggleChat);
-    console.log('[FluxBot] Added click listener to launcherButton');
+    debugLog('Added click listener to launcherButton');
     closeBtn && closeBtn.addEventListener('click', closeChat);
-    console.log('[FluxBot] Added click listener to closeBtn');
+    debugLog('Added click listener to closeBtn', { hasCloseButton: !!closeBtn });
     chatForm.addEventListener('submit', handleSubmit);
-    console.log('[FluxBot] Added submit listener to chatForm');
-    console.log('[FluxBot] Widget initialized successfully');
+    debugLog('Added submit listener to chatForm');
+    publishDebugState({ phase: 'initialized' });
+    debugLog('Widget initialized successfully', window.__FLUXBOT_WIDGET_DEBUG__);
 
     loadConversationState();
 
@@ -551,22 +672,125 @@
   }
 
   function loadRemoteWidgetConfig() {
-    fetch(CONFIG_ENDPOINT, {
+    if (widgetConfigLoadPromise) {
+      debugLog('Widget config fetch reused', {
+        widgetConfigLoaded: widgetConfigLoaded,
+        chatEndpoint: chatEndpoint,
+      });
+      return widgetConfigLoadPromise;
+    }
+
+    debugLog('Widget config fetch start', {
+      endpoint: CONFIG_ENDPOINT,
+      headers: buildProxyHeaders(),
+      expectedChatEndpoint: 'https://<active-app-url>/chat',
+      currentChatEndpoint: chatEndpoint,
+    });
+
+    widgetConfigLoadPromise = fetch(CONFIG_ENDPOINT, {
       method: 'GET',
       headers: buildProxyHeaders(),
     })
-      .then(function (res) {
-        if (!res.ok) return null;
+      .then(async function (res) {
+        debugLog('Widget config fetch response', {
+          url: res.url,
+          status: res.status,
+          ok: res.ok,
+          contentType: res.headers.get('content-type'),
+        });
+        if (!res.ok) {
+          debugWarn('Widget config fetch failed', {
+            status: res.status,
+            bodyPreview: await readResponsePreview(res),
+          });
+          return null;
+        }
         return res.json();
       })
       .then(function (payload) {
-        if (!payload || payload.success !== true || !payload.widgetBranding) return;
+        debugLog('Widget config payload', {
+          success: payload && payload.success,
+          configVersion: payload && payload.configVersion,
+          apiBaseUrl: payload && payload.apiBaseUrl,
+          chatEndpoint: payload && payload.chatEndpoint,
+          hasWidgetBranding: !!(payload && payload.widgetBranding),
+        });
+        if (!payload || payload.success !== true || !payload.widgetBranding) {
+          debugWarn('Widget config ignored because payload is incomplete', payload);
+          return;
+        }
+        if (sanitizeAttr(launcher.dataset.chatEndpoint)) {
+          debugWarn('Widget config chatEndpoint ignored because Liquid override is set', {
+            override: sanitizeAttr(launcher.dataset.chatEndpoint),
+            payloadChatEndpoint: payload.chatEndpoint,
+          });
+        } else if (typeof payload.chatEndpoint === 'string' && payload.chatEndpoint) {
+          chatEndpoint = payload.chatEndpoint;
+        } else if (typeof payload.apiBaseUrl === 'string' && payload.apiBaseUrl) {
+          chatEndpoint = payload.apiBaseUrl.replace(/\/$/, '') + API_ENDPOINT;
+        }
+        if (typeof payload.chatEndpoint !== 'string' || !payload.chatEndpoint) {
+          debugWarn('Widget config did not include chatEndpoint; using storefront app-proxy fallback', {
+            fallbackEndpoint: chatEndpoint,
+            impact: 'POST may render storefront HTML instead of reaching Remix in dev previews.',
+          });
+        }
+        if (chatEndpoint.indexOf('/chat') === -1) {
+          debugWarn('Widget config selected an unexpected chat endpoint; fallback may be needed', {
+            chatEndpoint: chatEndpoint,
+            expectedPath: '/chat',
+          });
+        }
         var mergedConfig = Object.assign({}, payload.widgetBranding, {
           configVersion: payload.configVersion,
         });
         applyRemoteWidgetConfig(mergedConfig);
+        publishDebugState({
+          phase: 'config-loaded',
+          remoteConfigVersion: payload.configVersion,
+          remoteApiBaseUrl: payload.apiBaseUrl,
+          remoteChatEndpoint: payload.chatEndpoint,
+        });
       })
-      .catch(function () {});
+      .catch(function (error) {
+        debugError('Widget config fetch exception', {
+          message: error && error.message,
+          stack: error && error.stack,
+        });
+      })
+      .finally(function () {
+        widgetConfigLoaded = true;
+        publishDebugState({ phase: 'config-finished' });
+        debugLog('Widget config fetch finished', {
+          widgetConfigLoaded: widgetConfigLoaded,
+          chatEndpoint: chatEndpoint,
+          debugState: window.__FLUXBOT_WIDGET_DEBUG__,
+        });
+      });
+
+    return widgetConfigLoadPromise;
+  }
+
+  function waitForWidgetConfig(timeoutMs) {
+    var timeout = typeof timeoutMs === 'number' && timeoutMs > 0 ? timeoutMs : 1200;
+    debugLog('Waiting for widget config', {
+      timeoutMs: timeout,
+      widgetConfigLoaded: widgetConfigLoaded,
+      chatEndpoint: chatEndpoint,
+    });
+    return Promise.race([
+      loadRemoteWidgetConfig(),
+      new Promise(function (resolve) {
+        setTimeout(function () {
+          debugWarn('Widget config wait timeout reached', {
+            timeoutMs: timeout,
+            widgetConfigLoaded: widgetConfigLoaded,
+            chatEndpoint: chatEndpoint,
+          });
+          resolve();
+        }, timeout);
+      }),
+    ]);
   }
 
   // ─── W1 — Behavioral tracking ─────────────────────────────────────────────
@@ -623,19 +847,34 @@
 
   // ─── Chat open/close ──────────────────────────────────────────────────────
   function toggleChat() {
-    console.log('[FluxBot] toggleChat called, isOpen:', isOpen);
+    debugLog('toggleChat called', {
+      isOpen: isOpen,
+      debugVersion: DEBUG_VERSION,
+      chatEndpoint: chatEndpoint,
+      widgetConfigLoaded: widgetConfigLoaded,
+    });
     if (isOpen) { closeChat(); } else { openChat(); }
   }
 
   function openChat() {
-    console.log('[FluxBot] openChat called');
+    debugLog('openChat called', {
+      hasConsent: hasConsent,
+      chatEndpoint: chatEndpoint,
+      widgetConfigLoaded: widgetConfigLoaded,
+      debugVersion: DEBUG_VERSION,
+    });
     isOpen = true;
     chatWindow.hidden = false;
     chatWindow.style.display = 'flex';
     launcherButton.setAttribute('aria-expanded', 'true');
     launcher.classList.add('fluxbot-launcher--open');
     updateLauncherButtonA11y();
-    console.log('[FluxBot] Chat opened, chatWindow.hidden:', chatWindow.hidden, 'chatWindow.style.display:', chatWindow.style.display);
+    publishDebugState({ phase: 'chat-opened' });
+    debugLog('Chat opened', {
+      hidden: chatWindow.hidden,
+      display: chatWindow.style.display,
+      debugState: window.__FLUXBOT_WIDGET_DEBUG__,
+    });
 
     if (!hasConsent) {
       showConsentOverlay();
@@ -650,14 +889,21 @@
   }
 
   function closeChat() {
-    console.log('[FluxBot] closeChat called');
+    debugLog('closeChat called', {
+      conversationId: conversationId,
+      chatEndpoint: chatEndpoint,
+    });
     isOpen = false;
     chatWindow.hidden = true;
     chatWindow.style.display = 'none';
     launcherButton.setAttribute('aria-expanded', 'false');
     launcher.classList.remove('fluxbot-launcher--open');
     updateLauncherButtonA11y();
-    console.log('[FluxBot] Chat closed, chatWindow.hidden:', chatWindow.hidden, 'chatWindow.style.display:', chatWindow.style.display);
+    publishDebugState({ phase: 'chat-closed' });
+    debugLog('Chat closed', {
+      hidden: chatWindow.hidden,
+      display: chatWindow.style.display,
+    });
     trackEvent('chat_closed');
   }
 
@@ -753,11 +999,18 @@
     if (o) { o.hidden = false; } else { renderConsentBanner(); }
   }
 
-  function buildProxyHeaders(contentType) {
+  function shouldSendTunnelBypassHeader(targetUrl) {
+    if (!targetUrl || typeof targetUrl !== 'string') return false;
+    return /ngrok(-free)?\.app|ngrok\.io/i.test(targetUrl);
+  }
+
+  function buildProxyHeaders(contentType, targetUrl) {
     var headers = {
       Accept: 'application/json',
     };
-    headers[PROXY_BYPASS_HEADER] = 'true';
+    if (shouldSendTunnelBypassHeader(targetUrl)) {
+      headers[PROXY_BYPASS_HEADER] = 'true';
+    }
 
     if (contentType) {
       headers['Content-Type'] = contentType;
@@ -766,10 +1019,10 @@
     return headers;
   }
 
-  function buildJsonRequestOptions(method, payload, keepalive) {
+  function buildJsonRequestOptions(method, payload, keepalive, targetUrl) {
     return {
       method: method,
-      headers: buildProxyHeaders('text/plain;charset=UTF-8'),
+      headers: buildProxyHeaders('text/plain;charset=UTF-8', targetUrl),
       body: JSON.stringify(payload),
       keepalive: !!keepalive,
     };
@@ -810,16 +1063,46 @@
   async function handleSubmit(e) {
     e.preventDefault();
     var message = chatInput.value.trim();
-    if (!message || isTyping) return;
+    if (!message || isTyping) {
+      debugWarn('Submit ignored', {
+        hasMessage: !!message,
+        isTyping: isTyping,
+      });
+      return;
+    }
+
+    debugLog('Submit accepted', {
+      messageLength: message.length,
+      conversationId: conversationId,
+      sessionId: sessionId,
+      visitorId: visitorId,
+      chatEndpoint: chatEndpoint,
+      widgetConfigLoaded: widgetConfigLoaded,
+      dataset: summarizeLauncherDataset(),
+    });
 
     // W6 — Debounce
     var now = Date.now();
-    if (now - lastSendAt < SEND_DEBOUNCE_MS) return;
+    if (now - lastSendAt < SEND_DEBOUNCE_MS) {
+      debugWarn('Submit ignored by debounce', {
+        elapsedMs: now - lastSendAt,
+        debounceMs: SEND_DEBOUNCE_MS,
+      });
+      return;
+    }
     lastSendAt = now;
 
     // W6 — Rate limit
     msgTimestamps = msgTimestamps.filter(function (t) { return now - t < MSG_RATE_WINDOW; });
-    if (msgTimestamps.length >= MSG_RATE_LIMIT) { addMessage(i18n.rateLimitMsg, 'assistant'); return; }
+    if (msgTimestamps.length >= MSG_RATE_LIMIT) {
+      debugWarn('Submit blocked by rate limit', {
+        count: msgTimestamps.length,
+        limit: MSG_RATE_LIMIT,
+        windowMs: MSG_RATE_WINDOW,
+      });
+      addMessage(i18n.rateLimitMsg, 'assistant');
+      return;
+    }
     msgTimestamps.push(now);
 
     chatInput.value = '';
@@ -860,7 +1143,11 @@
       retryCount = 0;
 
     } catch (error) {
-      console.error('[FluxBot] Chat error:', error);
+      debugError('Chat error', {
+        message: error && error.message,
+        stack: error && error.stack,
+        debugState: window.__FLUXBOT_WIDGET_DEBUG__,
+      });
       hideTypingIndicator();
       if (retryCount < MAX_RETRIES) { addMessage(i18n.errorRetry, 'assistant'); retryCount++; }
       else { addMessage(i18n.errorMax, 'assistant'); }
@@ -868,6 +1155,18 @@
   }
 
   async function sendMessage(message) {
+    debugLog('sendMessage start', {
+      debugVersion: DEBUG_VERSION,
+      widgetConfigLoaded: widgetConfigLoaded,
+      initialChatEndpoint: chatEndpoint,
+      apiEndpoint: API_ENDPOINT,
+    });
+
+    if (!widgetConfigLoaded) {
+      await waitForWidgetConfig(1200);
+    }
+
+    var endpoint = chatEndpoint || API_ENDPOINT;
     var payload = {
       message: message,
       conversationId: conversationId,
@@ -883,9 +1182,108 @@
       },
     };
 
-    var res = await fetch(API_ENDPOINT, buildJsonRequestOptions('POST', payload));
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    return res.json();
+    publishDebugState({
+      phase: 'chat-request-start',
+      lastChatEndpoint: endpoint,
+    });
+    debugLog('Chat request prepared', {
+      endpoint: endpoint,
+      fallbackEndpoint: API_ENDPOINT,
+      endpointIsProxy: endpoint.indexOf('/apps/fluxbot/chat') !== -1,
+      sendsTunnelBypassHeader: shouldSendTunnelBypassHeader(endpoint),
+      requestHeaders: buildProxyHeaders('text/plain;charset=UTF-8', endpoint),
+      payload: {
+        messageLength: message.length,
+        conversationId: payload.conversationId,
+        sessionId: payload.sessionId,
+        visitorId: payload.visitorId,
+        context: {
+          shop: payload.context.shop,
+          locale: payload.context.locale,
+          customerIdPresent: !!payload.context.customerId,
+          customerEmail: maskEmail(payload.context.customerEmail),
+          url: payload.context.url,
+          referrer: payload.context.referrer,
+        },
+      },
+    });
+
+    var res = await fetch(endpoint, buildJsonRequestOptions('POST', payload, false, endpoint));
+    debugLog('Chat response received', {
+      endpoint: endpoint,
+      url: res.url,
+      status: res.status,
+      ok: res.ok,
+      contentType: res.headers.get('content-type'),
+    });
+    if (!res.ok && endpoint === API_ENDPOINT) {
+      await waitForWidgetConfig(1200);
+      var refreshedEndpoint = chatEndpoint || API_ENDPOINT;
+      if (refreshedEndpoint !== endpoint) {
+        debugWarn('Retrying chat with refreshed endpoint', {
+          previousEndpoint: endpoint,
+          refreshedEndpoint: refreshedEndpoint,
+        });
+        res = await fetch(refreshedEndpoint, buildJsonRequestOptions('POST', payload, false, refreshedEndpoint));
+        debugLog('Refreshed chat response received', {
+          endpoint: refreshedEndpoint,
+          url: res.url,
+          status: res.status,
+          ok: res.ok,
+          contentType: res.headers.get('content-type'),
+        });
+      }
+    }
+    if (!res.ok && endpoint !== API_ENDPOINT) {
+      debugWarn('Retrying chat with app proxy fallback', {
+        failedEndpoint: endpoint,
+        fallbackEndpoint: API_ENDPOINT,
+        failedStatus: res.status,
+        failedBodyPreview: await readResponsePreview(res),
+      });
+      res = await fetch(API_ENDPOINT, buildJsonRequestOptions('POST', payload, false, API_ENDPOINT));
+      debugLog('Fallback chat response received', {
+        endpoint: API_ENDPOINT,
+        url: res.url,
+        status: res.status,
+        ok: res.ok,
+        contentType: res.headers.get('content-type'),
+      });
+    }
+    if (!res.ok) {
+      var errorBodyPreview = await readResponsePreview(res);
+      publishDebugState({
+        phase: 'chat-request-failed',
+        lastChatStatus: res.status,
+        lastChatEndpoint: endpoint,
+        lastChatErrorBodyPreview: errorBodyPreview,
+      });
+      debugError('Chat request failed after retries', {
+        status: res.status,
+        endpoint: endpoint,
+        fallbackEndpoint: API_ENDPOINT,
+        bodyPreview: errorBodyPreview,
+        debugState: window.__FLUXBOT_WIDGET_DEBUG__,
+      });
+      throw new Error('HTTP ' + res.status);
+    }
+
+    var data = await res.json();
+    publishDebugState({
+      phase: 'chat-request-success',
+      lastChatStatus: res.status,
+      lastChatEndpoint: endpoint,
+      conversationId: data.conversationId || conversationId,
+    });
+    debugLog('Chat response parsed', {
+      success: data.success,
+      conversationId: data.conversationId,
+      hasMessage: !!data.message,
+      confidence: data.confidence,
+      requiresEscalation: data.requiresEscalation,
+      actionCount: Array.isArray(data.actions) ? data.actions.length : 0,
+    });
+    return data;
   }
 
   // ─── W6 — Safe markdown rendering (no innerHTML) ─────────────────────────
