@@ -7,7 +7,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const APP_DIR = resolve(__dirname, "../..");
 const WORKSPACE_ROOT = resolve(APP_DIR, "..", "..");
-const LOCAL_APP_MANIFEST_PATH = "apps/shopify-admin-app/shopify.app.toml";
+const APP_MANIFEST_RELATIVE_PATH = "apps/shopify-admin-app/shopify.app.toml";
 
 function readText(relativePath: string) {
   return readFileSync(join(WORKSPACE_ROOT, relativePath), "utf8");
@@ -15,11 +15,13 @@ function readText(relativePath: string) {
 
 describe("Shopify App Store compliance baseline", () => {
   it("keeps the app manifest embedded, scoped and redirect-safe", () => {
-    const hasLocalManifest = existsSync(join(WORKSPACE_ROOT, LOCAL_APP_MANIFEST_PATH));
+    const hasLocalManifest = existsSync(join(WORKSPACE_ROOT, APP_MANIFEST_RELATIVE_PATH));
     if (!hasLocalManifest) {
       const webManifest = readText("apps/shopify-admin-app/shopify.web.toml");
+      expect(webManifest).toContain('roles = ["frontend", "backend"]');
       expect(webManifest).toContain('api_version = "2026-01"');
       expect(webManifest).toContain('webhooks_path = "/api/webhooks"');
+      expect(webManifest).toContain('[commands]');
       return;
     }
 
