@@ -10,7 +10,16 @@ const WORKSPACE_ROOT = resolve(APP_DIR, "..", "..");
 const LOCAL_APP_MANIFEST_PATH = "apps/shopify-admin-app/shopify.app.toml";
 
 function normalizePath(relativePath: string) {
-  return relativePath.replace(/^fluxbot-studio-ia-shopify\//, "");
+  if (
+    relativePath.startsWith("apps/") ||
+    relativePath.startsWith("specs/") ||
+    relativePath.startsWith(".openspec.json")
+  ) {
+    return relativePath;
+  }
+
+  const prefixedPath = relativePath.match(/^[^/]+\/(.+)$/)?.[1];
+  return prefixedPath ?? relativePath;
 }
 
 function readText(relativePath: string) {
