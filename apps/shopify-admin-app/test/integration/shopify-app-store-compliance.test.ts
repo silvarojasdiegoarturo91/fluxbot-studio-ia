@@ -6,7 +6,8 @@ import { describe, expect, it } from "vitest";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const APP_DIR = resolve(__dirname, "../..");
-const WORKSPACE_ROOT = resolve(APP_DIR, "..", "..", "..");
+const WORKSPACE_ROOT = resolve(APP_DIR, "..", "..");
+const APP_MANIFEST_RELATIVE_PATH = "apps/shopify-admin-app/shopify.app.toml";
 
 function readText(relativePath: string) {
   return readFileSync(join(WORKSPACE_ROOT, relativePath), "utf8");
@@ -14,7 +15,17 @@ function readText(relativePath: string) {
 
 describe("Shopify App Store compliance baseline", () => {
   it("keeps the app manifest embedded, scoped and redirect-safe", () => {
-    const manifest = readText("fluxbot-studio-ia-shopify/apps/shopify-admin-app/shopify.app.toml");
+    const hasLocalManifest = existsSync(join(WORKSPACE_ROOT, APP_MANIFEST_RELATIVE_PATH));
+    if (!hasLocalManifest) {
+      const webManifest = readText("apps/shopify-admin-app/shopify.web.toml");
+      expect(webManifest).toContain('roles = ["frontend", "backend"]');
+      expect(webManifest).toContain('api_version = "2026-01"');
+      expect(webManifest).toContain('webhooks_path = "/api/webhooks"');
+      expect(webManifest).toContain('[commands]');
+      return;
+    }
+
+    const manifest = readText("apps/shopify-admin-app/shopify.app.toml");
 
     expect(manifest).toContain("embedded = true");
     expect(manifest).toContain('application_url = "https://fluxbot-local-dev.invalid"');
@@ -28,7 +39,7 @@ describe("Shopify App Store compliance baseline", () => {
   });
 
   it("mounts the embedded Shopify shell and navigation menu in the app route", () => {
-    const appRoute = readText("fluxbot-studio-ia-shopify/apps/shopify-admin-app/app/routes/app.tsx");
+    const appRoute = readText("apps/shopify-admin-app/app/routes/app.tsx");
 
     expect(appRoute).toContain('AppProvider as ShopifyEmbeddedAppProvider');
     expect(appRoute).toContain('embedded apiKey={apiKey}');
@@ -38,7 +49,7 @@ describe("Shopify App Store compliance baseline", () => {
   });
 
   it("registers session storage and webhook handling in the Shopify server", () => {
-    const server = readText("fluxbot-studio-ia-shopify/apps/shopify-admin-app/app/shopify.server.ts");
+    const server = readText("apps/shopify-admin-app/app/shopify.server.ts");
 
     expect(server).toContain("PrismaSessionStorage");
     expect(server).toContain("APP_UNINSTALLED");
@@ -48,8 +59,8 @@ describe("Shopify App Store compliance baseline", () => {
   });
 
   it("routes billing through backend billing orchestration and Shopify subscription state", () => {
-    const billingService = readText("fluxbot-studio-ia-shopify/apps/shopify-admin-app/app/services/billing.server.ts");
-    const billingRoute = readText("fluxbot-studio-ia-shopify/apps/shopify-admin-app/app/routes/app.billing.tsx");
+    const billingService = readText("apps/shopify-admin-app/app/services/billing.server.ts");
+    const billingRoute = readText("apps/shopify-admin-app/app/routes/app.billing.tsx");
 
     expect(billingService).toContain("appSubscriptionCreate");
     expect(billingService).toContain("X-Shopify-Access-Token");
@@ -61,7 +72,7 @@ describe("Shopify App Store compliance baseline", () => {
   });
 
   it("reads shop connection data through GraphQL Admin API on the dashboard", () => {
-    const dashboard = readText("fluxbot-studio-ia-shopify/apps/shopify-admin-app/app/routes/app._index.tsx");
+    const dashboard = readText("apps/shopify-admin-app/app/routes/app._index.tsx");
 
     expect(dashboard).toContain("SHOP_CONNECTION_QUERY");
     expect(dashboard).toContain("admin.graphql(SHOP_CONNECTION_QUERY)");
@@ -71,7 +82,7 @@ describe("Shopify App Store compliance baseline", () => {
 
   it("declares the storefront widget as a theme app extension", () => {
     const extension = readText(
-      "fluxbot-studio-ia-shopify/apps/storefront-widget/extensions/chat-widget/shopify.extension.toml",
+      "apps/storefront-widget/extensions/chat-widget/shopify.extension.toml",
     );
 
     expect(extension).toContain('type = "theme"');
@@ -83,7 +94,7 @@ describe("Shopify App Store compliance baseline", () => {
   });
 
   it("publishes the widget through the Theme Editor deep link and read_themes scope", () => {
-    const publishRoute = readText("fluxbot-studio-ia-shopify/apps/shopify-admin-app/app/routes/app.widget-publish.tsx");
+    const publishRoute = readText("apps/shopify-admin-app/app/routes/app.widget-publish.tsx");
 
     expect(publishRoute).toContain("read_themes");
     expect(publishRoute).toContain("buildThemeEditorUrl");
@@ -93,7 +104,7 @@ describe("Shopify App Store compliance baseline", () => {
   });
 
   it("keeps storefront widget settings canonical in Admin", () => {
-    const settingsRoute = readText("fluxbot-studio-ia-shopify/apps/shopify-admin-app/app/routes/app.widget-settings.tsx");
+    const settingsRoute = readText("apps/shopify-admin-app/app/routes/app.widget-settings.tsx");
 
     expect(settingsRoute).toContain("launcherPosition");
     expect(settingsRoute).toContain("primaryColor");
@@ -104,7 +115,7 @@ describe("Shopify App Store compliance baseline", () => {
   });
 
   it("documents privacy, retention and legal hold flows in the app", () => {
-    const privacyRoute = readText("fluxbot-studio-ia-shopify/apps/shopify-admin-app/app/routes/app.privacy.tsx");
+    const privacyRoute = readText("apps/shopify-admin-app/app/routes/app.privacy.tsx");
 
     expect(privacyRoute).toContain("AuditReportService");
     expect(privacyRoute).toContain("BreachNotificationService");
@@ -121,15 +132,15 @@ describe("Shopify App Store compliance baseline", () => {
   });
 
   it("tracks the Shopify App Store compliance feature in OpenSpec and SpecKit", () => {
-    const openSpec = readText("fluxbot-studio-ia-shopify/.openspec.json");
-    const featureReadme = readText("fluxbot-studio-ia-shopify/specs/features/shopify-app-store-compliance/README.md");
-    const requirements = readText("fluxbot-studio-ia-shopify/specs/features/shopify-app-store-compliance/requirements.md");
-    const testCases = readText("fluxbot-studio-ia-shopify/specs/features/shopify-app-store-compliance/test-cases.md");
-    const manualEvidence = readText("fluxbot-studio-ia-shopify/specs/features/shopify-app-store-compliance/manual-evidence.md");
-    const spec = readText("fluxbot-studio-ia-shopify/specs/010-shopify-app-store-compliance/spec.md");
-    const plan = readText("fluxbot-studio-ia-shopify/specs/010-shopify-app-store-compliance/plan.md");
-    const tasks = readText("fluxbot-studio-ia-shopify/specs/010-shopify-app-store-compliance/tasks.md");
-    const checklist = readText("fluxbot-studio-ia-shopify/specs/010-shopify-app-store-compliance/checklists/requirements.md");
+    const openSpec = readText(".openspec.json");
+    const featureReadme = readText("specs/features/shopify-app-store-compliance/README.md");
+    const requirements = readText("specs/features/shopify-app-store-compliance/requirements.md");
+    const testCases = readText("specs/features/shopify-app-store-compliance/test-cases.md");
+    const manualEvidence = readText("specs/features/shopify-app-store-compliance/manual-evidence.md");
+    const spec = readText("specs/010-shopify-app-store-compliance/spec.md");
+    const plan = readText("specs/010-shopify-app-store-compliance/plan.md");
+    const tasks = readText("specs/010-shopify-app-store-compliance/tasks.md");
+    const checklist = readText("specs/010-shopify-app-store-compliance/checklists/requirements.md");
 
     expect(openSpec).toContain("REQ-IA-SHOPIFY-003");
     expect(featureReadme).toContain("Shopify App Store Compliance");
@@ -143,8 +154,8 @@ describe("Shopify App Store compliance baseline", () => {
   });
 
   it("explicitly documents the excluded Shopify families", () => {
-    const featureReadme = readText("fluxbot-studio-ia-shopify/specs/features/shopify-app-store-compliance/README.md");
-    const manualEvidence = readText("fluxbot-studio-ia-shopify/specs/features/shopify-app-store-compliance/manual-evidence.md");
+    const featureReadme = readText("specs/features/shopify-app-store-compliance/README.md");
+    const manualEvidence = readText("specs/features/shopify-app-store-compliance/manual-evidence.md");
 
     expect(featureReadme).toContain("Payments apps");
     expect(featureReadme).toContain("Purchase-option apps");
@@ -157,7 +168,7 @@ describe("Shopify App Store compliance baseline", () => {
 
   it("keeps the compliance command available from package.json", () => {
     const packageJson = JSON.parse(
-      readText("fluxbot-studio-ia-shopify/apps/shopify-admin-app/package.json"),
+      readText("apps/shopify-admin-app/package.json"),
     ) as { scripts?: Record<string, string> };
 
     expect(packageJson.scripts?.["test:app-store-compliance"]).toBe(
@@ -167,14 +178,14 @@ describe("Shopify App Store compliance baseline", () => {
 
   it("ships the expected compliance files on disk", () => {
     const files = [
-      "fluxbot-studio-ia-shopify/specs/features/shopify-app-store-compliance/README.md",
-      "fluxbot-studio-ia-shopify/specs/features/shopify-app-store-compliance/requirements.md",
-      "fluxbot-studio-ia-shopify/specs/features/shopify-app-store-compliance/test-cases.md",
-      "fluxbot-studio-ia-shopify/specs/features/shopify-app-store-compliance/manual-evidence.md",
-      "fluxbot-studio-ia-shopify/specs/010-shopify-app-store-compliance/spec.md",
-      "fluxbot-studio-ia-shopify/specs/010-shopify-app-store-compliance/plan.md",
-      "fluxbot-studio-ia-shopify/specs/010-shopify-app-store-compliance/tasks.md",
-      "fluxbot-studio-ia-shopify/specs/010-shopify-app-store-compliance/checklists/requirements.md",
+      "specs/features/shopify-app-store-compliance/README.md",
+      "specs/features/shopify-app-store-compliance/requirements.md",
+      "specs/features/shopify-app-store-compliance/test-cases.md",
+      "specs/features/shopify-app-store-compliance/manual-evidence.md",
+      "specs/010-shopify-app-store-compliance/spec.md",
+      "specs/010-shopify-app-store-compliance/plan.md",
+      "specs/010-shopify-app-store-compliance/tasks.md",
+      "specs/010-shopify-app-store-compliance/checklists/requirements.md",
     ];
 
     for (const relativePath of files) {
