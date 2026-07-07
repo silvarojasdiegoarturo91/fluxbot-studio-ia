@@ -306,19 +306,18 @@ export async function action({ request }: ActionFunctionArgs) {
     } = body as Record<string, any>;
 
     const url = new URL(request.url);
-    // Shopify injects the shop domain as a query param on proxied requests
+    // Shopify injects the shop domain as a query param on proxied requests.
+    // Only trust proxy-authenticated sources — never the request body.
     const shopDomain =
       url.searchParams.get("shop") ||
       request.headers.get("X-Shopify-Shop-Domain") ||
-      context.shop ||
-      context.shopDomain ||
-      (typeof body.shop === "string" ? body.shop : "") ||
-      (typeof body.shopDomain === "string" ? body.shopDomain : "") ||
       "";
 
     if (!shopDomain) {
       return json({ success: false, error: "Missing shop identifier" }, { status: 400 });
     }
+
+    console.info("[ProxyChat] shopDomain resuelto", { shopDomain });
 
     if (!message?.trim()) {
       return json({ success: false, error: "Message is required" }, { status: 400 });
@@ -355,9 +354,10 @@ export async function action({ request }: ActionFunctionArgs) {
     }
 
     const gateway = getIAGateway();
-    console.info("[ProxyChat] gateway.chat start", {
+    console.info("[ProxyChat] llamando backend IA", {
       shopDomain,
       conversationId: conversationId || conversation.id,
+      gatewayType: gateway.constructor.name,
     });
     const chatResponse = await gateway.chat(
       {

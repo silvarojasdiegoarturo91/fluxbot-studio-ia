@@ -50,30 +50,21 @@ function buildSafeWidgetBranding(adminLanguage: "es" | "en") {
   };
 }
 
-function buildWidgetEndpoints(request: Request) {
-  const requestUrl = new URL(request.url);
+function buildWidgetEndpoints(_request: Request) {
   const configuredAppUrl = process.env.SHOPIFY_APP_URL || process.env.APP_URL || "";
-  const forwardedHost = request.headers.get("x-forwarded-host") || requestUrl.host;
-  const forwardedProto =
-    request.headers.get("x-forwarded-proto") ||
-    (forwardedHost.includes("trycloudflare.com") ? "https" : requestUrl.protocol.replace(":", ""));
 
-  let appOrigin = `${forwardedProto}://${forwardedHost}`;
-
+  let appOrigin = "";
   if (configuredAppUrl) {
     try {
       appOrigin = new URL(configuredAppUrl).origin;
     } catch {
-      appOrigin = `${forwardedProto}://${forwardedHost}`;
+      appOrigin = "";
     }
   }
 
-  // Shopify app proxy works reliably for GET config, but this dev storefront
-  // renders HTML for POST /apps/fluxbot/chat. Chat sends must target the app
-  // server route that Shopify forwards to: /chat.
   return {
     apiBaseUrl: appOrigin,
-    chatEndpoint: `${appOrigin}/chat`,
+    chatEndpoint: "/apps/fluxbot/chat",
   };
 }
 
@@ -105,42 +96,43 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const configVersion = config.updatedAt;
   const endpoints = buildWidgetEndpoints(request);
 
-  console.info("[ProxyWidgetConfig] resolved endpoints", {
-    requestUrl: request.url,
+  const onboardingCompleted = config.onboardingCompleted;
+  const widgetBranding = onboardingCompleted
+    ? {
+        avatarStyle: config.widgetBranding.avatarStyle,
+        launcherLabel: config.widgetBranding.launcherLabel,
+        primaryColor: config.widgetBranding.primaryColor,
+        launcherPosition: config.widgetBranding.launcherPosition,
+        welcomeMessage: config.welcomeMessage,
+        botName: config.botName,
+        botGoal: config.botGoal,
+        adminLanguage: config.adminLanguage,
+        onboardingCompleted: true,
+      }
+    : buildSafeWidgetBranding(config.adminLanguage);
+
+  console.info("[WidgetConfig] serving config", {
     shopDomain,
-    apiBaseUrl: endpoints.apiBaseUrl,
-    chatEndpoint: endpoints.chatEndpoint,
-    configuredAppUrlPresent: Boolean(process.env.SHOPIFY_APP_URL || process.env.APP_URL),
-    forwardedHost: request.headers.get("x-forwarded-host"),
-    forwardedProto: request.headers.get("x-forwarded-proto"),
+    configVersion,
+    onboardingCompleted,
+    botName: widgetBranding.botName,
+    primaryColor: widgetBranding.primaryColor,
+    launcherPosition: widgetBranding.launcherPosition,
+    avatarStyle: widgetBranding.avatarStyle,
+    adminLanguage: widgetBranding.adminLanguage,
   });
 
-  if (!config.onboardingCompleted) {
-    return json({
-      success: true,
-      configVersion,
-      apiBaseUrl: endpoints.apiBaseUrl,
-      chatEndpoint: endpoints.chatEndpoint,
-      widgetBranding: buildSafeWidgetBranding(config.adminLanguage),
-    });
-  }
+  console.info("[WidgetConfig] chatEndpoint servido", {
+    chatEndpoint: endpoints.chatEndpoint,
+    apiBaseUrl: endpoints.apiBaseUrl,
+  });
 
   return json({
     success: true,
     configVersion,
     apiBaseUrl: endpoints.apiBaseUrl,
     chatEndpoint: endpoints.chatEndpoint,
-    widgetBranding: {
-      avatarStyle: config.widgetBranding.avatarStyle,
-      launcherLabel: config.widgetBranding.launcherLabel,
-      primaryColor: config.widgetBranding.primaryColor,
-      launcherPosition: config.widgetBranding.launcherPosition,
-      welcomeMessage: config.welcomeMessage,
-      botName: config.botName,
-      botGoal: config.botGoal,
-      adminLanguage: config.adminLanguage,
-      onboardingCompleted: true,
-    },
+    widgetBranding,
   });
 }
 

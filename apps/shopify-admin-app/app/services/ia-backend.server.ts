@@ -447,6 +447,14 @@ async function makeRequest<T>(
     headers['X-Shop-Domain'] = shopDomain;
   }
 
+  console.info("[IABackend] enviando request", {
+    endpoint,
+    method,
+    hasShopDomain: !!shopDomain,
+    shopDomain,
+    url: url.replace(/\/[^/]+\/[^/]+$/, "/..."),
+  });
+
   let response: Response;
   try {
     response = await fetch(url, {

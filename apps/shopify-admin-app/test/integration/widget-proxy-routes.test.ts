@@ -365,8 +365,8 @@ describe("widget proxy routes", () => {
     expect(data).toEqual({
       success: true,
       configVersion: expect.any(String),
-      apiBaseUrl: "http://localhost",
-      chatEndpoint: "http://localhost/chat",
+      apiBaseUrl: "",
+      chatEndpoint: "/apps/fluxbot/chat",
       widgetBranding: {
         launcherLabel: "Compra ahora",
         avatarStyle: "spark",
@@ -425,8 +425,8 @@ describe("widget proxy routes", () => {
     expect(data).toEqual({
       success: true,
       configVersion: expect.any(String),
-      apiBaseUrl: "http://localhost",
-      chatEndpoint: "http://localhost/chat",
+      apiBaseUrl: "",
+      chatEndpoint: "/apps/fluxbot/chat",
       widgetBranding: {
         launcherLabel: "Asistente",
         avatarStyle: "assistant",
@@ -441,7 +441,7 @@ describe("widget proxy routes", () => {
     });
   });
 
-  it("returns direct app chat endpoint from SHOPIFY_APP_URL when configured", async () => {
+  it("returns static proxy chat endpoint regardless of SHOPIFY_APP_URL", async () => {
     process.env.SHOPIFY_APP_URL = "https://dev-tunnel.example.com";
 
     // First call: from ensureShopRecord checking if it's a new/reinstall
@@ -486,11 +486,13 @@ describe("widget proxy routes", () => {
 
     const data = await response.json();
 
+    expect(data.chatEndpoint).toBe("/apps/fluxbot/chat");
+    expect(data.apiBaseUrl).toBe("https://dev-tunnel.example.com");
     expect(data).toEqual({
       success: true,
       configVersion: expect.any(String),
       apiBaseUrl: "https://dev-tunnel.example.com",
-      chatEndpoint: "https://dev-tunnel.example.com/chat",
+      chatEndpoint: "/apps/fluxbot/chat",
       widgetBranding: {
         launcherLabel: "Compra ahora",
         avatarStyle: "spark",
@@ -503,5 +505,56 @@ describe("widget proxy routes", () => {
         onboardingCompleted: true,
       },
     });
+  });
+
+  it("never returns localhost:3001 or full backend URL in chatEndpoint", async () => {
+    process.env.SHOPIFY_APP_URL = "";
+    process.env.APP_URL = "";
+    process.env.IA_BACKEND_URL = "http://localhost:3001";
+
+    mockShopFindUnique.mockResolvedValueOnce({
+      id: "shop-2",
+      status: "ACTIVE",
+    });
+    mockShopFindUnique.mockResolvedValueOnce({
+      metadata: {
+        adminSetup: {
+          adminLanguage: "en",
+          onboardingCompleted: true,
+          onboardingStep: 7,
+          botName: "Test Bot",
+          botGoal: "SALES_SUPPORT",
+          welcomeMessage: "Hello!",
+          widgetBranding: {
+            launcherLabel: "Chat",
+            avatarStyle: "assistant",
+            primaryColor: "#008060",
+            launcherPosition: "bottom-right",
+          },
+        },
+      },
+    });
+    mockChatbotConfigFindUnique.mockResolvedValue({
+      name: "Test Bot",
+      tone: "friendly",
+      language: "en",
+    });
+
+    const { loader } = await import("../../app/routes/apps.fluxbot.widget-config");
+    const response = await loader({
+      request: makeProxyRequest({
+        path: "/apps/fluxbot/widget-config",
+        query: { shop: "other-store.myshopify.com", timestamp: "1710400008" },
+      }),
+      params: {},
+      context: {},
+    } as never);
+
+    const data = await response.json();
+
+    expect(data.chatEndpoint).not.toContain("localhost");
+    expect(data.chatEndpoint).not.toContain(":3001");
+    expect(data.chatEndpoint).not.toContain("api/v1");
+    expect(data.chatEndpoint).toBe("/apps/fluxbot/chat");
   });
 });

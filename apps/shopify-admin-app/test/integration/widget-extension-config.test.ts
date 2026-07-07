@@ -153,9 +153,9 @@ describe("Theme App Extension — assets", () => {
 
   it("JS keeps storefront chat on the signed app proxy instead of direct app chat", () => {
     const js = readExtFile("assets/chat-launcher.js");
-    expect(js).toContain("Widget config chatEndpoint ignored for Shopify storefront");
-    expect(js).toContain("Direct app chat endpoint requires app authentication");
+    expect(js).toContain("Widget config chatEndpoint is not a proxy path; overriding to signed app proxy");
     expect(js).toContain("chatEndpoint = API_ENDPOINT");
+    expect(js).toContain("Widget config chatEndpoint servido");
   });
 
   it("default locale file (en) exists", () => {

@@ -751,32 +751,29 @@
             override: sanitizeAttr(launcher.dataset.chatEndpoint),
             payloadChatEndpoint: payload.chatEndpoint,
           });
+          chatEndpoint = sanitizeAttr(launcher.dataset.chatEndpoint);
         } else if (typeof payload.chatEndpoint === 'string' && payload.chatEndpoint) {
-          debugWarn('Widget config chatEndpoint ignored for Shopify storefront; using signed app proxy', {
-            payloadChatEndpoint: payload.chatEndpoint,
-            appProxyEndpoint: API_ENDPOINT,
-            reason: 'Direct app chat endpoint requires app authentication and returns 401 from storefront.',
-          });
-          chatEndpoint = API_ENDPOINT;
+          if (payload.chatEndpoint.indexOf('/apps/fluxbot/chat') !== -1) {
+            chatEndpoint = payload.chatEndpoint;
+          } else {
+            debugWarn('Widget config chatEndpoint is not a proxy path; overriding to signed app proxy', {
+              payloadChatEndpoint: payload.chatEndpoint,
+              appProxyEndpoint: API_ENDPOINT,
+            });
+            chatEndpoint = API_ENDPOINT;
+          }
         } else if (typeof payload.apiBaseUrl === 'string' && payload.apiBaseUrl) {
-          debugWarn('Widget config apiBaseUrl ignored for Shopify storefront; using signed app proxy', {
+          debugWarn('Widget config apiBaseUrl without chatEndpoint; using signed app proxy', {
             payloadApiBaseUrl: payload.apiBaseUrl,
             appProxyEndpoint: API_ENDPOINT,
           });
           chatEndpoint = API_ENDPOINT;
         }
-        if (typeof payload.chatEndpoint !== 'string' || !payload.chatEndpoint) {
-          debugWarn('Widget config did not include chatEndpoint; using storefront app-proxy fallback', {
-            fallbackEndpoint: chatEndpoint,
-            impact: 'POST may render storefront HTML instead of reaching Remix in dev previews.',
-          });
-        }
-        if (chatEndpoint.indexOf('/chat') === -1) {
-          debugWarn('Widget config selected an unexpected chat endpoint; fallback may be needed', {
-            chatEndpoint: chatEndpoint,
-            expectedPath: '/chat',
-          });
-        }
+        debugLog('Widget config chatEndpoint servido', {
+          chatEndpoint: chatEndpoint,
+          configChatEndpoint: payload.chatEndpoint,
+          liquidOverride: sanitizeAttr(launcher.dataset.chatEndpoint),
+        });
         var mergedConfig = Object.assign({}, payload.widgetBranding, {
           configVersion: payload.configVersion,
         });
