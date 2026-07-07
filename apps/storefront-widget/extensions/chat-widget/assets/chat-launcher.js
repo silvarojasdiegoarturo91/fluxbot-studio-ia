@@ -14,7 +14,8 @@
 (function () {
   'use strict';
 
-  var DEBUG_VERSION = '2026-07-05-widget-proxy-debug-v2';
+  var DEBUG_VERSION = '2026-07-07-product-recommendations-logs-v1';
+  var WIDGET_BUILD_ID = DEBUG_VERSION;
   var DEBUG_PREFIX = '[FluxBot]';
 
   // ─── Endpoints ──────────────────────────────────────────────────────────────
@@ -73,6 +74,7 @@
       showLauncher: sanitizeAttr(launcher.dataset.showLauncher),
       primaryColor: sanitizeAttr(launcher.dataset.primaryColor),
       chatEndpointOverride: sanitizeAttr(launcher.dataset.chatEndpoint),
+      widgetVersion: sanitizeAttr(launcher.dataset.widgetVersion),
       apiEndpoint: API_ENDPOINT,
       configEndpoint: CONFIG_ENDPOINT,
       chatEndpoint: chatEndpoint,
@@ -82,6 +84,7 @@
   function publishDebugState(extra) {
     window.__FLUXBOT_WIDGET_DEBUG__ = Object.assign({
       debugVersion: DEBUG_VERSION,
+      buildId: WIDGET_BUILD_ID,
       scriptSrc: getScriptSrc(),
       pageUrl: window.location.href,
       origin: window.location.origin,
@@ -94,6 +97,19 @@
       conversationId: conversationId,
       launcherDataset: summarizeLauncherDataset(),
     }, extra || {});
+  }
+
+  function summarizeProductForDebug(product) {
+    if (!product || typeof product !== 'object') return {};
+    return {
+      title: product.title ? String(product.title).slice(0, 80) : '',
+      handle: product.handle ? String(product.handle).slice(0, 120) : '',
+      price: product.price ? String(product.price).slice(0, 50) : '',
+      hasUrl: !!product.url,
+      hasImage: !!product.image,
+      hasProductId: !!(product.productId || product.product_id || product.id),
+      hasVariantId: !!(product.variantId || product.variant_id),
+    };
   }
 
   async function readResponsePreview(response) {
@@ -398,11 +414,22 @@
     if (!launcher) {
       debugError('Launcher element not found', {
         debugVersion: DEBUG_VERSION,
+        buildId: WIDGET_BUILD_ID,
         scriptSrc: getScriptSrc(),
       });
       return;
     }
     debugLog('Launcher element found', summarizeLauncherDataset());
+    publishDebugState({ phase: 'asset-loaded' });
+    debugLog('Widget update marker', {
+      buildId: WIDGET_BUILD_ID,
+      debugVersion: DEBUG_VERSION,
+      scriptSrc: getScriptSrc(),
+      pageUrl: window.location.href,
+      launcherWidgetVersion: sanitizeAttr(launcher.dataset.widgetVersion),
+      supportsProductRecommendations: true,
+      debugState: window.__FLUXBOT_WIDGET_DEBUG__,
+    });
 
     var configuredChatEndpoint = sanitizeAttr(launcher.dataset.chatEndpoint);
     if (configuredChatEndpoint) {
@@ -1282,6 +1309,8 @@
       confidence: data.confidence,
       requiresEscalation: data.requiresEscalation,
       actionCount: Array.isArray(data.actions) ? data.actions.length : 0,
+      metadataProductCount:
+        data.metadata && Array.isArray(data.metadata.products) ? data.metadata.products.length : 0,
     });
     return data;
   }
@@ -1317,6 +1346,10 @@
     renderMarkdown(content, contentEl);
     messageEl.appendChild(contentEl);
     if (metadata.products && Array.isArray(metadata.products)) {
+      debugLog('Assistant message includes product metadata', {
+        productCount: metadata.products.length,
+        products: metadata.products.slice(0, 3).map(summarizeProductForDebug),
+      });
       messageEl.appendChild(createProductCards(metadata.products));
     }
     messagesContainer.appendChild(messageEl);
@@ -1338,6 +1371,13 @@
   function createProductCards(products) {
     var container = document.createElement('div');
     container.className = 'fluxbot-product-cards';
+    var renderedCount = Math.min(products.length, 3);
+
+    debugLog('Rendering product cards', {
+      requestedCount: products.length,
+      renderedCount: renderedCount,
+      products: products.slice(0, 3).map(summarizeProductForDebug),
+    });
 
     products.slice(0, 3).forEach(function (product) {
       var card = document.createElement('div');
@@ -1390,6 +1430,13 @@
       link.appendChild(info);
       card.appendChild(link);
       container.appendChild(card);
+    });
+
+    debugLog('Product cards rendered', {
+      requestedCount: products.length,
+      renderedCount: renderedCount,
+      cardCount: container.querySelectorAll('.fluxbot-product-card').length,
+      buildId: WIDGET_BUILD_ID,
     });
 
     return container;

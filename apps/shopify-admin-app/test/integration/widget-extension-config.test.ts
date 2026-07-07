@@ -86,6 +86,11 @@ describe("Theme App Extension — chat_launcher.liquid", () => {
     expect(liquid).toMatch(/block\.settings\.chat_endpoint/);
   });
 
+  it("embeds a widget version marker for storefront update diagnostics", () => {
+    expect(liquid).toContain("data-widget-version=");
+    expect(liquid).toContain("product-recommendations-logs");
+  });
+
   it("has ARIA role dialog on chat window", () => {
     expect(liquid).toMatch(/role="dialog"/);
   });
@@ -136,6 +141,14 @@ describe("Theme App Extension — assets", () => {
     expect(js).toContain("metadata.products");
     expect(js).toContain("createProductCards(metadata.products)");
     expect(js).toContain("fluxbot-product-card");
+  });
+
+  it("JS logs update and product-card diagnostics", () => {
+    const js = readExtFile("assets/chat-launcher.js");
+    expect(js).toContain("Widget update marker");
+    expect(js).toContain("Assistant message includes product metadata");
+    expect(js).toContain("Product cards rendered");
+    expect(js).toContain("WIDGET_BUILD_ID");
   });
 
   it("default locale file (en) exists", () => {
