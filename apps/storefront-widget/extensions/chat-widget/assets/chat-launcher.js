@@ -752,9 +752,18 @@
             payloadChatEndpoint: payload.chatEndpoint,
           });
         } else if (typeof payload.chatEndpoint === 'string' && payload.chatEndpoint) {
-          chatEndpoint = payload.chatEndpoint;
+          debugWarn('Widget config chatEndpoint ignored for Shopify storefront; using signed app proxy', {
+            payloadChatEndpoint: payload.chatEndpoint,
+            appProxyEndpoint: API_ENDPOINT,
+            reason: 'Direct app chat endpoint requires app authentication and returns 401 from storefront.',
+          });
+          chatEndpoint = API_ENDPOINT;
         } else if (typeof payload.apiBaseUrl === 'string' && payload.apiBaseUrl) {
-          chatEndpoint = payload.apiBaseUrl.replace(/\/$/, '') + API_ENDPOINT;
+          debugWarn('Widget config apiBaseUrl ignored for Shopify storefront; using signed app proxy', {
+            payloadApiBaseUrl: payload.apiBaseUrl,
+            appProxyEndpoint: API_ENDPOINT,
+          });
+          chatEndpoint = API_ENDPOINT;
         }
         if (typeof payload.chatEndpoint !== 'string' || !payload.chatEndpoint) {
           debugWarn('Widget config did not include chatEndpoint; using storefront app-proxy fallback', {
@@ -1345,7 +1354,7 @@
     contentEl.className = 'fluxbot-message__content';
     renderMarkdown(content, contentEl);
     messageEl.appendChild(contentEl);
-    if (metadata.products && Array.isArray(metadata.products)) {
+    if (metadata.products && Array.isArray(metadata.products) && metadata.products.length > 0) {
       debugLog('Assistant message includes product metadata', {
         productCount: metadata.products.length,
         products: metadata.products.slice(0, 3).map(summarizeProductForDebug),

@@ -20,6 +20,16 @@ const CORS_HEADERS = {
   "Access-Control-Allow-Headers": "Content-Type, Accept, X-Shopify-Shop-Domain, ngrok-skip-browser-warning",
 };
 
+type ProxyProductRecommendation = {
+  title: string;
+  price?: string;
+  url: string;
+  image?: string;
+  handle: string;
+  productId: string;
+  variantId?: string;
+};
+
 function buildAssistantMetadata(chatResponse: {
   toolsUsed?: unknown;
   sourceReferences?: unknown;
@@ -60,6 +70,198 @@ function json(data: unknown, init?: ResponseInit) {
 
 function preflight() {
   return new Response(null, { status: 204, headers: CORS_HEADERS });
+}
+
+function normalizeSearchText(value: unknown): string {
+  return String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+function expandProductQuery(query: string): string[] {
+  const normalized = normalizeSearchText(query);
+  const terms = new Set(
+    normalized
+      .split(/[^a-z0-9]+/i)
+      .map((term) => term.trim())
+      .filter((term) => term.length >= 3),
+  );
+
+  const synonymGroups = [
+    ["snowboarding", "snowboard", "snow", "nieve", "ski", "esqui", "deportes de nieve"],
+    ["deporte", "deportes", "extremo", "extremos", "skate", "snowboard", "proteccion", "casco", "rodilleras", "accesorios"],
+    ["skateboarding", "skate", "skateboard", "tabla"],
+    ["proteccion", "casco", "rodilleras", "coderas", "guantes"],
+  ];
+
+  for (const group of synonymGroups) {
+    if (group.some((term) => normalized.includes(term))) {
+      group.forEach((term) => terms.add(term));
+    }
+  }
+
+  return Array.from(terms);
+}
+
+function isProductSeekingProxyMessage(message: string, history: Array<{ role: string; content: string }>): boolean {
+  const terms = [
+    "producto",
+    "productos",
+    "catalogo",
+    "venden",
+    "vendes",
+    "tienen",
+    "tienes",
+    "deporte",
+    "deportes",
+    "extremo",
+    "extremos",
+    "snowboard",
+    "snowboarding",
+    "snow",
+    "nieve",
+    "ski",
+    "esqui",
+    "skate",
+    "skateboard",
+    "proteccion",
+    "casco",
+    "rodilleras",
+    "coderas",
+    "guantes",
+    "accesorios",
+  ];
+  const current = normalizeSearchText(message);
+  if (terms.some((term) => current.includes(term))) return true;
+
+  return history.slice(-4).some((item) => {
+    if (item.role !== "USER" && item.role !== "user") return false;
+    const content = normalizeSearchText(item.content);
+    return terms.some((term) => content.includes(term));
+  });
+}
+
+function asArray(value: unknown): Array<Record<string, any>> {
+  return Array.isArray(value) ? value.filter((item) => item && typeof item === "object") as Array<Record<string, any>> : [];
+}
+
+function firstString(...values: unknown[]): string | undefined {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim()) return value.trim();
+    if (typeof value === "number") return String(value);
+  }
+  return undefined;
+}
+
+function productSearchText(product: {
+  title: string;
+  handle: string;
+  description: string | null;
+  vendor: string | null;
+  productType: string | null;
+  metadata: unknown;
+}): string {
+  const metadata = product.metadata && typeof product.metadata === "object" ? product.metadata as Record<string, unknown> : {};
+  return normalizeSearchText([
+    product.title,
+    product.handle,
+    product.description,
+    product.vendor,
+    product.productType,
+    metadata.title,
+    metadata.productType,
+    metadata.tags,
+    metadata.collections,
+  ].flat().join(" "));
+}
+
+function scoreProduct(product: Parameters<typeof productSearchText>[0], terms: string[]): number {
+  const text = productSearchText(product);
+  const title = normalizeSearchText(product.title);
+  const handle = normalizeSearchText(product.handle);
+  const productType = normalizeSearchText(product.productType);
+
+  return terms.reduce((score, term) => {
+    if (!term) return score;
+    if (title.includes(term)) return score + 6;
+    if (handle.includes(term)) return score + 5;
+    if (productType.includes(term)) return score + 4;
+    if (text.includes(term)) return score + 2;
+    return score;
+  }, 0);
+}
+
+function toProxyProduct(product: {
+  productId: string;
+  handle: string;
+  title: string;
+  variants: unknown;
+  images: unknown;
+}): ProxyProductRecommendation {
+  const variants = asArray(product.variants);
+  const images = asArray(product.images);
+  const firstVariant = variants[0] ?? {};
+  const firstImage = images[0] ?? {};
+  const price = firstString(
+    firstVariant.price,
+    firstVariant.displayPrice,
+    firstVariant.compareAtPrice,
+  );
+
+  return {
+    title: product.title,
+    price,
+    url: `/products/${product.handle}`,
+    image: firstString(firstImage.url, firstImage.src, firstImage.originalSrc, firstImage.transformedSrc),
+    handle: product.handle,
+    productId: product.productId,
+    variantId: firstString(firstVariant.id, firstVariant.admin_graphql_api_id, firstVariant.variantId),
+  };
+}
+
+async function searchProxyCatalogProducts(params: {
+  shopId: string;
+  message: string;
+  history: Array<{ role: string; content: string }>;
+}): Promise<ProxyProductRecommendation[]> {
+  if (!isProductSeekingProxyMessage(params.message, params.history)) return [];
+
+  const contextualQuery = [
+    ...params.history
+      .filter((item) => item.role === "USER" || item.role === "user")
+      .slice(-3)
+      .map((item) => item.content),
+    params.message,
+  ].join(" ");
+  const terms = expandProductQuery(contextualQuery);
+
+  const products = await prisma.productProjection.findMany({
+    where: {
+      shopId: params.shopId,
+      deletedAt: null,
+    },
+    orderBy: { syncedAt: "desc" },
+    take: 250,
+    select: {
+      productId: true,
+      handle: true,
+      title: true,
+      description: true,
+      vendor: true,
+      productType: true,
+      variants: true,
+      images: true,
+      metadata: true,
+    },
+  });
+
+  return products
+    .map((product) => ({ product, score: scoreProduct(product, terms) }))
+    .filter(({ score }) => score > 0)
+    .sort((a, b) => b.score - a.score || a.product.title.localeCompare(b.product.title))
+    .slice(0, 3)
+    .map(({ product }) => toProxyProduct(product));
 }
 
 // ── loader (GET — not used, but needs a response) ────────────────────────────
@@ -175,6 +377,38 @@ export async function action({ request }: ActionFunctionArgs) {
       requiresEscalation: chatResponse.requiresEscalation,
     });
 
+    const backendProducts = chatResponse.actions
+      ?.filter((a: any) => a.type === "product_recommend")
+      .flatMap((a: any) => a.products ?? []) ?? [];
+    const proxyFallbackProducts = backendProducts.length > 0
+      ? []
+      : await searchProxyCatalogProducts({
+          shopId: shop.id,
+          message,
+          history: (conversation.messages ?? []).map((item: any) => ({
+            role: item.role,
+            content: item.content,
+          })),
+        });
+    const productRecommendations = backendProducts.length > 0 ? backendProducts : proxyFallbackProducts;
+    const actions = productRecommendations.length > 0 && backendProducts.length === 0
+      ? [
+          ...(chatResponse.actions ?? []),
+          {
+            type: "product_recommend",
+            products: productRecommendations,
+            source: "shopify_proxy_catalog_fallback",
+          },
+        ]
+      : chatResponse.actions;
+
+    console.info("[ProxyChat] product recommendations resolved", {
+      shopDomain,
+      backendProductCount: backendProducts.length,
+      proxyFallbackProductCount: proxyFallbackProducts.length,
+      returnedProductCount: productRecommendations.length,
+    });
+
     // Persist messages
     await prisma.conversationMessage.create({
       data: { conversationId: conversation.id, role: "USER", content: message },
@@ -198,12 +432,10 @@ export async function action({ request }: ActionFunctionArgs) {
       message: chatResponse.message,
       confidence: chatResponse.confidence,
       requiresEscalation: chatResponse.requiresEscalation,
-      actions: chatResponse.actions,
+      actions,
       // Products surfaced via metadata so the widget's existing metadata.products handler works
       metadata: {
-        products: chatResponse.actions
-          ?.filter((a: any) => a.type === "product_recommend")
-          .flatMap((a: any) => a.products ?? []) ?? [],
+        products: productRecommendations,
       },
       sourceReferences: chatResponse.sourceReferences,
     });

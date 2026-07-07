@@ -4,6 +4,7 @@ const mockShopFindUnique = vi.fn();
 const mockConversationFindUnique = vi.fn();
 const mockConversationCreate = vi.fn();
 const mockConversationMessageCreate = vi.fn();
+const mockProductProjectionFindMany = vi.fn();
 const mockGatewayChat = vi.fn();
 const mockVerifyProxy = vi.fn();
 
@@ -16,6 +17,9 @@ vi.mock("../../app/db.server", () => ({
     },
     conversationMessage: {
       create: mockConversationMessageCreate,
+    },
+    productProjection: {
+      findMany: mockProductProjectionFindMany,
     },
   },
 }));
@@ -38,6 +42,7 @@ describe("apps.fluxbot.chat proxy route", () => {
     mockConversationFindUnique.mockResolvedValue(null);
     mockConversationCreate.mockResolvedValue({ id: "conv-1", messages: [] });
     mockConversationMessageCreate.mockResolvedValue({ id: "msg-1" });
+    mockProductProjectionFindMany.mockResolvedValue([]);
     mockGatewayChat.mockResolvedValue({
       message: "Hola",
       confidence: 0.91,
@@ -154,6 +159,74 @@ describe("apps.fluxbot.chat proxy route", () => {
       expect.objectContaining({
         title: "Snow Shield Casco",
         productId: "gid://shopify/Product/1001",
+      }),
+    ]);
+  });
+
+  it("falls back to real synced product projections when backend returns no product actions", async () => {
+    mockGatewayChat.mockResolvedValue({
+      message: "Puedo ayudarte con opciones para deporte extremo.",
+      confidence: 0.66,
+      requiresEscalation: false,
+      actions: [],
+      toolsUsed: ["searchProducts"],
+      sourceReferences: [],
+    });
+    mockProductProjectionFindMany.mockResolvedValue([
+      {
+        productId: "gid://shopify/Product/3001",
+        handle: "snow-shield-casco",
+        title: "Snow Shield Casco",
+        description: "Casco de protección para nieve y deportes extremos.",
+        vendor: "FluxBot",
+        productType: "Protección",
+        variants: [{ id: "gid://shopify/ProductVariant/4001", price: "49.00 EUR" }],
+        images: [{ url: "https://cdn.example.com/snow-shield.jpg" }],
+        metadata: {
+          tags: ["snowboard", "nieve", "protección"],
+          collections: ["Deporte extremo"],
+        },
+      },
+    ]);
+    const { action } = await import("../../app/routes/apps.fluxbot.chat");
+
+    const request = new Request(
+      "http://localhost/apps/fluxbot/chat?shop=quickstart-c8cc9986.myshopify.com",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          message: "algo como un snowboarding",
+          visitorId: "visitor-1",
+          locale: "es",
+          context: {},
+        }),
+      },
+    );
+
+    const response = await action({
+      request,
+      params: {},
+      context: {},
+    } as never);
+
+    expect(response.status).toBe(200);
+    const data = await response.json();
+    expect(data.actions).toEqual([
+      expect.objectContaining({
+        type: "product_recommend",
+        source: "shopify_proxy_catalog_fallback",
+      }),
+    ]);
+    expect(data.metadata.products).toEqual([
+      expect.objectContaining({
+        title: "Snow Shield Casco",
+        url: "/products/snow-shield-casco",
+        image: "https://cdn.example.com/snow-shield.jpg",
+        productId: "gid://shopify/Product/3001",
+        variantId: "gid://shopify/ProductVariant/4001",
       }),
     ]);
   });
