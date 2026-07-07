@@ -163,7 +163,7 @@ export async function action({ request }: ActionFunctionArgs) {
         conversationId: conversationId || conversation.id,
         shopId: shop.id,
         locale,
-        channel: "WEB_CHAT",
+        channel: "SHOPIFY_PROXY",
       },
       shopDomain,
     );

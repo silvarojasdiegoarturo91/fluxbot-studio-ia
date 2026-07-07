@@ -82,8 +82,79 @@ describe("apps.fluxbot.chat proxy route", () => {
     });
 
     expect(mockConversationMessageCreate).toHaveBeenCalledTimes(2);
+    expect(mockConversationCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          channel: "WEB_CHAT",
+        }),
+      }),
+    );
+    expect(mockGatewayChat).toHaveBeenCalledWith(
+      expect.objectContaining({
+        channel: "SHOPIFY_PROXY",
+      }),
+      "quickstart-c8cc9986.myshopify.com",
+    );
     const assistantMessageCall = mockConversationMessageCreate.mock.calls[1][0]
       .data as Record<string, unknown>;
     expect(assistantMessageCall).not.toHaveProperty("metadata");
+  });
+
+  it("maps product_recommend actions to metadata.products for the storefront widget", async () => {
+    mockGatewayChat.mockResolvedValue({
+      message: "Te recomiendo Snow Shield Casco.",
+      confidence: 0.94,
+      requiresEscalation: false,
+      actions: [
+        {
+          type: "product_recommend",
+          products: [
+            {
+              title: "Snow Shield Casco",
+              price: "49.00 EUR",
+              url: "/products/snow-shield-casco",
+              image: "https://cdn.example.com/snow-shield.jpg",
+              handle: "snow-shield-casco",
+              productId: "gid://shopify/Product/1001",
+              variantId: "gid://shopify/ProductVariant/2001",
+            },
+          ],
+        },
+      ],
+      toolsUsed: ["searchProducts"],
+      sourceReferences: [],
+    });
+    const { action } = await import("../../app/routes/apps.fluxbot.chat");
+
+    const request = new Request(
+      "http://localhost/apps/fluxbot/chat?shop=quickstart-c8cc9986.myshopify.com",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          message: "algo como un snowboarding",
+          visitorId: "visitor-1",
+          locale: "es",
+          context: {},
+        }),
+      },
+    );
+
+    const response = await action({
+      request,
+      params: {},
+      context: {},
+    } as never);
+
+    expect(response.status).toBe(200);
+    const data = await response.json();
+    expect(data.metadata.products).toEqual([
+      expect.objectContaining({
+        title: "Snow Shield Casco",
+        productId: "gid://shopify/Product/1001",
+      }),
+    ]);
   });
 });

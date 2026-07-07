@@ -131,6 +131,13 @@ describe("Theme App Extension — assets", () => {
     expect(js).toContain("/apps/fluxbot/events");
   });
 
+  it("JS renders product recommendation cards from metadata.products", () => {
+    const js = readExtFile("assets/chat-launcher.js");
+    expect(js).toContain("metadata.products");
+    expect(js).toContain("createProductCards(metadata.products)");
+    expect(js).toContain("fluxbot-product-card");
+  });
+
   it("default locale file (en) exists", () => {
     const en = readExtFile("locales/en.default.json");
     const parsed = JSON.parse(en);
