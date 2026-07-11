@@ -43,13 +43,16 @@ function readFile(relativePath: string): string {
   return readFileSync(resolveWorkspacePath(relativePath), "utf-8");
 }
 
-const backendRequiredFiles = [
+// These representative backend files are already asserted by this suite.
+// If the sibling backend repo is not checked out (common in isolated CI runs),
+// backend-specific assertions should be skipped instead of failing with ENOENT.
+const requiredBackendSourcePaths = [
   "fluxbot-studio-back-ia/src/middleware/request-context.ts",
   "fluxbot-studio-back-ia/src/index.ts",
   "fluxbot-studio-back-ia/src/routes/chat.ts",
 ];
 
-const backendSourcesAvailable = backendRequiredFiles.every((path) =>
+const backendSourcesAvailable = requiredBackendSourcePaths.every((path) =>
   existsSync(resolveBackendPath(path)),
 );
 const itIfBackend = backendSourcesAvailable ? it : it.skip;
