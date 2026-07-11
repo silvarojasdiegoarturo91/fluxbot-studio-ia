@@ -43,6 +43,17 @@ function readFile(relativePath: string): string {
   return readFileSync(resolveWorkspacePath(relativePath), "utf-8");
 }
 
+const backendRequiredFiles = [
+  "fluxbot-studio-back-ia/src/middleware/request-context.ts",
+  "fluxbot-studio-back-ia/src/index.ts",
+  "fluxbot-studio-back-ia/src/routes/chat.ts",
+];
+
+const backendSourcesAvailable = backendRequiredFiles.every((path) =>
+  existsSync(resolveBackendPath(path)),
+);
+const itIfBackend = backendSourcesAvailable ? it : it.skip;
+
 // ── Widget endpoint guard tests ──────────────────────────────────────────────
 
 describe("Widget endpoint guard (W7)", () => {
@@ -151,7 +162,7 @@ describe("TraceId generation (W7)", () => {
 // ── Diagnostic headers tests ─────────────────────────────────────────────────
 
 describe("Diagnostic headers (W7)", () => {
-  it("backend request-context middleware sets diagnostic headers", () => {
+  itIfBackend("backend request-context middleware sets diagnostic headers", () => {
     const content = readFile("fluxbot-studio-back-ia/src/middleware/request-context.ts");
 
     expect(content).toMatch(/X-FluxBot-Service/);
@@ -175,7 +186,7 @@ describe("Diagnostic headers (W7)", () => {
     expect(content).toMatch(/X-FluxBot-Trace-Id/);
   });
 
-  it("backend logs startup diagnostics", () => {
+  itIfBackend("backend logs startup diagnostics", () => {
     const content = readFile("fluxbot-studio-back-ia/src/index.ts");
 
     expect(content).toMatch(/\[Startup\]/);
@@ -210,7 +221,7 @@ describe("TraceId propagation (W7)", () => {
     expect(content).toMatch(/traceId/);
   });
 
-  it("backend chat route extracts traceId from request", () => {
+  itIfBackend("backend chat route extracts traceId from request", () => {
     const content = readFile("fluxbot-studio-back-ia/src/routes/chat.ts");
 
     expect(content).toMatch(/traceId/);
@@ -240,7 +251,7 @@ describe("TraceId propagation (W7)", () => {
 // ── Silent success prevention tests ──────────────────────────────────────────
 
 describe("No silent success (W7)", () => {
-  it("backend chat route always logs completion", () => {
+  itIfBackend("backend chat route always logs completion", () => {
     const content = readFile("fluxbot-studio-back-ia/src/routes/chat.ts");
 
     expect(content).toMatch(/Chat request received/);
@@ -312,13 +323,13 @@ describe("Product extraction (T1)", () => {
 // ── Backend tenant resolution tests ───────────────────────────────────────────
 
 describe("Backend tenant resolution (T1)", () => {
-  it("chat route imports AuthenticatedRequest", () => {
+  itIfBackend("chat route imports AuthenticatedRequest", () => {
     const content = readFile("fluxbot-studio-back-ia/src/routes/chat.ts");
 
     expect(content).toMatch(/import type { AuthenticatedRequest }/);
   });
 
-  it("chat route requires req.shopId and returns SHOP_CONTEXT_MISSING", () => {
+  itIfBackend("chat route requires req.shopId and returns SHOP_CONTEXT_MISSING", () => {
     const content = readFile("fluxbot-studio-back-ia/src/routes/chat.ts");
 
     expect(content).toMatch(/if \(!req\.shopId\)/);
@@ -326,7 +337,7 @@ describe("Backend tenant resolution (T1)", () => {
     expect(content).toMatch(/Authenticated shop context is missing/);
   });
 
-  it("chat route overrides payload shopId with authenticated shopId", () => {
+  itIfBackend("chat route overrides payload shopId with authenticated shopId", () => {
     const content = readFile("fluxbot-studio-back-ia/src/routes/chat.ts");
 
     expect(content).toMatch(/const payloadShopId = context\.shopId/);
@@ -335,7 +346,7 @@ describe("Backend tenant resolution (T1)", () => {
     expect(content).toMatch(/const shopId = authenticatedShopId/);
   });
 
-  it("chat route uses authenticated shopId for all database lookups", () => {
+  itIfBackend("chat route uses authenticated shopId for all database lookups", () => {
     const content = readFile("fluxbot-studio-back-ia/src/routes/chat.ts");
 
     expect(content).toMatch(/UsageService\.assertCanConsumeMessage\(shopId/);
@@ -343,14 +354,14 @@ describe("Backend tenant resolution (T1)", () => {
     expect(content).toMatch(/UsageService\.incrementUsage\(shopId/);
   });
 
-  it("chat route validates conversation belongs to same tenant", () => {
+  itIfBackend("chat route validates conversation belongs to same tenant", () => {
     const content = readFile("fluxbot-studio-back-ia/src/routes/chat.ts");
 
     expect(content).toMatch(/conversation\.shopId !== shopId/);
     expect(content).toMatch(/Conversation belongs to different tenant/);
   });
 
-  it("stream route also uses AuthenticatedRequest", () => {
+  itIfBackend("stream route also uses AuthenticatedRequest", () => {
     const content = readFile("fluxbot-studio-back-ia/src/routes/chat.ts");
 
     const streamIdx = content.indexOf("router.post('/stream'");
