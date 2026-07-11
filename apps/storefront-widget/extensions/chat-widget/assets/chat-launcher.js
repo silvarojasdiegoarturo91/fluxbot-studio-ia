@@ -14,7 +14,7 @@
 (function () {
   'use strict';
 
-  var DEBUG_VERSION = '2026-07-07-product-recommendations-logs-v1';
+  var DEBUG_VERSION = '2026-07-10-trace-routing-diagnostics-v1';
   var WIDGET_BUILD_ID = DEBUG_VERSION;
   var DEBUG_PREFIX = '[FluxBot]';
 
@@ -49,6 +49,12 @@
   function debugError(label, data) {
     if (typeof console === 'undefined' || !console.error) return;
     console.error(DEBUG_PREFIX + ' ' + label, data);
+  }
+
+  function generateTraceId() {
+    var ts = Date.now().toString(36);
+    var rand = Math.random().toString(36).slice(2, 10);
+    return 'TRACE-' + ts + '-' + rand;
   }
 
   function maskEmail(value) {
@@ -95,6 +101,7 @@
       sessionId: sessionId,
       visitorId: visitorId,
       conversationId: conversationId,
+      lastTraceId: (extra && extra.traceId) || (window.__FLUXBOT_WIDGET_DEBUG__ && window.__FLUXBOT_WIDGET_DEBUG__.lastTraceId) || null,
       launcherDataset: summarizeLauncherDataset(),
     }, extra || {});
   }
@@ -753,12 +760,14 @@
           });
           chatEndpoint = sanitizeAttr(launcher.dataset.chatEndpoint);
         } else if (typeof payload.chatEndpoint === 'string' && payload.chatEndpoint) {
-          if (payload.chatEndpoint.indexOf('/apps/fluxbot/chat') !== -1) {
+          if (payload.chatEndpoint.indexOf('/apps/fluxbot/') !== -1) {
             chatEndpoint = payload.chatEndpoint;
           } else {
-            debugWarn('Widget config chatEndpoint is not a proxy path; overriding to signed app proxy', {
+            // W7 — Remote config must never override the proxy path with a direct backend URL.
+            debugWarn('REJECTED remote chatEndpoint (not a proxy path); keeping canonical', {
               payloadChatEndpoint: payload.chatEndpoint,
-              appProxyEndpoint: API_ENDPOINT,
+              keptEndpoint: API_ENDPOINT,
+              reason: 'non-proxy-endpoint-blocked',
             });
             chatEndpoint = API_ENDPOINT;
           }
@@ -1188,7 +1197,9 @@
   }
 
   async function sendMessage(message) {
+    var traceId = generateTraceId();
     debugLog('sendMessage start', {
+      traceId: traceId,
       debugVersion: DEBUG_VERSION,
       widgetConfigLoaded: widgetConfigLoaded,
       initialChatEndpoint: chatEndpoint,
@@ -1200,11 +1211,21 @@
     }
 
     var endpoint = chatEndpoint || API_ENDPOINT;
+    // W7 — Enforce proxy path: never allow a direct backend URL from config.
+    if (endpoint.indexOf('/apps/fluxbot/') === -1) {
+      debugWarn('Endpoint is not a Shopify proxy path; forcing canonical proxy', {
+        requestedEndpoint: endpoint,
+        forcedEndpoint: API_ENDPOINT,
+        traceId: traceId,
+      });
+      endpoint = API_ENDPOINT;
+    }
     var payload = {
       message: message,
       conversationId: conversationId,
       sessionId: sessionId,
       visitorId: visitorId,
+      traceId: traceId,
       context: {
         shop: sanitizeAttr(launcher.dataset.shop),
         locale: sanitizeAttr(launcher.dataset.locale),
@@ -1218,8 +1239,10 @@
     publishDebugState({
       phase: 'chat-request-start',
       lastChatEndpoint: endpoint,
+      traceId: traceId,
     });
     debugLog('Chat request prepared', {
+      traceId: traceId,
       endpoint: endpoint,
       fallbackEndpoint: API_ENDPOINT,
       endpointIsProxy: endpoint.indexOf('/apps/fluxbot/chat') !== -1,
@@ -1241,8 +1264,11 @@
       },
     });
 
-    var res = await fetch(endpoint, buildJsonRequestOptions('POST', payload, false, endpoint));
+    var reqOptions = buildJsonRequestOptions('POST', payload, false, endpoint);
+    reqOptions.headers['X-FluxBot-Trace-Id'] = traceId;
+    var res = await fetch(endpoint, reqOptions);
     debugLog('Chat response received', {
+      traceId: traceId,
       endpoint: endpoint,
       url: res.url,
       status: res.status,
@@ -1256,8 +1282,11 @@
         debugWarn('Retrying chat with refreshed endpoint', {
           previousEndpoint: endpoint,
           refreshedEndpoint: refreshedEndpoint,
+          traceId: traceId,
         });
-        res = await fetch(refreshedEndpoint, buildJsonRequestOptions('POST', payload, false, refreshedEndpoint));
+        var retryOptions = buildJsonRequestOptions('POST', payload, false, refreshedEndpoint);
+        retryOptions.headers['X-FluxBot-Trace-Id'] = traceId;
+        res = await fetch(refreshedEndpoint, retryOptions);
         debugLog('Refreshed chat response received', {
           endpoint: refreshedEndpoint,
           url: res.url,
@@ -1273,8 +1302,11 @@
         fallbackEndpoint: API_ENDPOINT,
         failedStatus: res.status,
         failedBodyPreview: await readResponsePreview(res),
+        traceId: traceId,
       });
-      res = await fetch(API_ENDPOINT, buildJsonRequestOptions('POST', payload, false, API_ENDPOINT));
+      var fallbackOptions = buildJsonRequestOptions('POST', payload, false, API_ENDPOINT);
+      fallbackOptions.headers['X-FluxBot-Trace-Id'] = traceId;
+      res = await fetch(API_ENDPOINT, fallbackOptions);
       debugLog('Fallback chat response received', {
         endpoint: API_ENDPOINT,
         url: res.url,
@@ -1290,8 +1322,10 @@
         lastChatStatus: res.status,
         lastChatEndpoint: endpoint,
         lastChatErrorBodyPreview: errorBodyPreview,
+        traceId: traceId,
       });
       debugError('Chat request failed after retries', {
+        traceId: traceId,
         status: res.status,
         endpoint: endpoint,
         fallbackEndpoint: API_ENDPOINT,
@@ -1302,13 +1336,16 @@
     }
 
     var data = await res.json();
+    var serverTraceId = res.headers.get('X-FluxBot-Trace-Id') || traceId;
     publishDebugState({
       phase: 'chat-request-success',
       lastChatStatus: res.status,
       lastChatEndpoint: endpoint,
       conversationId: data.conversationId || conversationId,
+      traceId: serverTraceId,
     });
     debugLog('Chat response parsed', {
+      traceId: serverTraceId,
       success: data.success,
       conversationId: data.conversationId,
       hasMessage: !!data.message,

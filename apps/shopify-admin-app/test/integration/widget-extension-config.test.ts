@@ -153,7 +153,7 @@ describe("Theme App Extension — assets", () => {
 
   it("JS keeps storefront chat on the signed app proxy instead of direct app chat", () => {
     const js = readExtFile("assets/chat-launcher.js");
-    expect(js).toContain("Widget config chatEndpoint is not a proxy path; overriding to signed app proxy");
+    expect(js).toContain("REJECTED remote chatEndpoint (not a proxy path)");
     expect(js).toContain("chatEndpoint = API_ENDPOINT");
     expect(js).toContain("Widget config chatEndpoint servido");
   });

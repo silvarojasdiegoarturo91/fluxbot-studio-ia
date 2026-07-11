@@ -35,6 +35,17 @@ Además, todo cambio del Admin Shopify debe ejecutar la suite E2E aplicable ante
 
 Regla de regresión para "Sincronizar catálogo": cualquier cambio que toque `/app/assistant-config`, `iaClient.catalog.sync`, `ensureShopRecord`, `syncShopReferenceToIABackend` o el contrato de shop sync debe revisar `REQ-IA-AI-001`, `REQ-IA-AI-002`, `REQ-ROOT-AI-001` y `REQ-ROOT-009`, actualizar SpecKit/OpenSpec local si cambia el comportamiento y mantener pruebas para propagación de `accessToken`, bypass de throttle con token, header `X-Shop-Domain`, unwrap de `data`, `durationMs`, `errors[]` parciales y mensajes sin `[object Object]`.
 
+## 🧩 Regla de widget Shopify vs SDK externo
+
+Requisitos: `REQ-ROOT-012` y `REQ-IA-SHOPIFY-009`.
+
+- El widget storefront de este repo es la theme app extension (`chat-launcher.js`) y debe usar rutas app proxy `/apps/fluxbot/*`.
+- `scripts/dev-shopify-admin-local.sh` levanta Shopify Admin/backend IA, pero no sirve `fluxbot-external-widget` en `http://localhost:3004`.
+- Para validar integración completa o el SDK externo local, usar `scripts/dev-all.sh` desde la raíz.
+- No diagnosticar el widget Shopify mirando solo `http://localhost:3004`: ese puerto pertenece al SDK externo, no a la theme app extension.
+- En storefront Shopify, validar que chat y config usan `/apps/fluxbot/chat` y `/apps/fluxbot/widget-config`; no deben apuntar directo a `localhost:3001` ni a dominios productivos.
+- Cualquier cambio a `chat-launcher.js`, `widget-config`, app proxy o rutas `/apps/fluxbot/*` debe actualizar OpenSpec/SpecKit y mantener pruebas cercanas.
+
 ## 🌐 Regla obligatoria de traducciones del Admin
 
 Todo agente que modifique copy del Admin Shopify debe revisar el idioma destino antes de cerrar la tarea. En español, las etiquetas y textos visibles deben conservar acentos, `ñ` y ortografía correcta: `Campañas`, `Analítica`, `Facturación`, `configuración`, `sincronización`, `catálogo`, `políticas`, `páginas`, `descripción`, `acción`, `ejecución` y `retención`. Si se corrige o añade copy localizado, se debe actualizar una prueba cercana cuando exista cobertura razonable.
@@ -155,6 +166,8 @@ scripts/dev-all.sh
 
 Este comando arranca backend IA, Shopify Admin con el tunel nativo de Shopify CLI, frontend externo, backoffice/panel, widget externo y comprueba la base de datos dev. Usar este launcher cuando se necesite validar la integracion completa.
 
+También es el launcher correcto si se necesita comprobar el SDK externo en `http://localhost:3004`.
+
 ### Levantar solo Shopify Admin visible en Shopify Admin
 
 Desde la raiz del workspace `fluxbot-studio-app`, usar siempre:
@@ -164,6 +177,8 @@ scripts/dev-shopify-admin-local.sh
 ```
 
 El wrapper prepara Prisma/migraciones de `fluxbot-studio-back-ia` y este repo, luego ejecuta `npm run dev:fullstack`, que arranca el backend IA si no esta sano y abre Shopify Admin con el tunel nativo de Shopify CLI. La terminal imprime el enlace `Install app`/`Using URL`; ese es el enlace que se abre en navegador para ver la app en `admin.shopify.com`. Para otra tienda, usar `scripts/dev-shopify-admin-local.sh --shop=tu-tienda.myshopify.com` o definir `SHOPIFY_SHOP` / `SHOPIFY_DEV_STORE_URL`.
+
+Este wrapper no levanta el SDK externo en `localhost:3004`. El widget de Shopify visible en tienda se sirve por theme app extension y app proxy.
 
 Para reiniciar sin migraciones:
 

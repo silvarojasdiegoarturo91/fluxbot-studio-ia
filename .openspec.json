@@ -5,7 +5,7 @@
     "description": "OpenSpec local para requisitos de fluxbot-studio-ia-shopify. Los requisitos aquí son espejo de los requisitos root que afectan este repositorio.",
     "owner": "frontend_shopify",
     "status": "in-development",
-    "last_updated": "2026-07-05T15:10:00.000Z",
+    "last_updated": "2026-07-11T02:10:00.000Z",
     "source_of_truth": ".openspec.json",
     "mirror_root": "../.openspec.json"
   },
@@ -209,6 +209,35 @@
           "REQ-IA-SHOPIFY-005"
         ],
         "user_story": "Como merchant, quiero volver al panel embebido tras confirmar el pago para continuar operando sin login manual ni cobros duplicados."
+      },
+      {
+        "id": "REQ-IA-SHOPIFY-009",
+        "mirror_of": "REQ-ROOT-012",
+        "title": "[GUARDRAIL] Widget Shopify local: app proxy y theme extension no son el SDK externo",
+        "description": "Espejo de REQ-ROOT-012 para Shopify Admin. El storefront Shopify usa la theme app extension y chat-launcher.js con rutas /apps/fluxbot/* servidas por el app proxy del tunnel de Shopify CLI. Validar Shopify Admin con scripts/dev-shopify-admin-local.sh no implica que fluxbot-external-widget esté levantado en localhost:3004. Para validar integración completa o el SDK externo, usar scripts/dev-all.sh.",
+        "priority": "high",
+        "status": "planned",
+        "owner": "frontend_shopify",
+        "affected_apps": [
+          "fluxbot-studio-ia-shopify"
+        ],
+        "components": [
+          "apps/shopify-admin-app/app/routes/apps.fluxbot.widget-config.ts",
+          "apps/shopify-admin-app/.shopify/dev-bundle/**/assets/chat-launcher.js",
+          "apps/shopify-admin-app/scripts/dev-shopify-cli.sh",
+          "AGENTS.md"
+        ],
+        "acceptance_criteria": [
+          "El agente distingue Shopify theme app extension (chat-launcher.js) del SDK externo (chat-widget.js).",
+          "El widget Shopify usa /apps/fluxbot/chat y /apps/fluxbot/widget-config vía app proxy.",
+          "El agente no interpreta la ausencia de localhost:3004 tras scripts/dev-shopify-admin-local.sh como fallo del Shopify widget.",
+          "Para pruebas full-stack con widget externo se usa scripts/dev-all.sh desde la raíz.",
+          "Si cambia widget-config, chat-launcher.js, app proxy o rutas /apps/fluxbot/*, se actualiza esta regla y se mantienen pruebas de endpoint local/proxy."
+        ],
+        "dependencies": [
+          "REQ-IA-SHOPIFY-008"
+        ],
+        "user_story": "Como desarrollador del Admin Shopify, quiero validar el widget storefront contra el app proxy local correcto, para no confundirlo con el SDK externo ni con producción."
       }
     ],
     "documentation": [

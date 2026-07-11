@@ -102,7 +102,8 @@ describe("apps.fluxbot.chat proxy route", () => {
     );
     const assistantMessageCall = mockConversationMessageCreate.mock.calls[1][0]
       .data as Record<string, unknown>;
-    expect(assistantMessageCall).not.toHaveProperty("metadata");
+    expect(assistantMessageCall).toHaveProperty("metadata");
+    expect((assistantMessageCall.metadata as Record<string, unknown>)).toHaveProperty("traceId");
   });
 
   it("maps product_recommend actions to metadata.products for the storefront widget", async () => {

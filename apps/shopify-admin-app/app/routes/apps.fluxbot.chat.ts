@@ -4,6 +4,11 @@
  *
  * Shopify signs every proxy request with HMAC-SHA256.
  * We verify the signature, then delegate to the same logic used by api.chat.ts.
+ *
+ * W7 — Routing diagnostics:
+ *   - Accepts traceId from widget (X-FluxBot-Trace-Id header or body.traceId)
+ *   - Returns traceId in X-FluxBot-Trace-Id response header
+ *   - Emits diagnostic headers: X-FluxBot-Service, X-FluxBot-Commit, X-FluxBot-Hostname
  */
 
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
@@ -12,12 +17,62 @@ import prisma from "../db.server";
 import { getIAGateway } from "../services/ia-gateway.server";
 import { verifyShopifyProxyRequest } from "../services/shopify-proxy-auth.server";
 
+// ── W7 — Startup diagnostics ─────────────────────────────────────────────────
+
+const SERVICE_NAME = "shopify-proxy";
+const COMMIT_SHA = process.env.SOURCE_VERSION || process.env.COMMIT_SHA || "unknown";
+const HOSTNAME = (() => {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    return require("os").hostname();
+  } catch {
+    return "unknown";
+  }
+})();
+const PROCESS_PID = process.pid;
+const NODE_ENV = process.env.NODE_ENV || "development";
+function hashFingerprint(value: string): string {
+  let hash = 0x811c9dc5;
+
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193);
+  }
+
+  return (hash >>> 0).toString(16).padStart(8, "0");
+}
+
+const DB_FINGERPRINT = (() => {
+  const url = process.env.DATABASE_URL || "";
+  if (!url) return "no-db";
+  try {
+    // Extract host/database from postgres://user:pass@host:port/dbname?params
+    const match = url.match(/@([^:/]+)(?::\d+)?\/([^?]+)/);
+    if (!match) return hashFingerprint(url).slice(0, 16);
+    return hashFingerprint(`${match[1]}/${match[2]}`).slice(0, 16);
+  } catch {
+    return "fingerprint-error";
+  }
+})();
+
+console.info(`[Startup] ${SERVICE_NAME} process started`, {
+  service: SERVICE_NAME,
+  commitSha: COMMIT_SHA,
+  hostname: HOSTNAME,
+  pid: PROCESS_PID,
+  nodeEnv: NODE_ENV,
+  dbFingerprint: DB_FINGERPRINT,
+  iaExecutionMode: process.env.IA_EXECUTION_MODE || "remote",
+  iaBackendUrl: process.env.IA_BACKEND_URL || "(not set)",
+  port: process.env.PORT || "(not set)",
+});
+
 // ── helpers ──────────────────────────────────────────────────────────────────
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, PATCH, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Accept, X-Shopify-Shop-Domain, ngrok-skip-browser-warning",
+  "Access-Control-Allow-Headers": "Content-Type, Accept, X-Shopify-Shop-Domain, ngrok-skip-browser-warning, X-FluxBot-Trace-Id",
 };
 
 type ProxyProductRecommendation = {
@@ -30,10 +85,42 @@ type ProxyProductRecommendation = {
   variantId?: string;
 };
 
-function buildAssistantMetadata(chatResponse: {
-  toolsUsed?: unknown;
-  sourceReferences?: unknown;
-}): Prisma.InputJsonValue | undefined {
+function extractRecommendedProducts(
+  actions: Array<Record<string, unknown>> | undefined,
+): ProxyProductRecommendation[] {
+  if (!Array.isArray(actions)) {
+    return [];
+  }
+
+  return actions
+    .filter((action) => {
+      const type = String(action?.type ?? "").toLowerCase();
+      return type === "product_recommend";
+    })
+    .flatMap((action: any) => {
+      if (Array.isArray(action.products)) {
+        return action.products;
+      }
+
+      if (
+        action.payload &&
+        typeof action.payload === "object" &&
+        Array.isArray(action.payload.products)
+      ) {
+        return action.payload.products;
+      }
+
+      return [];
+    });
+}
+
+function buildAssistantMetadata(
+  chatResponse: {
+    toolsUsed?: unknown;
+    sourceReferences?: unknown;
+  },
+  products: ProxyProductRecommendation[],
+): Prisma.InputJsonValue | undefined {
   const metadata: Record<string, unknown> = {};
 
   if (Array.isArray(chatResponse.toolsUsed) && chatResponse.toolsUsed.length > 0) {
@@ -47,6 +134,10 @@ function buildAssistantMetadata(chatResponse: {
     metadata.sourceReferences = chatResponse.sourceReferences;
   }
 
+  if (products.length > 0) {
+    metadata.products = products;
+  }
+
   if (Object.keys(metadata).length === 0) {
     return undefined;
   }
@@ -55,13 +146,19 @@ function buildAssistantMetadata(chatResponse: {
   return JSON.parse(JSON.stringify(metadata)) as Prisma.InputJsonValue;
 }
 
-function json(data: unknown, init?: ResponseInit) {
+function json(data: unknown, init?: ResponseInit, traceId?: string) {
   return new Response(JSON.stringify(data), {
     status: 200,
     ...init,
     headers: {
       "Content-Type": "application/json",
       "X-Content-Type-Options": "nosniff",
+      "X-FluxBot-Service": SERVICE_NAME,
+      "X-FluxBot-Commit": COMMIT_SHA,
+      "X-FluxBot-Hostname": HOSTNAME,
+      "X-FluxBot-Process": String(PROCESS_PID),
+      "X-FluxBot-Db-Fingerprint": DB_FINGERPRINT,
+      ...(traceId ? { "X-FluxBot-Trace-Id": traceId } : {}),
       ...CORS_HEADERS,
       ...init?.headers,
     },
@@ -289,12 +386,19 @@ export async function action({ request }: ActionFunctionArgs) {
   }
 
   try {
+    const body = await request.json();
+
+    // W7 — Extract traceId from widget header or body
+    const traceId =
+      request.headers.get("X-FluxBot-Trace-Id") ||
+      (body && typeof body.traceId === "string" ? body.traceId : "") ||
+      `PROXY-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+
     console.info("[ProxyChat] action start", {
+      traceId,
       url: request.url,
       method: request.method,
     });
-
-    const body = await request.json();
     const {
       message,
       conversationId,
@@ -314,18 +418,18 @@ export async function action({ request }: ActionFunctionArgs) {
       "";
 
     if (!shopDomain) {
-      return json({ success: false, error: "Missing shop identifier" }, { status: 400 });
+      return json({ success: false, error: "Missing shop identifier" }, { status: 400 }, traceId);
     }
 
-    console.info("[ProxyChat] shopDomain resuelto", { shopDomain });
+    console.info("[ProxyChat] shopDomain resuelto", { traceId, shopDomain });
 
     if (!message?.trim()) {
-      return json({ success: false, error: "Message is required" }, { status: 400 });
+      return json({ success: false, error: "Message is required" }, { status: 400 }, traceId);
     }
 
     const shop = await prisma.shop.findUnique({ where: { domain: shopDomain } });
     if (!shop) {
-      return json({ success: false, error: "Shop not found" }, { status: 404 });
+      return json({ success: false, error: "Shop not found" }, { status: 404 }, traceId);
     }
 
     // Get or create conversation
@@ -336,7 +440,7 @@ export async function action({ request }: ActionFunctionArgs) {
         include: { messages: { orderBy: { createdAt: "asc" } } },
       });
       if (!conversation || conversation.shopId !== shop.id) {
-        return json({ success: false, error: "Conversation not found" }, { status: 404 });
+        return json({ success: false, error: "Conversation not found" }, { status: 404 }, traceId);
       }
     } else {
       conversation = await prisma.conversation.create({
@@ -355,6 +459,7 @@ export async function action({ request }: ActionFunctionArgs) {
 
     const gateway = getIAGateway();
     console.info("[ProxyChat] llamando backend IA", {
+      traceId,
       shopDomain,
       conversationId: conversationId || conversation.id,
       gatewayType: gateway.constructor.name,
@@ -366,20 +471,20 @@ export async function action({ request }: ActionFunctionArgs) {
         shopId: shop.id,
         locale,
         channel: "SHOPIFY_PROXY",
+        traceId,
       },
       shopDomain,
     );
 
     console.info("[ProxyChat] gateway.chat done", {
+      traceId,
       shopDomain,
       conversationId: conversationId || conversation.id,
       confidence: chatResponse.confidence,
       requiresEscalation: chatResponse.requiresEscalation,
     });
 
-    const backendProducts = chatResponse.actions
-      ?.filter((a: any) => a.type === "product_recommend")
-      .flatMap((a: any) => a.products ?? []) ?? [];
+    const backendProducts = extractRecommendedProducts(chatResponse.actions);
     const proxyFallbackProducts = backendProducts.length > 0
       ? []
       : await searchProxyCatalogProducts({
@@ -403,6 +508,7 @@ export async function action({ request }: ActionFunctionArgs) {
       : chatResponse.actions;
 
     console.info("[ProxyChat] product recommendations resolved", {
+      traceId,
       shopDomain,
       backendProductCount: backendProducts.length,
       proxyFallbackProductCount: proxyFallbackProducts.length,
@@ -414,14 +520,17 @@ export async function action({ request }: ActionFunctionArgs) {
       data: { conversationId: conversation.id, role: "USER", content: message },
     });
     if (chatResponse.message) {
-      const assistantMetadata = buildAssistantMetadata(chatResponse);
+      const assistantMetadata = buildAssistantMetadata(chatResponse, productRecommendations);
+      const traceMetadata = assistantMetadata
+        ? { ...(assistantMetadata as Record<string, unknown>), traceId }
+        : { traceId };
       await prisma.conversationMessage.create({
         data: {
           conversationId: conversation.id,
           role: "ASSISTANT",
           content: chatResponse.message,
           confidence: chatResponse.confidence,
-          ...(assistantMetadata ? { metadata: assistantMetadata } : {}),
+          metadata: JSON.parse(JSON.stringify(traceMetadata)) as Prisma.InputJsonValue,
         },
       });
     }
@@ -438,7 +547,8 @@ export async function action({ request }: ActionFunctionArgs) {
         products: productRecommendations,
       },
       sourceReferences: chatResponse.sourceReferences,
-    });
+      traceId,
+    }, undefined, traceId);
   } catch (error) {
     console.error("[ProxyChat] Error:", error);
     return json({ success: false, error: "Internal error" }, { status: 500 });

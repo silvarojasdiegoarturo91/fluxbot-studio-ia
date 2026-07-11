@@ -18,6 +18,8 @@ import {
   type PageDocument,
 } from "../services/sync-service.server";
 import { mergeProductAdminMetadata } from "../services/product-faqs.server";
+import { iaClient } from "../services/ia-backend.server";
+import { syncShopReferenceToIABackend, type ShopReference } from "../services/shop-backend-sync.server";
 
 const ADMIN_API_VERSION = "2026-01";
 const PAGE_SIZE = 50;
@@ -732,6 +734,7 @@ async function processJob(job: Awaited<ReturnType<typeof claimNextPendingJob>>) 
   switch (job.jobType) {
     case "initial:catalog": {
       const productsResult = await syncProducts(job.id, shopId, shopDomain, accessToken);
+      await syncBackendCatalog(shopId, shopDomain, accessToken);
       const ordersResult = await syncOrders(shopId, shopDomain, accessToken);
 
       await SyncService.updateSyncJob(job.id, {
@@ -744,6 +747,7 @@ async function processJob(job: Awaited<ReturnType<typeof claimNextPendingJob>>) 
 
     case "delta:products":
       await syncProducts(job.id, shopId, shopDomain, accessToken);
+      await syncBackendCatalog(shopId, shopDomain, accessToken);
       break;
 
     case "initial:policies":
@@ -812,6 +816,52 @@ export async function dispatchNextSyncQueueJob(params?: {
  */
 export async function processPendingSyncJobs(limit = 2): Promise<ProcessResult> {
   return processPendingSyncJobsForShop(undefined, limit, "dispatcher");
+}
+
+/**
+ * Push synced products to the backend IA so the chat/RAG engine has them.
+ * First ensures the shop reference exists in the backend, then triggers catalog sync.
+ */
+async function syncBackendCatalog(shopId: string, shopDomain: string, accessToken?: string): Promise<void> {
+  try {
+    // Step 1: Ensure shop reference exists in backend before catalog sync
+    const shopRef: ShopReference = {
+      id: shopId,
+      domain: shopDomain,
+      ...(accessToken ? { accessToken } : {}),
+    };
+    const shopSynced = await syncShopReferenceToIABackend(shopRef, { force: true });
+    if (!shopSynced) {
+      console.warn("[SyncWorker] shop reference sync to IA backend failed or skipped — catalog sync may fail", {
+        shopId,
+        shopDomain,
+      });
+    }
+
+    // Step 2: Sync catalog to backend
+    const result = await iaClient.catalog.sync({ shopId, fullSync: true }, shopDomain);
+    console.info("[SyncWorker] backend IA catalog sync completed", {
+      shopId,
+      shopDomain,
+      chunksIndexed: result?.chunksIndexed,
+      productsProcessed: result?.productsProcessed,
+      errors: result?.errors?.length ?? 0,
+    });
+    if (result?.errors && result.errors.length > 0) {
+      console.warn("[SyncWorker] backend IA catalog sync had partial errors", {
+        shopId,
+        shopDomain,
+        errors: result.errors,
+      });
+    }
+  } catch (error) {
+    console.error("[SyncWorker] backend IA catalog sync FAILED", {
+      shopId,
+      shopDomain,
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    });
+  }
 }
 
 export async function processPendingSyncJobsForShop(

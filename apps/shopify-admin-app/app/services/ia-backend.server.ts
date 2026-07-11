@@ -122,6 +122,24 @@ function getHttpStatusHint(status: number): string {
   return '';
 }
 
+function redactBackendHeaders(headers: Record<string, string>): Record<string, string> {
+  return {
+    ...headers,
+    Authorization: '[redacted]',
+  };
+}
+
+async function readBackendResponseBody(response: Response): Promise<unknown> {
+  const contentType = response?.headers?.get?.('content-type') || '';
+
+  if (contentType.includes('application/json')) {
+    return response.json().catch(() => null);
+  }
+
+  // Fallback: try json first, then text (handles mocks without headers)
+  return response.json?.().catch(() => response.text?.().catch(() => null));
+}
+
 export interface ChatRequest {
   message: string;
   conversationId?: string;
@@ -130,6 +148,7 @@ export interface ChatRequest {
     locale?: string;
     channel?: string;
   };
+  traceId?: string;
 }
 
 export interface ChatResponse {
@@ -432,7 +451,8 @@ async function makeRequest<T>(
   endpoint: string,
   method: 'GET' | 'POST' | 'PUT' | 'DELETE',
   body?: unknown,
-  shopDomain?: string
+  shopDomain?: string,
+  traceId?: string
 ): Promise<T> {
   const config = getBackendConfig();
   const requestContext: BackendRequestContext = { endpoint, method };
@@ -447,12 +467,21 @@ async function makeRequest<T>(
     headers['X-Shop-Domain'] = shopDomain;
   }
 
-  console.info("[IABackend] enviando request", {
+  if (traceId) {
+    headers['X-FluxBot-Trace-Id'] = traceId;
+  }
+
+  const requestBody = body ? JSON.stringify(body) : undefined;
+
+  console.info("[IABackend] request payload", {
+    traceId: traceId || "(none)",
     endpoint,
     method,
     hasShopDomain: !!shopDomain,
     shopDomain,
     url: url.replace(/\/[^/]+\/[^/]+$/, "/..."),
+    requestHeaders: redactBackendHeaders(headers),
+    requestBody: body ?? null,
   });
 
   let response: Response;
@@ -460,7 +489,7 @@ async function makeRequest<T>(
     response = await fetch(url, {
       method,
       headers,
-      body: body ? JSON.stringify(body) : undefined,
+      body: requestBody,
     });
   } catch (error) {
     if (error instanceof IABackendError) {
@@ -470,7 +499,16 @@ async function makeRequest<T>(
   }
 
   if (!response.ok) {
-    const backendError = await parseErrorBody(response);
+    const responseBody = await readBackendResponseBody(response);
+    console.error("[IABackend] response payload", {
+      traceId: traceId || "(none)",
+      endpoint,
+      method,
+      status: response.status,
+      ok: response.ok,
+      responseBody,
+    });
+    const backendError = describeBackendErrorPayload(responseBody);
     const hint = getHttpStatusHint(response.status);
     const message = `IA backend request failed (${method} ${url}) with status ${response.status}: ${backendError}`;
     throw new IABackendError(hint ? `${message}. ${hint}` : message, response.status);
@@ -478,7 +516,15 @@ async function makeRequest<T>(
 
   // Backend wraps all responses as { data: T, requestId, timestamp }.
   // Unwrap here so callers and gateway normalizers work against the inner payload.
-  const envelope = await response.json();
+  const envelope = await readBackendResponseBody(response);
+  console.info("[IABackend] response payload", {
+    traceId: traceId || "(none)",
+    endpoint,
+    method,
+    status: response.status,
+    ok: response.ok,
+    responseBody: envelope,
+  });
   if (
     envelope !== null &&
     typeof envelope === 'object' &&
@@ -548,7 +594,7 @@ const API_V1 = '/api/v1';
 export const iaClient = {
   chat: {
     send: (request: ChatRequest, shopDomain?: string) =>
-      makeRequest<ChatResponse>(`${API_V1}/chat`, 'POST', request, shopDomain),
+      makeRequest<ChatResponse>(`${API_V1}/chat`, 'POST', request, shopDomain, request.traceId),
 
     stream: (request: ChatRequest, shopDomain?: string) =>
       makeRequest<ChatResponse>(`${API_V1}/chat/stream`, 'POST', request, shopDomain),
