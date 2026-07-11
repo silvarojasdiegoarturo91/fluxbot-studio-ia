@@ -5,7 +5,7 @@
     "description": "OpenSpec local para requisitos de fluxbot-studio-ia-shopify. Los requisitos aquí son espejo de los requisitos root que afectan este repositorio.",
     "owner": "frontend_shopify",
     "status": "in-development",
-    "last_updated": "2026-07-11T02:39:02.315Z",
+    "last_updated": "2026-07-11T02:41:14.808Z",
     "source_of_truth": ".openspec.json",
     "mirror_root": "../.openspec.json"
   },
@@ -718,6 +718,31 @@
       },
       {
         "id": "DOC-5d11688-2026-07-11T02-39-02-315Z",
+        "title": "Review documentation update (1 files)",
+        "description": "Documentation changed in: AGENTS.md. Review and align agent instructions, references, and related docs.",
+        "priority": "medium",
+        "status": "planned",
+        "owner": "docs",
+        "components": [
+          "AGENTS.md"
+        ],
+        "source_files": [
+          "AGENTS.md"
+        ],
+        "acceptance_criteria": [
+          "Documentation references remain synchronized",
+          "Agent instructions stay aligned with the latest docs",
+          "Follow-up work is tracked in OpenSpec"
+        ],
+        "dependencies": [],
+        "metrics": {
+          "quality_score": 90,
+          "completion_rate": 0,
+          "velocity": 1
+        }
+      },
+      {
+        "id": "DOC-73e5b37-2026-07-11T02-41-14-808Z",
         "title": "Review documentation update (1 files)",
         "description": "Documentation changed in: AGENTS.md. Review and align agent instructions, references, and related docs.",
         "priority": "medium",
