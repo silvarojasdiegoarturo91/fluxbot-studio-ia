@@ -1,13 +1,36 @@
 import { describe, expect, it } from "vitest";
-import { readFileSync } from "fs";
+import { readFileSync, existsSync } from "fs";
 import { resolve } from "path";
 
-const WORKSPACE_ROOT = resolve(__dirname, "../../../../..");
+const MONOREPO_ROOT = resolve(__dirname, "../../../../..");
 const SHOPIFY_ROOT = resolve(__dirname, "../../..");
-const BACKEND_ROOT = resolve(WORKSPACE_ROOT, "fluxbot-studio-back-ia");
+const REPO_ROOT = resolve(SHOPIFY_ROOT, "../..");
+const BACKEND_ROOT = resolve(MONOREPO_ROOT, "fluxbot-studio-back-ia");
+
+function resolveWorkspacePath(relativePath: string): string {
+  const monorepoPath = resolve(MONOREPO_ROOT, relativePath);
+  if (existsSync(monorepoPath)) return monorepoPath;
+  const shopifyPath = resolve(SHOPIFY_ROOT, relativePath.replace(/^fluxbot-studio-ia-shopify\//, ""));
+  if (existsSync(shopifyPath)) return shopifyPath;
+  const repoPath = resolve(REPO_ROOT, relativePath.replace(/^fluxbot-studio-ia-shopify\//, ""));
+  if (existsSync(repoPath)) return repoPath;
+  return monorepoPath;
+}
+
+function resolveBackendPath(relativePath: string): string {
+  const monorepoPath = resolve(MONOREPO_ROOT, relativePath);
+  if (existsSync(monorepoPath)) return monorepoPath;
+  const backendRoot = resolve(REPO_ROOT, "fluxbot-studio-back-ia-");
+  const standalonePath = resolve(backendRoot, relativePath.replace(/^fluxbot-studio-back-ia-?\//, ""));
+  if (existsSync(standalonePath)) return standalonePath;
+  return monorepoPath;
+}
 
 function readFile(relativePath: string): string {
-  return readFileSync(resolve(WORKSPACE_ROOT, relativePath), "utf-8");
+  if (relativePath.startsWith("fluxbot-studio-back-ia")) {
+    return readFileSync(resolveBackendPath(relativePath), "utf-8");
+  }
+  return readFileSync(resolveWorkspacePath(relativePath), "utf-8");
 }
 
 // ── Widget endpoint guard tests ──────────────────────────────────────────────
