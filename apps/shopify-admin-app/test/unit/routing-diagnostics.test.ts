@@ -3,26 +3,32 @@ import { readFileSync, existsSync } from "fs";
 import { resolve } from "path";
 
 const MONOREPO_ROOT = resolve(__dirname, "../../../../..");
-const SHOPIFY_ROOT = resolve(__dirname, "../../..");
-const REPO_ROOT = resolve(SHOPIFY_ROOT, "../..");
-const BACKEND_ROOT = resolve(MONOREPO_ROOT, "fluxbot-studio-back-ia");
+const APPS_DIR = resolve(__dirname, "../../..");
+const REPO_ROOT = resolve(APPS_DIR, "..");
 
 function resolveWorkspacePath(relativePath: string): string {
   const monorepoPath = resolve(MONOREPO_ROOT, relativePath);
   if (existsSync(monorepoPath)) return monorepoPath;
-  const shopifyPath = resolve(SHOPIFY_ROOT, relativePath.replace(/^fluxbot-studio-ia-shopify\//, ""));
-  if (existsSync(shopifyPath)) return shopifyPath;
-  const repoPath = resolve(REPO_ROOT, relativePath.replace(/^fluxbot-studio-ia-shopify\//, ""));
+  const stripped = relativePath.replace(/^fluxbot-studio-ia-shopify\//, "");
+  const repoPath = resolve(REPO_ROOT, stripped);
   if (existsSync(repoPath)) return repoPath;
+  const appsPath = resolve(APPS_DIR, stripped.replace(/^apps\//, ""));
+  if (existsSync(appsPath)) return appsPath;
   return monorepoPath;
 }
 
 function resolveBackendPath(relativePath: string): string {
   const monorepoPath = resolve(MONOREPO_ROOT, relativePath);
   if (existsSync(monorepoPath)) return monorepoPath;
-  const backendRoot = resolve(REPO_ROOT, "fluxbot-studio-back-ia-");
-  const standalonePath = resolve(backendRoot, relativePath.replace(/^fluxbot-studio-back-ia-?\//, ""));
-  if (existsSync(standalonePath)) return standalonePath;
+  const backendCandidates = [
+    resolve(REPO_ROOT, "fluxbot-studio-back-ia"),
+    resolve(REPO_ROOT, "fluxbot-studio-back-ia-"),
+  ];
+  const stripped = relativePath.replace(/^fluxbot-studio-back-ia-?\//, "");
+  for (const root of backendCandidates) {
+    const candidate = resolve(root, stripped);
+    if (existsSync(candidate)) return candidate;
+  }
   return monorepoPath;
 }
 
