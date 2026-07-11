@@ -85,4 +85,4 @@ Esta guía es la referencia principal para:
 Ver `AGENTS.md` para la arquitectura completa front/back.
 
 ## Skills disponibles
-Ver `.agents/skills/` — 35 skills instaladas (19 oficiales Shopify + 16 custom del proyecto).
+Ver `.agents/skills/` — 11 skills activas del proyecto.
