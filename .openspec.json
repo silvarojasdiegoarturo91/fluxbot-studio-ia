@@ -5,7 +5,7 @@
     "description": "OpenSpec local para requisitos de fluxbot-studio-ia-shopify. Los requisitos aquí son espejo de los requisitos root que afectan este repositorio.",
     "owner": "frontend_shopify",
     "status": "in-development",
-    "last_updated": "2026-07-11T02:41:14.808Z",
+    "last_updated": "2026-07-11T10:04:12.409Z",
     "source_of_truth": ".openspec.json",
     "mirror_root": "../.openspec.json"
   },
@@ -753,6 +753,33 @@
         ],
         "source_files": [
           "AGENTS.md"
+        ],
+        "acceptance_criteria": [
+          "Documentation references remain synchronized",
+          "Agent instructions stay aligned with the latest docs",
+          "Follow-up work is tracked in OpenSpec"
+        ],
+        "dependencies": [],
+        "metrics": {
+          "quality_score": 90,
+          "completion_rate": 0,
+          "velocity": 1
+        }
+      },
+      {
+        "id": "DOC-e7c8efb-2026-07-11T10-04-12-409Z",
+        "title": "Review documentation update (2 files)",
+        "description": "Documentation changed in: CLAUDE.md, specs/009-shopify-ai-toolkit/spec.md. Review and align agent instructions, references, and related docs.",
+        "priority": "medium",
+        "status": "planned",
+        "owner": "docs",
+        "components": [
+          "CLAUDE.md",
+          "specs/009-shopify-ai-toolkit/spec.md"
+        ],
+        "source_files": [
+          "CLAUDE.md",
+          "specs/009-shopify-ai-toolkit/spec.md"
         ],
         "acceptance_criteria": [
           "Documentation references remain synchronized",
