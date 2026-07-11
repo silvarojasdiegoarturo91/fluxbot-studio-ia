@@ -20,9 +20,13 @@ function resolveWorkspacePath(relativePath: string): string {
 function resolveBackendPath(relativePath: string): string {
   const monorepoPath = resolve(MONOREPO_ROOT, relativePath);
   if (existsSync(monorepoPath)) return monorepoPath;
+  const PARENT_ROOT = resolve(REPO_ROOT, "..");
   const backendCandidates = [
+    resolve(MONOREPO_ROOT, "fluxbot-studio-back-ia"),
     resolve(REPO_ROOT, "fluxbot-studio-back-ia"),
     resolve(REPO_ROOT, "fluxbot-studio-back-ia-"),
+    resolve(PARENT_ROOT, "fluxbot-studio-back-ia"),
+    resolve(PARENT_ROOT, "fluxbot-studio-back-ia-"),
   ];
   const stripped = relativePath.replace(/^fluxbot-studio-back-ia-?\//, "");
   for (const root of backendCandidates) {
