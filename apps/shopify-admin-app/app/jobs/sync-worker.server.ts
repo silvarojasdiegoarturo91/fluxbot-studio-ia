@@ -107,6 +107,8 @@ async function fetchAllProducts(shopDomain: string, accessToken: string): Promis
             vendor
             productType
             handle
+            status
+            publishedOnCurrentPublication
             tags
             collections(first: 10) {
               nodes {
@@ -120,6 +122,9 @@ async function fetchAllProducts(shopDomain: string, accessToken: string): Promis
                 title
                 sku
                 price
+                availableForSale
+                inventoryQuantity
+                inventoryPolicy
               }
             }
             images(first: 5) {
@@ -187,6 +192,8 @@ async function fetchAllProducts(shopDomain: string, accessToken: string): Promis
         description: String(node.description || ""),
         vendor: String(node.vendor || ""),
         productType: String(node.productType || ""),
+        status: String(node.status || ""),
+        published: typeof node.publishedOnCurrentPublication === "boolean" ? node.publishedOnCurrentPublication : undefined,
         handle: String(node.handle || ""),
         collections,
         tags,
@@ -203,6 +210,11 @@ async function fetchAllProducts(shopDomain: string, accessToken: string): Promis
             title: String(variant.title || "Default"),
             sku: String(variant.sku || ""),
             price: String(variant.price || ""),
+            availableForSale:
+              typeof variant.availableForSale === "boolean" ? variant.availableForSale : undefined,
+            inventoryQuantity:
+              typeof variant.inventoryQuantity === "number" ? variant.inventoryQuantity : undefined,
+            inventoryPolicy: String(variant.inventoryPolicy || ""),
           };
         }),
         images: imagesNodes.map((imgRaw: any) => {
@@ -474,6 +486,8 @@ async function syncProducts(jobId: string, shopId: string, shopDomain: string, a
       collections: product.collections,
       tags: product.tags,
     });
+    updatedMetadata.status = product.status || null;
+    updatedMetadata.publishedOnCurrentPublication = product.published ?? null;
 
     await prisma.productProjection.upsert({
       where: {

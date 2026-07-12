@@ -40,7 +40,17 @@ export interface ProductDocument {
   description: string;
   vendor: string;
   productType: string;
-  variants: Array<{ id: string; title: string; sku: string; price: string }>;
+  status?: string;
+  published?: boolean;
+  variants: Array<{
+    id: string;
+    title: string;
+    sku: string;
+    price: string;
+    availableForSale?: boolean;
+    inventoryQuantity?: number;
+    inventoryPolicy?: string;
+  }>;
   images: Array<{ id: string; url: string; altText: string }>;
   handle: string;
   collections: string[];
@@ -671,6 +681,13 @@ function normalizeProduct(payload: Record<string, any>): ProductDocument {
     description: normalizeText(payload.body_html || payload.description),
     vendor: normalizeText(payload.vendor),
     productType: normalizeText(payload.product_type || payload.productType),
+    status: normalizeText(payload.status),
+    published:
+      typeof payload.publishedOnCurrentPublication === "boolean"
+        ? payload.publishedOnCurrentPublication
+        : typeof payload.published === "boolean"
+          ? payload.published
+          : undefined,
     handle: normalizeText(payload.handle),
     collections: Array.isArray(payload.collections)
       ? payload.collections.map((c: any) => normalizeText(typeof c === "string" ? c : c?.title)).filter(Boolean)
@@ -686,6 +703,14 @@ function normalizeProduct(payload: Record<string, any>): ProductDocument {
           title: normalizeText(v.title),
           sku: normalizeText(v.sku),
           price: String(v.price || ""),
+          availableForSale: typeof v.availableForSale === "boolean" ? v.availableForSale : undefined,
+          inventoryQuantity:
+            typeof v.inventory_quantity === "number"
+              ? v.inventory_quantity
+              : typeof v.inventoryQuantity === "number"
+                ? v.inventoryQuantity
+                : undefined,
+          inventoryPolicy: normalizeText(v.inventory_policy || v.inventoryPolicy),
         }))
       : [],
     images: Array.isArray(payload.images)

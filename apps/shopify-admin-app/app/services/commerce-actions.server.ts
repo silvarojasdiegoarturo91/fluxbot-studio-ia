@@ -73,7 +73,7 @@ function buildProductGid(productRef: string): string | null {
   return `gid://shopify/Product/${numeric}`;
 }
 
-function parseVariantCandidates(rawVariants: unknown): string[] {
+function parseVariantCandidates(rawVariants: unknown): Array<Record<string, unknown>> {
   if (!rawVariants) return [];
 
   const entries = Array.isArray(rawVariants)
@@ -82,24 +82,70 @@ function parseVariantCandidates(rawVariants: unknown): string[] {
       ? ((rawVariants as Record<string, unknown>).nodes as unknown[])
       : [];
 
-  const variantIds: string[] = [];
+  return entries.map((entry) => toObject(entry));
+}
 
-  for (const entry of entries) {
-    const objectEntry = toObject(entry);
-    const idCandidate =
-      (typeof objectEntry.id === "string" ? objectEntry.id : undefined) ||
-      (typeof objectEntry.variantId === "string" ? objectEntry.variantId : undefined) ||
-      (typeof objectEntry.admin_graphql_api_id === "string"
-        ? objectEntry.admin_graphql_api_id
-        : undefined);
+function toBoolean(value: unknown): boolean | null {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === "true") return true;
+    if (normalized === "false") return false;
+  }
+  return null;
+}
 
-    const numericId = extractNumericId(idCandidate);
-    if (numericId) {
-      variantIds.push(numericId);
-    }
+function toNumber(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value.trim());
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return null;
+}
+
+function isVariantPurchasable(variant: Record<string, unknown>): boolean {
+  const availableForSale = toBoolean(variant.availableForSale);
+  if (availableForSale === true) return true;
+  if (availableForSale === false) return false;
+
+  const inventoryPolicy = String(variant.inventoryPolicy || variant.inventory_policy || "")
+    .trim()
+    .toUpperCase();
+  if (inventoryPolicy === "CONTINUE") return true;
+
+  const inventoryManaged = String(
+    variant.inventoryManagement || variant.inventory_management || "",
+  ).trim();
+  if (!inventoryManaged || inventoryManaged.toLowerCase() === "null") return true;
+
+  const inventoryQuantity = toNumber(
+    variant.inventoryQuantity ?? variant.inventory_quantity,
+  );
+  if (typeof inventoryQuantity === "number") return inventoryQuantity > 0;
+
+  return true;
+}
+
+function getVariantIdFromEntry(entry: Record<string, unknown>): string | null {
+  const idCandidate =
+    (typeof entry.id === "string" ? entry.id : undefined) ||
+    (typeof entry.variantId === "string" ? entry.variantId : undefined) ||
+    (typeof entry.admin_graphql_api_id === "string" ? entry.admin_graphql_api_id : undefined);
+
+  return extractNumericId(idCandidate);
+}
+
+function pickPurchasableVariantId(rawVariants: unknown): string | null {
+  const candidates = parseVariantCandidates(rawVariants);
+  if (candidates.length === 0) return null;
+
+  const purchasable = candidates.find((entry) => isVariantPurchasable(entry));
+  if (purchasable) {
+    return getVariantIdFromEntry(purchasable);
   }
 
-  return variantIds;
+  return null;
 }
 
 async function fetchFirstVariantFromAdmin(params: {
@@ -114,10 +160,13 @@ async function fetchFirstVariantFromAdmin(params: {
     query ProductVariantForCart($id: ID!) {
       product(id: $id) {
         handle
-        variants(first: 1) {
+        variants(first: 20) {
           nodes {
             id
             legacyResourceId
+            availableForSale
+            inventoryQuantity
+            inventoryPolicy
           }
         }
       }
@@ -129,10 +178,13 @@ async function fetchFirstVariantFromAdmin(params: {
       products(first: 1, query: $query) {
         nodes {
           handle
-          variants(first: 1) {
+          variants(first: 20) {
             nodes {
               id
               legacyResourceId
+              availableForSale
+              inventoryQuantity
+              inventoryPolicy
             }
           }
         }
@@ -176,16 +228,12 @@ async function fetchFirstVariantFromAdmin(params: {
       ? (variantsContainer.nodes as unknown[])
       : [];
 
-    if (nodes.length > 0) {
-      const variant = toObject(nodes[0]);
-      const legacyId = extractNumericId(String(variant.legacyResourceId || ""));
-      const variantId = legacyId || extractNumericId(String(variant.id || ""));
-      if (variantId) {
-        return {
-          variantId,
-          productHandle: typeof product.handle === "string" ? product.handle : undefined,
-        };
-      }
+    const variantId = pickPurchasableVariantId(nodes);
+    if (variantId) {
+      return {
+        variantId,
+        productHandle: typeof product.handle === "string" ? product.handle : undefined,
+      };
     }
   }
 
@@ -203,11 +251,7 @@ async function fetchFirstVariantFromAdmin(params: {
     ? (variantsContainer.nodes as unknown[])
     : [];
 
-  if (variantNodes.length === 0) return null;
-
-  const variant = toObject(variantNodes[0]);
-  const legacyId = extractNumericId(String(variant.legacyResourceId || ""));
-  const variantId = legacyId || extractNumericId(String(variant.id || ""));
+  const variantId = pickPurchasableVariantId(variantNodes);
 
   if (!variantId) return null;
 
@@ -241,11 +285,11 @@ async function resolveVariantFromProjection(params: {
 
   if (!projection) return null;
 
-  const variantIds = parseVariantCandidates(projection.variants);
-  if (variantIds.length === 0) return null;
+  const variantId = pickPurchasableVariantId(projection.variants);
+  if (!variantId) return null;
 
   return {
-    variantId: variantIds[0],
+    variantId,
     productHandle: projection.handle || undefined,
   };
 }
