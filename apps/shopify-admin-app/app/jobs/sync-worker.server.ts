@@ -18,7 +18,7 @@ import {
   type PageDocument,
 } from "../services/sync-service.server";
 import { mergeProductAdminMetadata } from "../services/product-faqs.server";
-import { iaClient } from "../services/ia-backend.server";
+import { iaClient, type CatalogSyncResponse } from "../services/ia-backend.server";
 import { syncShopReferenceToIABackend, type ShopReference } from "../services/shop-backend-sync.server";
 
 const ADMIN_API_VERSION = "2026-01";
@@ -822,7 +822,11 @@ export async function processPendingSyncJobs(limit = 2): Promise<ProcessResult> 
  * Push synced products to the backend IA so the chat/RAG engine has them.
  * First ensures the shop reference exists in the backend, then triggers catalog sync.
  */
-async function syncBackendCatalog(shopId: string, shopDomain: string, accessToken?: string): Promise<void> {
+async function syncBackendCatalog(
+  shopId: string,
+  shopDomain: string,
+  accessToken?: string,
+): Promise<CatalogSyncResponse> {
   try {
     // Step 1: Ensure shop reference exists in backend before catalog sync
     const shopRef: ShopReference = {
@@ -832,10 +836,7 @@ async function syncBackendCatalog(shopId: string, shopDomain: string, accessToke
     };
     const shopSynced = await syncShopReferenceToIABackend(shopRef, { force: true });
     if (!shopSynced) {
-      console.warn("[SyncWorker] shop reference sync to IA backend failed or skipped — catalog sync may fail", {
-        shopId,
-        shopDomain,
-      });
+      throw new Error(`Could not synchronize shop ${shopDomain} with IA backend`);
     }
 
     // Step 2: Sync catalog to backend
@@ -854,6 +855,10 @@ async function syncBackendCatalog(shopId: string, shopDomain: string, accessToke
         errors: result.errors,
       });
     }
+    if ((result.productsProcessed ?? 0) === 0 && (result.errors?.length ?? 0) > 0) {
+      throw new Error(`IA catalog synchronization failed: ${result.errors?.join("; ")}`);
+    }
+    return result;
   } catch (error) {
     console.error("[SyncWorker] backend IA catalog sync FAILED", {
       shopId,
@@ -861,6 +866,7 @@ async function syncBackendCatalog(shopId: string, shopDomain: string, accessToke
       error: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack : undefined,
     });
+    throw error;
   }
 }
 

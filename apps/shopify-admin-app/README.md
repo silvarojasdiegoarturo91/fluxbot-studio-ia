@@ -116,6 +116,35 @@ Use a separate production workspace/config for the production app (`fluxbot-stud
 
 Local development should use `npm run dev` or the root `scripts/dev-shopify-admin-local.sh` wrapper. Shopify CLI owns the dev tunnel URL and cleans stale dev previews before startup. Do not persist `ngrok` or `trycloudflare` URLs into `shopify.app.toml`; those URLs are temporary and cause `ERR_NGROK_3200` or offline preview errors after reinstalling the app.
 
+### Local IA backend routing for agents
+
+The storefront widget always sends chat through `/apps/fluxbot/chat` (App Proxy).  
+To execute IA against the separate local backend (`fluxbot-studio-back-ia`), set:
+
+\`\`\`env
+IA_EXECUTION_MODE=remote
+IA_BACKEND_URL=http://127.0.0.1:3001
+IA_BACKEND_API_KEY=your_local_shared_key
+\`\`\`
+
+Recommended startup commands from workspace root:
+
+\`\`\`bash
+scripts/dev-shopify-admin-local.sh
+# or full workspace
+scripts/dev-all.sh
+\`\`\`
+
+### OpenSpec / SpecKit governance (required)
+
+When changing catalog sync, proxy routing, or widget behavior, validate from workspace root:
+
+\`\`\`bash
+npm run openspec:validate:strict
+npm run openspec:conflicts
+npm run speckit:check
+\`\`\`
+
 ### Dedicated Shopify app for CI
 
 To avoid collisions between local and GitHub Actions, CI must use a separate Shopify app and store.

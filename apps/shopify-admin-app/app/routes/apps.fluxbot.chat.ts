@@ -85,6 +85,21 @@ type ProxyProductRecommendation = {
   variantId?: string;
 };
 
+function buildProxyCatalogSuccessMessage(
+  products: ProxyProductRecommendation[],
+  locale: string,
+): string {
+  if (locale.toLowerCase().startsWith("es")) {
+    return products.length === 1
+      ? "Sí, encontré este producto relacionado en el catálogo:"
+      : "Sí, encontré estas opciones relacionadas en el catálogo:";
+  }
+
+  return products.length === 1
+    ? "I found this related product in the catalog:"
+    : "I found these related options in the catalog:";
+}
+
 function extractRecommendedProducts(
   actions: Array<Record<string, unknown>> | undefined,
 ): ProxyProductRecommendation[] {
@@ -496,6 +511,9 @@ export async function action({ request }: ActionFunctionArgs) {
           })),
         });
     const productRecommendations = backendProducts.length > 0 ? backendProducts : proxyFallbackProducts;
+    const resolvedMessage = proxyFallbackProducts.length > 0
+      ? buildProxyCatalogSuccessMessage(proxyFallbackProducts, locale)
+      : chatResponse.message;
     const actions = productRecommendations.length > 0 && backendProducts.length === 0
       ? [
           ...(chatResponse.actions ?? []),
@@ -519,7 +537,7 @@ export async function action({ request }: ActionFunctionArgs) {
     await prisma.conversationMessage.create({
       data: { conversationId: conversation.id, role: "USER", content: message },
     });
-    if (chatResponse.message) {
+    if (resolvedMessage) {
       const assistantMetadata = buildAssistantMetadata(chatResponse, productRecommendations);
       const traceMetadata = assistantMetadata
         ? { ...(assistantMetadata as Record<string, unknown>), traceId }
@@ -528,7 +546,7 @@ export async function action({ request }: ActionFunctionArgs) {
         data: {
           conversationId: conversation.id,
           role: "ASSISTANT",
-          content: chatResponse.message,
+          content: resolvedMessage,
           confidence: chatResponse.confidence,
           metadata: JSON.parse(JSON.stringify(traceMetadata)) as Prisma.InputJsonValue,
         },
@@ -538,13 +556,19 @@ export async function action({ request }: ActionFunctionArgs) {
     return json({
       success: true,
       conversationId: conversation.id,
-      message: chatResponse.message,
+      message: resolvedMessage,
       confidence: chatResponse.confidence,
       requiresEscalation: chatResponse.requiresEscalation,
       actions,
       // Products surfaced via metadata so the widget's existing metadata.products handler works
       metadata: {
         products: productRecommendations,
+        catalogSource:
+          backendProducts.length > 0
+            ? "ia_backend"
+            : proxyFallbackProducts.length > 0
+              ? "shopify_proxy_catalog_fallback"
+              : "none",
       },
       sourceReferences: chatResponse.sourceReferences,
       traceId,

@@ -82,6 +82,7 @@ The widget works correctly on mobile viewports and passes basic accessibility re
 - **FR-006**: Extension MUST register with the Shopify CLI under `extensions/storefront-widget/`.
 - **FR-007**: Widget launcher MUST be positioned with a configurable location (bottom-right default).
 - **FR-008**: Chat window MUST support keyboard navigation and ARIA roles (role="dialog", aria-live for messages).
+- **FR-009**: The storefront chat proxy MUST persist conversations and both user/assistant messages in the app database, and follow-up requests MUST reuse an existing `conversationId` when provided.
 
 ### Key Entities
 
