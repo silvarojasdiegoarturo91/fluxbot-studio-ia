@@ -34,7 +34,7 @@
     "graphql-codegen": "graphql-codegen",
     "vite": "vite",
     "typecheck": "react-router typegen && tsc --noEmit",
-    "dev:e2e": "NODE_ENV=test dotenv -e .env.test react-router dev --port 3002",
+    "dev:e2e": "NODE_ENV=test dotenv -e .env.test react-router dev --host 0.0.0.0 --port 3002",
     "test:e2e": "playwright test",
     "test:e2e:smoke": "playwright test --grep @smoke tests/e2e/smoke/",
     "test:e2e:ui": "playwright test --ui",

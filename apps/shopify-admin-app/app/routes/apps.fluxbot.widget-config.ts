@@ -132,6 +132,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
     configVersion,
     apiBaseUrl: endpoints.apiBaseUrl,
     chatEndpoint: endpoints.chatEndpoint,
+    botLanguage: config.primaryBotLanguage,
+    supportedLanguages: config.supportedLanguages,
     widgetBranding,
   });
 }

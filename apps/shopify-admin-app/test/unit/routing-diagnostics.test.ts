@@ -353,7 +353,7 @@ describe("Backend tenant resolution (T1)", () => {
     const content = readFile("fluxbot-studio-back-ia/src/routes/chat.ts");
 
     expect(content).toMatch(/UsageService\.assertCanConsumeMessage\(shopId/);
-    expect(content).toMatch(/shopContextService\.loadContext\(shopId, context\.locale\)/);
+    expect(content).toMatch(/shopContextService\.loadContext\(shopId,\s*context\.locale\)/);
     expect(content).toMatch(/UsageService\.incrementUsage\(shopId/);
   });
 

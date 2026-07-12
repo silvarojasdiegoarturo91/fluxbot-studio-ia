@@ -3,10 +3,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mockShopFindUnique = vi.fn();
 const mockConversationFindUnique = vi.fn();
 const mockConversationCreate = vi.fn();
+const mockConversationUpdate = vi.fn();
 const mockConversationMessageCreate = vi.fn();
 const mockProductProjectionFindMany = vi.fn();
 const mockGatewayChat = vi.fn();
 const mockVerifyProxy = vi.fn();
+const mockGetMerchantAdminConfig = vi.fn();
 
 vi.mock("../../app/db.server", () => ({
   default: {
@@ -14,6 +16,7 @@ vi.mock("../../app/db.server", () => ({
     conversation: {
       findUnique: mockConversationFindUnique,
       create: mockConversationCreate,
+      update: mockConversationUpdate,
     },
     conversationMessage: {
       create: mockConversationMessageCreate,
@@ -34,6 +37,10 @@ vi.mock("../../app/services/shopify-proxy-auth.server", () => ({
   verifyShopifyProxyRequest: (...args: unknown[]) => mockVerifyProxy(...args),
 }));
 
+vi.mock("../../app/services/admin-config.server", () => ({
+  getMerchantAdminConfig: (...args: unknown[]) => mockGetMerchantAdminConfig(...args),
+}));
+
 describe("apps.fluxbot.chat proxy route", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -41,8 +48,13 @@ describe("apps.fluxbot.chat proxy route", () => {
     mockShopFindUnique.mockResolvedValue({ id: "shop-1" });
     mockConversationFindUnique.mockResolvedValue(null);
     mockConversationCreate.mockResolvedValue({ id: "conv-1", messages: [] });
+    mockConversationUpdate.mockResolvedValue({ id: "conv-1", locale: "es", messages: [] });
     mockConversationMessageCreate.mockResolvedValue({ id: "msg-1" });
     mockProductProjectionFindMany.mockResolvedValue([]);
+    mockGetMerchantAdminConfig.mockResolvedValue({
+      primaryBotLanguage: "es",
+      supportedLanguages: ["es"],
+    });
     mockGatewayChat.mockResolvedValue({
       message: "Hola",
       confidence: 0.91,
@@ -66,8 +78,7 @@ describe("apps.fluxbot.chat proxy route", () => {
         body: JSON.stringify({
           message: "hola",
           visitorId: "visitor-1",
-          locale: "es",
-          context: {},
+          context: { locale: "es" },
         }),
       },
     );
@@ -119,6 +130,7 @@ describe("apps.fluxbot.chat proxy route", () => {
     expect(mockGatewayChat).toHaveBeenCalledWith(
       expect.objectContaining({
         channel: "SHOPIFY_PROXY",
+        locale: "es",
       }),
       "quickstart-c8cc9986.myshopify.com",
     );
@@ -132,6 +144,7 @@ describe("apps.fluxbot.chat proxy route", () => {
     mockConversationFindUnique.mockResolvedValue({
       id: "conv-existing",
       shopId: "shop-1",
+      locale: "es",
       messages: [
         {
           role: "USER",
@@ -154,8 +167,7 @@ describe("apps.fluxbot.chat proxy route", () => {
           message: "¿Y guantes?",
           conversationId: "conv-existing",
           visitorId: "visitor-1",
-          locale: "es",
-          context: {},
+          context: { locale: "es" },
         }),
       },
     );
@@ -170,6 +182,7 @@ describe("apps.fluxbot.chat proxy route", () => {
     const data = await response.json();
     expect(data.conversationId).toBe("conv-existing");
     expect(mockConversationCreate).not.toHaveBeenCalled();
+    expect(mockConversationUpdate).not.toHaveBeenCalled();
     expect(mockConversationFindUnique).toHaveBeenCalledWith({
       where: { id: "conv-existing" },
       include: { messages: { orderBy: { createdAt: "asc" } } },
@@ -223,8 +236,7 @@ describe("apps.fluxbot.chat proxy route", () => {
         body: JSON.stringify({
           message: "algo como un snowboarding",
           visitorId: "visitor-1",
-          locale: "es",
-          context: {},
+          context: { locale: "es" },
         }),
       },
     );
@@ -282,8 +294,7 @@ describe("apps.fluxbot.chat proxy route", () => {
         body: JSON.stringify({
           message: "algo como un snowboarding",
           visitorId: "visitor-1",
-          locale: "es",
-          context: {},
+          context: { locale: "es" },
         }),
       },
     );
@@ -357,8 +368,7 @@ describe("apps.fluxbot.chat proxy route", () => {
         body: JSON.stringify({
           message: "algo como un snowboarding",
           visitorId: "visitor-1",
-          locale: "es",
-          context: {},
+          context: { locale: "es" },
         }),
       },
     );
@@ -381,6 +391,100 @@ describe("apps.fluxbot.chat proxy route", () => {
           content: expect.not.stringContaining("no tengo el catálogo"),
         }),
       }),
+    );
+  });
+
+  it("accepts root locale for backward compatibility when context locale is missing", async () => {
+    const { action } = await import("../../app/routes/apps.fluxbot.chat");
+
+    const request = new Request(
+      "http://localhost/apps/fluxbot/chat?shop=quickstart-c8cc9986.myshopify.com",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          message: "hola desde locale raíz",
+          visitorId: "visitor-1",
+          locale: "es",
+          context: {},
+        }),
+      },
+    );
+
+    const response = await action({
+      request,
+      params: {},
+      context: {},
+    } as never);
+
+    expect(response.status).toBe(200);
+    expect(mockGatewayChat).toHaveBeenCalledWith(
+      expect.objectContaining({
+        locale: "es",
+      }),
+      "quickstart-c8cc9986.myshopify.com",
+    );
+  });
+
+  it("uses primary bot language when storefront locale is not supported", async () => {
+    mockGetMerchantAdminConfig.mockResolvedValue({
+      primaryBotLanguage: "en",
+      supportedLanguages: ["en"],
+    });
+    mockGatewayChat.mockResolvedValue({
+      message: "I can help with that.",
+      confidence: 0.66,
+      requiresEscalation: false,
+      actions: [],
+      toolsUsed: ["searchProducts"],
+      sourceReferences: [],
+    });
+    mockProductProjectionFindMany.mockResolvedValue([
+      {
+        productId: "gid://shopify/Product/3001",
+        handle: "the-3p-fulfilled-snowboard",
+        title: "The 3p Fulfilled Snowboard",
+        description: "Snowboard",
+        vendor: "Shopify",
+        productType: "Snowboard",
+        variants: [{ id: "gid://shopify/ProductVariant/4001", price: "2629.95" }],
+        images: [],
+        metadata: {},
+      },
+    ]);
+
+    const { action } = await import("../../app/routes/apps.fluxbot.chat");
+    const request = new Request(
+      "http://localhost/apps/fluxbot/chat?shop=quickstart-c8cc9986.myshopify.com",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          message: "algo como un snowboarding",
+          visitorId: "visitor-1",
+          context: { locale: "es" },
+        }),
+      },
+    );
+
+    const response = await action({
+      request,
+      params: {},
+      context: {},
+    } as never);
+    const data = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(data.message).toBe("I found this related product in the catalog:");
+    expect(mockGatewayChat).toHaveBeenCalledWith(
+      expect.objectContaining({
+        locale: "en",
+      }),
+      "quickstart-c8cc9986.myshopify.com",
     );
   });
 });

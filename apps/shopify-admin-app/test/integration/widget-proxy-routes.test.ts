@@ -367,6 +367,8 @@ describe("widget proxy routes", () => {
       configVersion: expect.any(String),
       apiBaseUrl: "",
       chatEndpoint: "/apps/fluxbot/chat",
+      botLanguage: "es",
+      supportedLanguages: ["es"],
       widgetBranding: {
         launcherLabel: "Compra ahora",
         avatarStyle: "spark",
@@ -427,6 +429,8 @@ describe("widget proxy routes", () => {
       configVersion: expect.any(String),
       apiBaseUrl: "",
       chatEndpoint: "/apps/fluxbot/chat",
+      botLanguage: "es",
+      supportedLanguages: ["es"],
       widgetBranding: {
         launcherLabel: "Asistente",
         avatarStyle: "assistant",
@@ -493,6 +497,8 @@ describe("widget proxy routes", () => {
       configVersion: expect.any(String),
       apiBaseUrl: "https://dev-tunnel.example.com",
       chatEndpoint: "/apps/fluxbot/chat",
+      botLanguage: "es",
+      supportedLanguages: ["es"],
       widgetBranding: {
         launcherLabel: "Compra ahora",
         avatarStyle: "spark",

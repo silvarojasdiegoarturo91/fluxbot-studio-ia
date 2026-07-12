@@ -51,6 +51,8 @@ const translations: Record<string, Record<string, string>> = {
     
     'cart.abandoned': 'You have items in your cart. Would you like to purchase them?',
     'cart.total': 'Total: {{price}}',
+    'catalog.relatedOptions.single': 'I found this related product in the catalog:',
+    'catalog.relatedOptions.multiple': 'I found these related options in the catalog:',
   },
   
   es: {
@@ -73,6 +75,8 @@ const translations: Record<string, Record<string, string>> = {
     
     'cart.abandoned': 'Tienes artículos en tu carrito. ¿Te gustaría comprarlos?',
     'cart.total': 'Total: {{price}}',
+    'catalog.relatedOptions.single': 'Sí, encontré este producto relacionado en el catálogo:',
+    'catalog.relatedOptions.multiple': 'Sí, encontré estas opciones relacionadas en el catálogo:',
   },
 
   fr: {
