@@ -136,6 +136,11 @@
       addToCart: 'Add to cart', adding: 'Adding…',
       addedToCart: 'Added to cart.', viewCart: 'View cart',
       cartError: 'Sorry, I could not add this item to your cart right now.',
+      cartVariantInvalid: 'That variant is no longer valid. Please choose a different option.',
+      cartVariantUnavailable: 'That variant is sold out. Please choose a different option.',
+      cartVariantNotFound: 'Shopify could not find that variant. Please reselect the product option.',
+      cartDrawerFallback: 'Your cart drawer is unavailable right now. Opening the standard cart page.',
+      cartUnavailable: 'Unavailable',
       typing: 'Assistant is typing…',
       errorRetry: 'I could not complete that request. Please try again or ask about products, orders, or FAQs.',
       errorMax: 'I\'m experiencing technical difficulties. Please try again later or contact support.',
@@ -345,7 +350,7 @@
   function getI18n(locale) {
     if (!locale) return I18N.en;
     var lang = locale.toLowerCase().split('-')[0];
-    return I18N[lang] || I18N.en;
+    return Object.assign({}, I18N.en, I18N[lang] || {});
   }
 
   // ─── W1 — UUID generator (no external deps) ──────────────────────────────
@@ -457,7 +462,21 @@
     updateLauncherButtonA11y();
   }
 
+  function exposeTestHooks() {
+    if (!window.__FLUXBOT_WIDGET_TEST__) return;
+    window.__FLUXBOT_WIDGET_TEST__.extractNumericResourceId = extractNumericResourceId;
+    window.__FLUXBOT_WIDGET_TEST__.resolvePurchasableVariant = resolvePurchasableVariant;
+    window.__FLUXBOT_WIDGET_TEST__.isVariantPurchasable = isVariantPurchasable;
+    window.__FLUXBOT_WIDGET_TEST__.createProductCards = createProductCards;
+    window.__FLUXBOT_WIDGET_TEST__.addProductToCart = addProductToCart;
+    window.__FLUXBOT_WIDGET_TEST__.refreshCartState = refreshCartState;
+    window.__FLUXBOT_WIDGET_TEST__.openCartDrawerIfAvailable = openCartDrawerIfAvailable;
+    window.__FLUXBOT_WIDGET_TEST__.fallbackToCartPage = fallbackToCartPage;
+    window.__FLUXBOT_WIDGET_TEST__.classifyCartAddFailure = classifyCartAddFailure;
+  }
+
   // ─── Init ─────────────────────────────────────────────────────────────────
+  exposeTestHooks();
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
   } else {
@@ -1554,6 +1573,308 @@
     return match && match[1] ? match[1] : null;
   }
 
+  function isValidVariantIdValue(value) {
+    if (!value && value !== 0) return false;
+    var normalized = String(value).trim();
+    return /^(\d+|gid:\/\/shopify\/ProductVariant\/\d+)$/i.test(normalized);
+  }
+
+  function isProductMarkedUnavailable(product) {
+    if (!product || typeof product !== 'object') return true;
+    return product.availableForSale === false ||
+      product.available === false ||
+      product.inStock === false ||
+      product.isAvailable === false ||
+      product.purchasable === false ||
+      product.soldOut === true ||
+      product.stockStatus === 'SOLD_OUT';
+  }
+
+  function isVariantPurchasable(variant) {
+    if (!variant || typeof variant !== 'object') return false;
+    if (variant.availableForSale === false ||
+        variant.available === false ||
+        variant.inStock === false ||
+        variant.isAvailable === false ||
+        variant.purchasable === false) {
+      return false;
+    }
+
+    var quantities = [
+      variant.quantityAvailable,
+      variant.inventoryQuantity,
+      variant.inventory_quantity,
+    ];
+
+    for (var i = 0; i < quantities.length; i += 1) {
+      if (typeof quantities[i] === 'number' && quantities[i] <= 0) {
+        return false;
+      }
+    }
+
+    if (variant.inventoryPolicy === 'DENY') {
+      for (var j = 0; j < quantities.length; j += 1) {
+        if (typeof quantities[j] === 'number' && quantities[j] <= 0) {
+          return false;
+        }
+      }
+    }
+
+    return true;
+  }
+
+  function resolvePurchasableVariant(product) {
+    if (!product || typeof product !== 'object' || isProductMarkedUnavailable(product)) {
+      return null;
+    }
+
+    var productId = product.productId || product.product_id || product.id || null;
+    var productRef = product.handle || productId || null;
+    var directVariantIds = [
+      product.variantId,
+      product.variant_id,
+      product.selectedVariantId,
+      product.selected_variant_id,
+    ];
+
+    for (var i = 0; i < directVariantIds.length; i += 1) {
+      if (isValidVariantIdValue(directVariantIds[i])) {
+        return {
+          variantId: String(directVariantIds[i]),
+          productId: productId ? String(productId) : null,
+          productRef: productRef ? String(productRef) : null,
+          source: 'direct',
+        };
+      }
+    }
+
+    var variants = Array.isArray(product.variants) ? product.variants : [];
+    for (var j = 0; j < variants.length; j += 1) {
+      var variant = variants[j];
+      var candidateId = variant && (variant.variantId || variant.variant_id || variant.id || variant.gid);
+      if (!isValidVariantIdValue(candidateId) || !isVariantPurchasable(variant)) {
+        continue;
+      }
+      return {
+        variantId: String(candidateId),
+        productId: productId ? String(productId) : null,
+        productRef: productRef ? String(productRef) : null,
+        source: 'variants',
+      };
+    }
+
+    return null;
+  }
+
+  async function readJsonPreview(response) {
+    try {
+      return await response.clone().json();
+    } catch (error) {
+      return null;
+    }
+  }
+
+  function extractErrorDescription(parsedBody, fallbackText) {
+    if (!parsedBody) return fallbackText || '';
+
+    if (typeof parsedBody === 'string') {
+      return parsedBody;
+    }
+
+    if (typeof parsedBody.description === 'string' && parsedBody.description.trim()) {
+      return parsedBody.description.trim();
+    }
+
+    if (typeof parsedBody.message === 'string' && parsedBody.message.trim()) {
+      return parsedBody.message.trim();
+    }
+
+    if (typeof parsedBody.error === 'string' && parsedBody.error.trim()) {
+      return parsedBody.error.trim();
+    }
+
+    if (Array.isArray(parsedBody.errors)) {
+      return parsedBody.errors
+        .map(function (entry) { return typeof entry === 'string' ? entry : JSON.stringify(entry); })
+        .join(', ');
+    }
+
+    if (parsedBody.errors && typeof parsedBody.errors === 'object') {
+      return Object.keys(parsedBody.errors)
+        .map(function (key) {
+          var value = parsedBody.errors[key];
+          if (Array.isArray(value)) return key + ': ' + value.join(', ');
+          if (typeof value === 'string') return key + ': ' + value;
+          return key + ': ' + JSON.stringify(value);
+        })
+        .join(', ');
+    }
+
+    return fallbackText || '';
+  }
+
+  function classifyCartAddFailure(httpStatus, errorDescription, productContext) {
+    var lowerDescription = String(errorDescription || '').toLowerCase();
+    var hasVariantContext = productContext && productContext.variantId;
+
+    if (httpStatus === 422 && /cannot find variant/.test(lowerDescription)) {
+      return {
+        code: 'variant_not_found',
+        message: i18n.cartVariantNotFound,
+      };
+    }
+
+    if (httpStatus === 422 && /(sold out|unavailable|out of stock)/.test(lowerDescription)) {
+      return {
+        code: 'variant_unavailable',
+        message: i18n.cartVariantUnavailable,
+      };
+    }
+
+    if (!hasVariantContext || /variant/i.test(lowerDescription) || /product option/i.test(lowerDescription)) {
+      return {
+        code: 'variant_invalid',
+        message: i18n.cartVariantInvalid,
+      };
+    }
+
+    return {
+      code: 'cart_error',
+      message: i18n.cartError,
+    };
+  }
+
+  function getCartRoot() {
+    return (window.Shopify && window.Shopify.routes && window.Shopify.routes.root) || '/';
+  }
+
+  function getCartPageUrl(cartRoot) {
+    return sanitizeUrl((cartRoot || '/') + 'cart') || '/cart';
+  }
+
+  function getCartBadgeCandidates() {
+    return [
+      '[data-fluxbot-cart-badge]',
+      '[data-cart-count]',
+      '.cart-count-bubble',
+      '#CartCount',
+      '#cart-count',
+      '[aria-label*="cart"] [data-count]',
+    ];
+  }
+
+  function updateCartBadges(cartState) {
+    if (!cartState || typeof cartState !== 'object') return;
+    var count = typeof cartState.item_count === 'number' ? cartState.item_count : null;
+    if (count === null) return;
+
+    var selectors = getCartBadgeCandidates();
+    selectors.forEach(function (selector) {
+      var badges = document.querySelectorAll(selector);
+      badges.forEach(function (badge) {
+        if (!badge) return;
+        badge.textContent = String(count);
+        if (count > 0) {
+          badge.removeAttribute('hidden');
+          badge.setAttribute('aria-hidden', 'false');
+        }
+      });
+    });
+  }
+
+  async function refreshCartState(cartRoot) {
+    var response = await fetch((cartRoot || '/') + 'cart.js', {
+      method: 'GET',
+      credentials: 'same-origin',
+      headers: {
+        Accept: 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      var refreshPreview = await readResponsePreview(response);
+      throw new Error('Cart refresh failed: HTTP ' + response.status + ' ' + refreshPreview);
+    }
+
+    var cartState = await response.json();
+    window.__FLUXBOT_CART_STATE__ = cartState;
+    updateCartBadges(cartState);
+    document.dispatchEvent(new CustomEvent('fluxbot:cart-refreshed', { detail: cartState }));
+    return cartState;
+  }
+
+  function canOpenDrawerViaApi(target) {
+    if (!target) return false;
+    if (typeof target.open === 'function') {
+      target.open();
+      return true;
+    }
+    if (typeof target.show === 'function') {
+      target.show();
+      return true;
+    }
+    return false;
+  }
+
+  function openCartDrawerIfAvailable(cartState) {
+    var candidates = [
+      window.cartDrawer,
+      window.theme && window.theme.cartDrawer,
+      window.theme && window.theme.drawer,
+      window.Shopify && window.Shopify.cartDrawer,
+      window.Shopify && window.Shopify.theme && window.Shopify.theme.cartDrawer,
+    ];
+
+    for (var i = 0; i < candidates.length; i += 1) {
+      if (canOpenDrawerViaApi(candidates[i])) {
+        document.dispatchEvent(new CustomEvent('fluxbot:cart-drawer-opened', { detail: cartState || null }));
+        return true;
+      }
+    }
+
+    var drawerButtons = document.querySelectorAll(
+      [
+        '[data-cart-drawer-open]',
+        '[data-cart-drawer-toggle]',
+        '[aria-controls="CartDrawer"]',
+        '[aria-controls="cart-drawer"]',
+        '[data-testid="cart-drawer-open"]',
+      ].join(', ')
+    );
+
+    for (var j = 0; j < drawerButtons.length; j += 1) {
+      if (typeof drawerButtons[j].click === 'function') {
+        drawerButtons[j].click();
+        document.dispatchEvent(new CustomEvent('fluxbot:cart-drawer-opened', { detail: cartState || null }));
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  function fallbackToCartPage(cartRoot) {
+    var cartUrl = getCartPageUrl(cartRoot);
+    document.dispatchEvent(new CustomEvent('fluxbot:cart-fallback', { detail: { cartUrl: cartUrl } }));
+    if (window.__FLUXBOT_WIDGET_TEST__ && typeof window.__FLUXBOT_WIDGET_TEST__.onCartFallback === 'function') {
+      window.__FLUXBOT_WIDGET_TEST__.onCartFallback(cartUrl);
+      return;
+    }
+    if (window.location && typeof window.location.assign === 'function') {
+      window.location.assign(cartUrl);
+    } else {
+      window.location.href = cartUrl;
+    }
+  }
+
+  function reportCartFailure(details) {
+    debugError('Cart add failed', details);
+  }
+
+  function reportCartSuccess(details) {
+    debugLog('Cart add confirmed by Shopify', details);
+  }
+
   /** Add a pre-built DOM node as a message bubble */
   function addMessageNode(node, role) {
     var messageEl = document.createElement('div');
@@ -1581,6 +1902,7 @@
     uniqueProducts.slice(0, 3).forEach(function (product) {
       var card = document.createElement('div');
       card.className = 'fluxbot-product-card';
+      var purchasableVariant = resolvePurchasableVariant(product);
 
       var link = document.createElement('a');
       link.href = sanitizeUrl(product.url) || '#';
@@ -1617,10 +1939,17 @@
       var addBtn = document.createElement('button');
       addBtn.type = 'button';
       addBtn.className = 'fluxbot-product-card__add';
-      addBtn.textContent = i18n.addToCart;
-      addBtn.addEventListener('click', (function (p, btn) {
-        return function () { addProductToCart(p, btn); };
-      })(product, addBtn));
+      if (purchasableVariant && purchasableVariant.variantId) {
+        addBtn.textContent = i18n.addToCart;
+        addBtn.dataset.variantId = purchasableVariant.variantId;
+        addBtn.dataset.productId = purchasableVariant.productId || '';
+        addBtn.addEventListener('click', (function (p, btn) {
+          return function () { addProductToCart(p, btn); };
+        })(product, addBtn));
+      } else {
+        addBtn.disabled = true;
+        addBtn.textContent = i18n.cartUnavailable || i18n.cartVariantUnavailable || i18n.cartVariantInvalid;
+      }
       actions.appendChild(addBtn);
       link.appendChild(info);
       card.appendChild(link);
@@ -1639,12 +1968,22 @@
   }
 
   async function addProductToCart(product, buttonEl) {
-    var variantId  = product.variantId  || product.variant_id  || null;
-    var productRef = product.productId  || product.product_id  || product.handle || product.id || null;
+    var purchasableVariant = resolvePurchasableVariant(product);
+    var variantId  = purchasableVariant && purchasableVariant.variantId ? purchasableVariant.variantId : null;
+    var productId = purchasableVariant && purchasableVariant.productId ? purchasableVariant.productId : (product.productId || product.product_id || product.id || null);
+    var productRef = purchasableVariant && purchasableVariant.productRef ? purchasableVariant.productRef : (product.handle || productId || null);
     var requestKey = variantId || productRef;
 
-    if (!variantId && !productRef) { addMessage(i18n.cartVariantError, 'assistant'); return; }
-    if (!requestKey) { addMessage(i18n.cartVariantError, 'assistant'); return; }
+    if (!variantId) {
+      reportCartFailure({
+        productId: productId || null,
+        variantId: null,
+        httpStatus: 0,
+        errorDescription: 'No purchasable variant available',
+      });
+      addMessage(i18n.cartVariantInvalid, 'assistant');
+      return;
+    }
     if (cartRequestsInFlight[requestKey]) {
       debugLog('Add to cart ignored: request already in flight', { requestKey: requestKey });
       return;
@@ -1661,15 +2000,39 @@
         conversationId: conversationId,
         sessionId: sessionId, visitorId: visitorId,
       }));
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-      var payload = await res.json();
-      if (!payload || !payload.success) throw new Error((payload && payload.error) || 'Cart add failed');
+      var payload = await readJsonPreview(res);
+      if (!res.ok) {
+        var proxyErrorDescription = extractErrorDescription(payload, await readResponsePreview(res));
+        reportCartFailure({
+          productId: productId || null,
+          variantId: variantId,
+          httpStatus: res.status,
+          errorDescription: proxyErrorDescription,
+        });
+        var proxyFailure = classifyCartAddFailure(res.status, proxyErrorDescription, { variantId: variantId });
+        addMessage(proxyFailure.message, 'assistant');
+        return;
+      }
+      if (!payload || !payload.success) {
+        var payloadError = extractErrorDescription(payload, 'Cart add failed');
+        reportCartFailure({
+          productId: productId || null,
+          variantId: variantId,
+          httpStatus: res.status,
+          errorDescription: payloadError,
+        });
+        addMessage(classifyCartAddFailure(res.status, payloadError, { variantId: variantId }).message, 'assistant');
+        return;
+      }
 
       var resolvedVariantId =
         payload.data && (payload.data.variantId || payload.data.variant_id || payload.data.resolvedVariantId);
       if (!resolvedVariantId) throw new Error('Cart variant unresolved');
       var resolvedVariantNumericId = extractNumericResourceId(resolvedVariantId);
       if (!resolvedVariantNumericId) throw new Error('Cart variant unresolved');
+      if (productId && String(productId) === String(resolvedVariantId)) {
+        throw new Error('Resolved add-to-cart value matched the product id instead of a variant id');
+      }
 
       var cartRoot = (window.Shopify && window.Shopify.routes && window.Shopify.routes.root) || '/';
       var addToCartRes = await fetch(cartRoot + 'cart/add.js', {
@@ -1687,23 +2050,74 @@
         }),
       });
       if (!addToCartRes.ok) {
-        throw new Error('Shopify cart add failed: HTTP ' + addToCartRes.status);
+        var shopifyErrorPayload = await readJsonPreview(addToCartRes);
+        var shopifyErrorDescription = extractErrorDescription(
+          shopifyErrorPayload,
+          await readResponsePreview(addToCartRes)
+        );
+        reportCartFailure({
+          productId: productId || null,
+          variantId: String(resolvedVariantNumericId),
+          httpStatus: addToCartRes.status,
+          errorDescription: shopifyErrorDescription,
+        });
+        var cartFailure = classifyCartAddFailure(addToCartRes.status, shopifyErrorDescription, {
+          variantId: String(resolvedVariantNumericId),
+        });
+        addMessage(cartFailure.message, 'assistant');
+        return;
       }
+
+      var cartState = null;
+      try {
+        cartState = await refreshCartState(cartRoot);
+      } catch (refreshError) {
+        debugWarn('Cart refresh failed after successful add-to-cart', {
+          productId: productId || null,
+          variantId: String(resolvedVariantNumericId),
+          error: refreshError && refreshError.message ? refreshError.message : String(refreshError),
+        });
+      }
+
+      var drawerOpened = openCartDrawerIfAvailable(cartState);
 
       var span = document.createElement('span');
       span.appendChild(document.createTextNode(i18n.addedToCart + ' '));
       var cartLink = document.createElement('a');
-      cartLink.href = sanitizeUrl(cartRoot + 'cart') || '#';
+      cartLink.href = sanitizeUrl(getCartPageUrl(cartRoot)) || '#';
       cartLink.textContent = i18n.viewCart;
-      cartLink.target = '_blank';
+      cartLink.target = drawerOpened ? '_blank' : '_self';
       cartLink.rel = 'noopener noreferrer';
       span.appendChild(cartLink);
       addMessageNode(span, 'assistant');
 
+      reportCartSuccess({
+        productId: productId || null,
+        variantId: String(resolvedVariantNumericId),
+        httpStatus: addToCartRes.status,
+        errorDescription: null,
+      });
+
+      if (!drawerOpened) {
+        setTimeout(function () {
+          fallbackToCartPage(cartRoot);
+        }, 0);
+      }
+
       trackEvent('add_to_cart', { variantId: String(resolvedVariantNumericId), productRef: productRef });
     } catch (err) {
-      console.error('[FluxBot] Add to cart failed:', err);
-      addMessage(i18n.cartError, 'assistant');
+      var errorMessage = err && err.message ? err.message : String(err);
+      reportCartFailure({
+        productId: productId || null,
+        variantId: variantId,
+        httpStatus: err && err.httpStatus ? err.httpStatus : 0,
+        errorDescription: errorMessage,
+      });
+      if (/cart variant unresolved/i.test(errorMessage)) {
+        addMessage(i18n.cartVariantInvalid, 'assistant');
+      } else {
+        addMessage(i18n.cartError, 'assistant');
+      }
     } finally {
       delete cartRequestsInFlight[requestKey];
       buttonEl.disabled = false;

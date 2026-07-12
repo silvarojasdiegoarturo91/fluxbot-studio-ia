@@ -11,6 +11,14 @@ La documentacion historica/completada fue centralizada en `documentation/`.
 > Nota operativa: en este workspace, cuando se diga "producción" o "server de prod",
 > se entiende el servidor de Contabo, salvo indicación explícita de otro entorno.
 
+### Producción real
+
+- Servicio systemd en Contabo: `fluxbot-studio-ia.service`
+- Ruta de trabajo en servidor: `/home/diego/fluxbot-studio-ia/apps/shopify-admin-app`
+- Backend IA asociado en producción: `fluxbot-studio-back-ia.service`
+- CDN/widget externo: `cdn.fluxbotia.com` sobre `/var/www/fluxbot-widget`
+- Despliegue operativo registrado: `2026-07-12`
+
 ### Resumen rápido
 - ✅ Base estable de app Shopify embebida + widget storefront
 - ✅ Fase 1 cerrada en este repo: gateway IA remoto por defecto + order lookup verificado
