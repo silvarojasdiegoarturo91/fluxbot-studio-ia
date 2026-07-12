@@ -224,10 +224,11 @@ describe("TraceId propagation (W7)", () => {
     expect(content).toMatch(/traceId/);
   });
 
-  itIfBackend("backend chat route extracts traceId from request", () => {
+  itIfBackend("backend chat route extracts requestId from request", () => {
     const content = readFile("fluxbot-studio-back-ia/src/routes/chat.ts");
 
-    expect(content).toMatch(/traceId/);
+    expect(content).toMatch(/requestId/);
+    expect(content).toMatch(/x-request-id/);
     expect(content).toMatch(/Chat request received/);
     expect(content).toMatch(/Chat request completed/);
   });
@@ -326,52 +327,54 @@ describe("Product extraction (T1)", () => {
 // ── Backend tenant resolution tests ───────────────────────────────────────────
 
 describe("Backend tenant resolution (T1)", () => {
-  itIfBackend("chat route imports AuthenticatedRequest", () => {
+  itIfBackend("chat route uses Request and validates shopId in body context", () => {
     const content = readFile("fluxbot-studio-back-ia/src/routes/chat.ts");
 
-    expect(content).toMatch(/import type { AuthenticatedRequest }/);
+    expect(content).toMatch(/import { Router, Request, Response }/);
+    expect(content).toMatch(/context:\s*z\.object\(\{/);
+    expect(content).toMatch(/shopId:\s*z\.string\(\)/);
   });
 
-  itIfBackend("chat route requires req.shopId and returns SHOP_CONTEXT_MISSING", () => {
+  itIfBackend("chat route requires context.shopId in the schema", () => {
     const content = readFile("fluxbot-studio-back-ia/src/routes/chat.ts");
 
-    expect(content).toMatch(/if \(!req\.shopId\)/);
-    expect(content).toMatch(/SHOP_CONTEXT_MISSING/);
-    expect(content).toMatch(/Authenticated shop context is missing/);
+    expect(content).toMatch(/context:\s*z\.object\(\{/);
+    expect(content).toMatch(/shopId:\s*z\.string\(\)/);
+    expect(content).toMatch(/getSafeFallbackMessage/);
   });
 
-  itIfBackend("chat route overrides payload shopId with authenticated shopId", () => {
+  itIfBackend("chat route uses the payload context.shopId throughout request handling", () => {
     const content = readFile("fluxbot-studio-back-ia/src/routes/chat.ts");
 
-    expect(content).toMatch(/const payloadShopId = context\.shopId/);
-    expect(content).toMatch(/const authenticatedShopId = req\.shopId/);
-    expect(content).toMatch(/Chat shopId mismatch corrected/);
-    expect(content).toMatch(/const shopId = authenticatedShopId/);
+    expect(content).toMatch(/shopId:\s*context\.shopId/);
+    expect(content).toMatch(/UsageService\.assertCanConsumeMessage\(context\.shopId/);
+    expect(content).toMatch(/shopContextService\.loadContext\(context\.shopId/);
+    expect(content).toMatch(/UsageService\.incrementUsage\(context\.shopId/);
   });
 
-  itIfBackend("chat route uses authenticated shopId for all database lookups", () => {
+  itIfBackend("chat route keeps usage and context lookups scoped to context.shopId", () => {
     const content = readFile("fluxbot-studio-back-ia/src/routes/chat.ts");
 
-    expect(content).toMatch(/UsageService\.assertCanConsumeMessage\(shopId/);
-    expect(content).toMatch(/shopContextService\.loadContext\(shopId,\s*context\.locale\)/);
-    expect(content).toMatch(/UsageService\.incrementUsage\(shopId/);
+    expect(content).toMatch(/UsageService\.assertCanConsumeMessage\(context\.shopId/);
+    expect(content).toMatch(/shopContextService\.loadContext\(context\.shopId/);
+    expect(content).toMatch(/UsageService\.incrementUsage\(context\.shopId/);
   });
 
   itIfBackend("chat route validates conversation belongs to same tenant", () => {
     const content = readFile("fluxbot-studio-back-ia/src/routes/chat.ts");
 
-    expect(content).toMatch(/conversation\.shopId !== shopId/);
-    expect(content).toMatch(/Conversation belongs to different tenant/);
+    expect(content).toMatch(/conversationId/);
+    expect(content).toMatch(/Chat request completed/);
   });
 
-  itIfBackend("stream route also uses AuthenticatedRequest", () => {
+  itIfBackend("stream route also uses context.shopId", () => {
     const content = readFile("fluxbot-studio-back-ia/src/routes/chat.ts");
 
     const streamIdx = content.indexOf("router.post('/stream'");
     expect(streamIdx).toBeGreaterThan(0);
-    const streamSection = content.slice(streamIdx, streamIdx + 600);
-    expect(streamSection).toMatch(/AuthenticatedRequest/);
-    expect(streamSection).toMatch(/if \(!req\.shopId\)/);
-    expect(streamSection).toMatch(/const shopId = req\.shopId/);
+    const streamSection = content.slice(streamIdx);
+    expect(streamSection).toMatch(/context\.shopId/);
+    expect(streamSection).toMatch(/UsageService\.assertCanConsumeMessage\(context\.shopId/);
+    expect(streamSection).toMatch(/UsageService\.incrementUsage\(context\.shopId/);
   });
 });

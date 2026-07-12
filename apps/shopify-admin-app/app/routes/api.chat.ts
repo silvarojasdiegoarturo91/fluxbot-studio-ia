@@ -145,7 +145,7 @@ export async function action({ request }: ActionFunctionArgs) {
       conversation = await prisma.conversation.create({
         data: {
           shopId: shop.id,
-          channel,
+          channel: channel as any,
           visitorId,
           customerId,
           sessionId,

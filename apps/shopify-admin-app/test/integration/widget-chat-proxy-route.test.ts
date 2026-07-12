@@ -101,9 +101,16 @@ describe("apps.fluxbot.chat proxy route", () => {
     expect(mockConversationCreate).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
-          channel: "WEB_CHAT",
+          channel: "SHOPIFY_PROXY",
+          shopId: "shop-1",
+          status: "ACTIVE",
           visitorId: "visitor-1",
+          sessionId: undefined,
+          customerId: undefined,
           locale: "es",
+        }),
+        include: expect.objectContaining({
+          messages: true,
         }),
       }),
     );

@@ -19,11 +19,7 @@ import { getMerchantAdminConfig } from "../services/admin-config.server";
 import { getCatalogFallbackMessage, resolveEffectiveLocale } from "../services/chat-locale.server";
 import { verifyShopifyProxyRequest } from "../services/shopify-proxy-auth.server";
 import {
-  detectBasicIntent,
-  isSimpleMessage,
   safeFallbackMessage,
-  safeGreetingMessage,
-  sanitizeAssistantMessage,
 } from "../services/chat-safety.server";
 
 // ── W7 — Startup diagnostics ─────────────────────────────────────────────────
@@ -498,20 +494,6 @@ export async function action({ request }: ActionFunctionArgs) {
       return json({ success: false, error: "Message is required" }, { status: 400 }, traceId);
     }
 
-    const basicIntent = detectBasicIntent(message);
-    if (basicIntent === "greeting" || (basicIntent === "unknown" && isSimpleMessage(message))) {
-      return json({
-        success: true,
-        conversationId: conversationId || `conv-${Date.now()}`,
-        message: safeGreetingMessage(),
-        confidence: 0.99,
-        requiresEscalation: false,
-        actions: [],
-        metadata: { products: [] },
-        sourceReferences: [],
-      });
-    }
-
     const shop = await prisma.shop.findUnique({ where: { domain: shopDomain } });
     if (!shop) {
       return json({ success: false, error: "Shop not found" }, { status: 404 }, traceId);
@@ -538,7 +520,7 @@ export async function action({ request }: ActionFunctionArgs) {
       conversation = await prisma.conversation.create({
         data: {
           shopId: shop.id,
-          channel: "SHOPIFY_PROXY",
+          channel: "SHOPIFY_PROXY" as any,
           visitorId: visitorId ?? context.visitorId,
           customerId: customerId ?? context.customerId,
           sessionId: sessionId ?? context.sessionId,
@@ -561,6 +543,7 @@ export async function action({ request }: ActionFunctionArgs) {
       conversation = await prisma.conversation.update({
         where: { id: conversation.id },
         data: { locale: effectiveLocale },
+        include: { messages: { orderBy: { createdAt: "asc" } } },
       });
     }
 
