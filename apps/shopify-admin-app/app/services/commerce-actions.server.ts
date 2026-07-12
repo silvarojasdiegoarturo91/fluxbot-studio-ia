@@ -124,7 +124,7 @@ function isVariantPurchasable(variant: Record<string, unknown>): boolean {
   );
   if (typeof inventoryQuantity === "number") return inventoryQuantity > 0;
 
-  return true;
+  return false;
 }
 
 function getVariantIdFromEntry(entry: Record<string, unknown>): string | null {

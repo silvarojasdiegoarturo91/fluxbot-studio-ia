@@ -337,7 +337,7 @@ function isVariantPurchasable(variant: Record<string, any>): boolean {
   const inventoryQuantity = asNumber(variant.inventoryQuantity ?? variant.inventory_quantity);
   if (typeof inventoryQuantity === "number") return inventoryQuantity > 0;
 
-  return true;
+  return false;
 }
 
 function selectFirstPurchasableVariant(variants: Array<Record<string, any>>): Record<string, any> | null {

@@ -1484,6 +1484,12 @@
     });
   }
 
+  function extractNumericResourceId(value) {
+    if (!value) return null;
+    var match = String(value).match(/(\d+)(?!.*\d)/);
+    return match && match[1] ? match[1] : null;
+  }
+
   /** Add a pre-built DOM node as a message bubble */
   function addMessageNode(node, role) {
     var messageEl = document.createElement('div');
@@ -1575,7 +1581,10 @@
 
     if (!variantId && !productRef) { addMessage(i18n.cartVariantError, 'assistant'); return; }
     if (!requestKey) { addMessage(i18n.cartVariantError, 'assistant'); return; }
-    if (cartRequestsInFlight[requestKey]) return;
+    if (cartRequestsInFlight[requestKey]) {
+      debugLog('Add to cart ignored: request already in flight', { requestKey: requestKey });
+      return;
+    }
 
     cartRequestsInFlight[requestKey] = true;
 
@@ -1595,8 +1604,8 @@
       var resolvedVariantId =
         payload.data && (payload.data.variantId || payload.data.variant_id || payload.data.resolvedVariantId);
       if (!resolvedVariantId) throw new Error('Cart variant unresolved');
-      var resolvedVariantMatch = String(resolvedVariantId).match(/(\d+)(?!.*\d)/);
-      if (!resolvedVariantMatch || !resolvedVariantMatch[1]) throw new Error('Cart variant unresolved');
+      var resolvedVariantNumericId = extractNumericResourceId(resolvedVariantId);
+      if (!resolvedVariantNumericId) throw new Error('Cart variant unresolved');
 
       var cartRoot = (window.Shopify && window.Shopify.routes && window.Shopify.routes.root) || '/';
       var addToCartRes = await fetch(cartRoot + 'cart/add.js', {
@@ -1608,7 +1617,7 @@
         },
         body: JSON.stringify({
           items: [{
-            id: Number(resolvedVariantMatch[1]),
+            id: Number(resolvedVariantNumericId),
             quantity: 1,
           }],
         }),
@@ -1627,7 +1636,7 @@
       span.appendChild(cartLink);
       addMessageNode(span, 'assistant');
 
-      trackEvent('add_to_cart', { variantId: String(resolvedVariantMatch[1]), productRef: productRef });
+      trackEvent('add_to_cart', { variantId: String(resolvedVariantNumericId), productRef: productRef });
     } catch (err) {
       console.error('[FluxBot] Add to cart failed:', err);
       addMessage(i18n.cartError, 'assistant');
