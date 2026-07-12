@@ -37,7 +37,7 @@
     "openspec:add-req": "node ./scripts/add-requirement.mjs",
     "qa:verify": "node ./scripts/verify-feature.mjs",
     "qa:gate": "npm run contracts:check && npm run openspec:validate:strict && npm run build && npm run lint && npm run typecheck && npm --workspace @fluxbot/shopify-admin-app run test:app-store-compliance && npm --workspace @fluxbot/shopify-admin-app run test",
-    "qa:gate:full": "npm run qa:gate && npm --workspace @fluxbot/shopify-admin-app run test:e2e:smoke:ci",
+    "qa:gate:full": "npm run qa:gate && npm --workspace @fluxbot/shopify-admin-app run test:e2e",
     "qa:smoke": "npm --workspace @fluxbot/shopify-admin-app run test:e2e:smoke:ci",
     "githooks:install": "git config core.hooksPath .githooks",
     "contracts:pull": "node ./scripts/pull-contracts.mjs",

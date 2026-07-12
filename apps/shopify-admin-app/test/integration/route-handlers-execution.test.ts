@@ -20,6 +20,7 @@ vi.mock('../../app/db.server', () => {
     conversation: {
       create: vi.fn(),
       findUnique: vi.fn(),
+      update: vi.fn(),
     },
     webhookEvent: {
       create: vi.fn(),
@@ -33,6 +34,13 @@ vi.mock('../../app/db.server', () => {
 vi.mock('../../app/services/ia-gateway.server', () => ({
   getIAGateway: vi.fn(() => ({
     chat: mockGatewayChat,
+  })),
+}));
+
+vi.mock('../../app/services/admin-config.server', () => ({
+  getMerchantAdminConfig: vi.fn(async () => ({
+    primaryBotLanguage: 'en',
+    supportedLanguages: ['en'],
   })),
 }));
 
@@ -151,6 +159,7 @@ describe('Route Handler Execution - Chat API', () => {
         shopId: 'shop-123',
         channel: 'WEB_CHAT',
         status: 'ACTIVE',
+        locale: 'en',
         messages: [
           { id: 'msg-1', content: 'Previous message', role: 'user', createdAt: new Date() },
         ],

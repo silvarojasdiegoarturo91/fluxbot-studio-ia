@@ -6,9 +6,9 @@ Sometimes, after Shopify install authorization, the merchant reaches an intermed
 
 ## User stories
 
-- **US-AIR-001:** As a merchant installing Fluxbot for the first time, I want the app to finish auth and load onboarding/dashboard automatically, so I can start immediately without refreshing.
-- **US-AIR-002:** As a merchant who uninstalled and reinstalled Fluxbot, I want the app to redirect to the correct onboarding-required state without getting stuck on auth handling, so the lifecycle flow is reliable.
-- **US-AIR-003:** As a merchant with an expired embedded session, I want auth bounce recovery to return me to the requested app route, so I can continue working seamlessly.
+- **US-AIR-001:** Como merchant que instala Fluxbot por primera vez, quiero que la app complete auth y cargue onboarding/dashboard automáticamente para empezar de inmediato sin refrescar.
+- **US-AIR-002:** Como merchant que desinstaló y reinstaló Fluxbot, quiero que la app redirija al estado correcto de onboarding obligatorio para que el flujo de ciclo de vida sea confiable sin quedarse en auth handling.
+- **US-AIR-003:** Como merchant con sesión embebida expirada, quiero que la recuperación por auth bounce me devuelva a la ruta solicitada para continuar trabajando sin fricción.
 
 ## Use cases
 
@@ -45,6 +45,12 @@ Sometimes, after Shopify install authorization, the merchant reaches an intermed
 - **FR-AIR-002:** Auth catch-all route MUST expose Shopify boundary headers and error boundary handling.
 - **FR-AIR-003:** Post-install redirects MUST resolve to usable routes (`/app` or `/app/onboarding`) in one flow.
 - **FR-AIR-004:** Uninstall + reinstall lifecycle MUST preserve onboarding-required behavior and avoid auth dead-ends.
+- **FR-AIR-005:** If Shopify reaches `/` with only `shop` during install/reinstall, the app MUST redirect immediately to `/auth/login?shop=...` to start OAuth grant and MUST NOT attempt a partial app bootstrap first.
+- **FR-AIR-006:** The installation flow MUST obtain and persist a valid Shopify access token for the shop session before protected app routes are considered authenticated.
+- **FR-AIR-007:** Install/reinstall document requests MUST never terminate in fatal 5xx or a dead-end "Handling response" page; they MUST recover through `/auth/session-token` bounce or explicit OAuth login.
+- **FR-AIR-008:** Reinstallation MUST reset onboarding completion state and force onboarding routes until completion is confirmed again.
+- **FR-AIR-009:** Redirect URL behavior MUST preserve embedded context params (`shop`, `host`, `embedded`) across login, callback, and session-token bounce when available.
+- **FR-AIR-010:** The repo MUST keep automated coverage for install entry redirects, auth bounce reconstruction, reinstall onboarding reset, and token-aware shop recovery.
 
 ## Acceptance criteria
 
@@ -52,3 +58,7 @@ Sometimes, after Shopify install authorization, the merchant reaches an intermed
 2. Given reinstalled shop after uninstall, when merchant enters app, then onboarding is required and app is not stuck on auth handling.
 3. Given expired session on document request, when bounce redirect is built, then resulting `shopify-reload` has no nested `shopify-reload`.
 4. Given auth catch-all responses, then boundary handling prevents raw response pages ("200" or "Handling response" stuck view) from becoming terminal UI.
+5. Given Shopify calls `/?shop=<domain>` from install/reinstall, when root loader runs, then it redirects directly to `/auth/login?shop=<domain>`.
+6. Given install auth succeeds, when the app reaches authenticated routes, then a persisted shop access token exists in session-backed flow.
+7. Given app was previously uninstalled, when the shop reinstalls, then onboarding is reset and `/app/onboarding` is enforced before normal routes.
+8. Given embedded context (`shop`, `host`, `embedded`) is present on entry, when redirects happen through auth/session-token, then context is preserved in resulting route.

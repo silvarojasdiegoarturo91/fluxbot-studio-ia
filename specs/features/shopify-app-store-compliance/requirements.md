@@ -44,26 +44,37 @@ As the Fluxbot team, I want the compliance matrix to mark payments apps, purchas
 - **FR-CS-007**: The app MUST use GraphQL Admin API for general Shopify admin operations that are part of the app's product surface.
 - **FR-CS-008**: If the app charges merchants, billing MUST flow through Shopify Billing API or Shopify App Pricing.
 - **FR-CS-009**: The billing experience MUST support plan creation, decline handling, reinstall recovery, and plan changes without requiring support intervention.
+- **FR-CS-010**: All app charges MUST be processed through Shopify Billing API for the app's paid functionality; off-platform billing for app charges is not allowed.
+- **FR-CS-011**: Merchants MUST be able to switch pricing plans (upgrade and downgrade) from the app billing flow.
+- **FR-CS-012**: Pricing information in the App Store submission form MUST stay aligned with the actual in-app billing plans and charge behavior.
+- **FR-CS-024**: After Shopify confirms a billing charge/subscription, the app MUST return merchants to an embedded in-app post-purchase section (thank-you) and then to dashboard without showing a manual "Shop domain" login form.
+- **FR-CS-025**: Billing return URLs MUST preserve or recover embedded context (`shop`, `host`, `embedded`) in a bounded format compatible with Shopify limits.
+- **FR-CS-026**: If a merchant already has the same active plan, the app MUST block duplicate purchase and require selecting a different plan.
+- **FR-CS-027**: Upgrade/downgrade plan changes MUST use Shopify-supported replacement behavior so proration/credit handling is delegated to Shopify Billing and duplicate active plans are avoided.
+- **FR-CS-028**: The billing change UI MUST show the active plan as status information and MUST NOT render the active plan as a selectable purchase/change option.
+- **FR-CS-029**: The billing plan selector UI MUST use pricing cards (not only a dropdown), including plan name, price, direction badge (upgrade/downgrade), key limits/features, and a primary action button.
+- **FR-CS-030**: Available plan cards MUST be labeled as `Upgrade` or `Downgrade` based on plan hierarchy/price relative to the active plan.
+- **FR-CS-031**: If no alternate plans are available, the UI MUST show an explicit "best available plan" message instead of rendering a purchase action.
 
 ### Storefront and theme app extension
 
-- **FR-CS-010**: If the app modifies the storefront theme, it MUST do so through a theme app extension instead of direct theme code edits.
-- **FR-CS-011**: The storefront extension MUST expose setup instructions or a deep link to help merchants enable and preview it.
-- **FR-CS-012**: Theme-facing configuration MUST be stored canonically in Admin and must not depend on manual file edits in the merchant theme.
-- **FR-CS-013**: Storefront configuration must stay consistent with Admin settings for launcher color, position, and copy.
+- **FR-CS-013**: If the app modifies the storefront theme, it MUST do so through a theme app extension instead of direct theme code edits.
+- **FR-CS-014**: The storefront extension MUST expose setup instructions or a deep link to help merchants enable and preview it.
+- **FR-CS-015**: Theme-facing configuration MUST be stored canonically in Admin and must not depend on manual file edits in the merchant theme.
+- **FR-CS-016**: Storefront configuration must stay consistent with Admin settings for launcher color, position, and copy.
 
 ### Privacy, retention and support
 
-- **FR-CS-014**: Customer data collected by Shopify-hosted surfaces MUST be accessible to merchants from Admin or from an in-app dashboard.
-- **FR-CS-015**: Data retention, export and deletion flows MUST be documented and testable.
-- **FR-CS-016**: The repo MUST contain a submission-ready support/contact and privacy evidence checklist.
-- **FR-CS-017**: App listing copy and documentation MUST be factual and must not claim fabricated reviews, sales, traffic or social proof.
+- **FR-CS-017**: Customer data collected by Shopify-hosted surfaces MUST be accessible to merchants from Admin or from an in-app dashboard.
+- **FR-CS-018**: Data retention, export and deletion flows MUST be documented and testable.
+- **FR-CS-019**: The repo MUST contain a submission-ready support/contact and privacy evidence checklist.
+- **FR-CS-020**: App listing copy and documentation MUST be factual and must not claim fabricated reviews, sales, traffic or social proof.
 
 ### Manual evidence and review readiness
 
-- **FR-CS-018**: The repo MUST enumerate evidence items that require human review, including screenshots, video, support contact, privacy policy, billing plan copy and app listing assets.
-- **FR-CS-019**: The repo MUST mark non-applicable Shopify families as skipped with a reason.
-- **FR-CS-020**: The repo MUST keep the compliance matrix synchronized with OpenSpec and SpecKit.
+- **FR-CS-021**: The repo MUST enumerate evidence items that require human review, including screenshots, video, support contact, privacy policy, billing plan copy and app listing assets.
+- **FR-CS-022**: The repo MUST mark non-applicable Shopify families as skipped with a reason.
+- **FR-CS-023**: The repo MUST keep the compliance matrix synchronized with OpenSpec and SpecKit.
 
 ## Key entities
 

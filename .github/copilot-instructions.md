@@ -45,6 +45,16 @@ Reglas críticas derivadas de la guía:
 - **Testing surface**: funcional, UI, rendimiento, seguridad, SEO, compliance, webhooks, regresión y CI
 - **OpenSpec docs hook**: cambios en documentación crean una tarea `planned` vía `.githooks/post-commit`
 
+## 🔁 Regla Git obligatoria (cierre de tareas)
+
+Para cualquier cambio de código/config/docs/hooks/specs en este repo:
+- Es obligatorio trabajar con `core.hooksPath=.githooks` (instalar con `npm run githooks:install`).
+- Todo cambio debe terminar con `qa:gate` verde, commit creado y push exitoso del branch remoto.
+- Antes del push final, si el remoto avanzó, se debe bajar cambios con `git fetch` + `git pull --rebase --autostash`.
+- Si `fetch`, `pull --rebase` o `push` fallan, la tarea no puede cerrarse hasta resolverlo.
+- No se permite `--no-verify`.
+- No se puede cerrar una tarea con worktree sucio (cambios tracked/staged/untracked sin ignorar).
+
 ---
 
 ## ⚠️ IMPORTANTE: Arquitectura Separada

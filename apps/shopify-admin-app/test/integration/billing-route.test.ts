@@ -15,6 +15,7 @@ vi.mock("../../app/services/billing.server", () => ({
     listPlans: vi.fn(),
     getPlan: vi.fn(),
     createSubscription: vi.fn(),
+    resolveCurrentPlan: vi.fn(),
   },
 }));
 
@@ -39,7 +40,7 @@ describe("app.billing route", () => {
     vi.clearAllMocks();
 
     mockAuthenticateAdminRequest.mockResolvedValue({
-      session: { shop: "shop.example.myshopify.com" },
+      session: { shop: "shop.example.myshopify.com", accessToken: "mock-access-token" },
     } as any);
     mockEnsureShopForSession.mockResolvedValue({
       id: "shop-1",
@@ -82,6 +83,11 @@ describe("app.billing route", () => {
       cappedAmount: 100,
       status: "active",
     } as any);
+    mockBillingService.resolveCurrentPlan.mockResolvedValue({
+      planId: "starter",
+      source: "shopify",
+      hasActiveSubscription: true,
+    } as any);
     mockBillingService.getPlan.mockReturnValue({
       id: "starter",
       name: "Starter",
@@ -112,7 +118,7 @@ describe("app.billing route", () => {
     expect(data.error).toBe("Billing unavailable");
   });
 
-  it("creates a Shopify subscription and redirects to the confirmation URL", async () => {
+  it("creates a Shopify subscription and returns the confirmation URL as data", async () => {
     mockBillingService.createSubscription.mockResolvedValue({
       confirmationUrl: "https://shopify.example/confirm",
       subscriptionId: "sub-123",
@@ -124,20 +130,49 @@ describe("app.billing route", () => {
         {
           intent: "create_subscription",
           planId: "starter",
-          testMode: "true",
         },
         "?source=admin",
       ),
     } as any);
 
-    expect(response).toBeInstanceOf(Response);
-    expect((response as Response).status).toBe(302);
-    expect((response as Response).headers.get("Location")).toBe("https://shopify.example/confirm");
+    // Action now returns data instead of a redirect so the client can navigate
+    // window.top (required for Shopify embedded apps to break out of the iframe).
+    expect(response).not.toBeInstanceOf(Response);
+    expect((response as any).ok).toBe(true);
+    expect((response as any).confirmationUrl).toBe("https://shopify.example/confirm");
     expect(mockBillingService.createSubscription).toHaveBeenCalledWith({
       shopId: "shop-1",
       planId: "starter",
-      returnUrl: "http://localhost/app/billing?source=admin",
-      test: true,
+      returnUrl: "http://localhost/app/billing/thank-you?shop=shop.example.myshopify.com&plan=starter",
+      shopDomain: "shop.example.myshopify.com",
+      accessToken: "mock-access-token",
+    });
+  });
+
+  it("preserves embedded shop/host context in the billing return URL", async () => {
+    mockBillingService.createSubscription.mockResolvedValue({
+      confirmationUrl: "https://shopify.example/confirm",
+      subscriptionId: "sub-456",
+    } as any);
+
+    const { action } = await import("../../app/routes/app.billing");
+    await action({
+      request: makePostRequest(
+        {
+          intent: "create_subscription",
+          planId: "starter",
+        },
+        "?shop=shop.example.myshopify.com&host=dGVzdC1ob3N0&embedded=1",
+      ),
+    } as any);
+
+    expect(mockBillingService.createSubscription).toHaveBeenCalledWith({
+      shopId: "shop-1",
+      planId: "starter",
+      returnUrl:
+        "http://localhost/app/billing/thank-you?shop=shop.example.myshopify.com&host=dGVzdC1ob3N0&embedded=1&plan=starter",
+      shopDomain: "shop.example.myshopify.com",
+      accessToken: "mock-access-token",
     });
   });
 
@@ -162,6 +197,24 @@ describe("app.billing route", () => {
     expect(invalidPlan).toEqual({ ok: false, error: "Invalid billing plan" });
   });
 
+  it("returns controlled error when backend blocks same-plan purchase", async () => {
+    mockBillingService.createSubscription.mockRejectedValue(
+      new Error("You are already subscribed to this plan."),
+    );
+    const { action } = await import("../../app/routes/app.billing");
+    const response = await action({
+      request: makePostRequest({
+        intent: "create_subscription",
+        planId: "starter",
+      }),
+    } as any);
+
+    expect(response).toEqual({
+      ok: false,
+      error: "You are already subscribed to this plan.",
+    });
+  });
+
   it("rejects non-POST requests and missing shops", async () => {
     const { action } = await import("../../app/routes/app.billing");
 
@@ -178,5 +231,18 @@ describe("app.billing route", () => {
       }),
     } as any);
     expect(missingShop).toEqual({ ok: false, error: "Shop not found" });
+  });
+
+  it("builds a bounded billing return URL when host is too long", async () => {
+    const { buildBillingReturnUrl } = await import("../../app/routes/app.billing");
+    const veryLongHost = "a".repeat(320);
+    const builtUrl = buildBillingReturnUrl({
+      requestUrl: new URL(`http://localhost/app/billing?shop=shop.example.myshopify.com&host=${veryLongHost}&embedded=1`),
+      planId: "starter",
+      sessionShopDomain: "shop.example.myshopify.com",
+    });
+
+    expect(builtUrl.length).toBeLessThanOrEqual(255);
+    expect(builtUrl).toContain("shop=shop.example.myshopify.com");
   });
 });

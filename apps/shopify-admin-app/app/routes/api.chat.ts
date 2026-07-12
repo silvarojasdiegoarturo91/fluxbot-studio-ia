@@ -7,6 +7,8 @@ import type { ActionFunctionArgs } from "react-router";
 import { cors } from "remix-utils/cors";
 import prisma from "../db.server";
 import { getIAGateway } from "../services/ia-gateway.server";
+import { getMerchantAdminConfig } from "../services/admin-config.server";
+import { resolveEffectiveLocale } from "../services/chat-locale.server";
 
 // Helper to create JSON responses
 function json(data: any, init?: ResponseInit) {
@@ -28,6 +30,9 @@ interface ChatRequest {
   channel?: "WEB_CHAT" | "WHATSAPP" | "INSTAGRAM" | "EMAIL" | "SMS";
   locale?: string;
   metadata?: Record<string, any>;
+  context?: {
+    locale?: string;
+  };
 }
 
 interface ChatResponse {
@@ -57,7 +62,17 @@ export async function action({ request }: ActionFunctionArgs) {
   try {
     // Parse request body
     const body = (await request.json()) as ChatRequest;
-    const { message, conversationId, visitorId, customerId, sessionId, channel = "WEB_CHAT", locale = "en", metadata } = body;
+    const {
+      message,
+      conversationId,
+      visitorId,
+      customerId,
+      sessionId,
+      channel = "WEB_CHAT",
+      locale,
+      metadata,
+      context,
+    } = body;
 
     // Validate shop from request headers or body
     const shopDomain = request.headers.get("X-Shop-Domain") || metadata?.shop;
@@ -73,11 +88,11 @@ export async function action({ request }: ActionFunctionArgs) {
     if (!shop) {
       return json({ success: false, error: "Shop not found" }, { status: 404 });
     }
-
     // Validate message
     if (!message || message.trim().length === 0) {
       return json({ success: false, error: "Message is required" }, { status: 400 });
     }
+    const adminConfig = await getMerchantAdminConfig(shop.id);
 
     // Get or create conversation
     let conversation;
@@ -91,6 +106,12 @@ export async function action({ request }: ActionFunctionArgs) {
         return json({ success: false, error: "Conversation not found" }, { status: 404 });
       }
     } else {
+      const initialLocale = resolveEffectiveLocale({
+        primaryBotLanguage: adminConfig.primaryBotLanguage,
+        supportedLanguages: adminConfig.supportedLanguages,
+        requestLocale: locale,
+        storefrontLocale: context?.locale,
+      });
       // Create new conversation
       conversation = await prisma.conversation.create({
         data: {
@@ -99,11 +120,26 @@ export async function action({ request }: ActionFunctionArgs) {
           visitorId,
           customerId,
           sessionId,
-          locale,
+          locale: initialLocale,
           status: "ACTIVE",
           metadata,
         },
         include: { messages: true },
+      });
+    }
+
+    const effectiveLocale = resolveEffectiveLocale({
+      primaryBotLanguage: adminConfig.primaryBotLanguage,
+      supportedLanguages: adminConfig.supportedLanguages,
+      requestLocale: locale,
+      storefrontLocale: context?.locale,
+      conversationLocale: conversation.locale,
+    });
+
+    if (conversation.locale !== effectiveLocale) {
+      conversation = await prisma.conversation.update({
+        where: { id: conversation.id },
+        data: { locale: effectiveLocale },
       });
     }
 
@@ -114,7 +150,7 @@ export async function action({ request }: ActionFunctionArgs) {
         message,
         conversationId: conversationId || conversation.id,
         shopId: shop.id,
-        locale: locale || 'en',
+        locale: effectiveLocale,
         channel,
       },
       shopDomain,

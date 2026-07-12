@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const mockFindUnique = vi.fn();
 const mockUpsert = vi.fn();
 const mockCreateSyncJob = vi.fn();
+const mockSyncShopReferenceToIABackend = vi.fn().mockResolvedValue(undefined);
 
 vi.mock("../../../app/db.server", () => ({
   default: {
@@ -19,7 +20,7 @@ vi.mock("../../../app/db.server", () => ({
 }));
 
 vi.mock("../../../app/services/shop-backend-sync.server", () => ({
-  syncShopReferenceToIABackend: vi.fn().mockResolvedValue(undefined),
+  syncShopReferenceToIABackend: mockSyncShopReferenceToIABackend,
 }));
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -53,6 +54,7 @@ describe("shop-context.server — ensureShopRecord", () => {
     mockFindUnique.mockReset();
     mockUpsert.mockReset();
     mockCreateSyncJob.mockReset();
+    mockSyncShopReferenceToIABackend.mockClear();
     mockCreateSyncJob.mockImplementation(({ data }: { data: { jobType: string } }) =>
       Promise.resolve(makeSyncJob("shop-1", data.jobType)),
     );
@@ -134,6 +136,19 @@ describe("shop-context.server — ensureShopRecord", () => {
       await ensureShopRecord({ domain: "existing.myshopify.com", accessToken: "tok" });
 
       expect(mockCreateSyncJob).not.toHaveBeenCalled();
+    });
+
+    it("syncs the access token to the IA backend when available", async () => {
+      mockFindUnique.mockResolvedValue(makeShop());
+      const { ensureShopRecord } = await import("../../../app/services/shop-context.server");
+
+      await ensureShopRecord({ domain: "existing.myshopify.com", accessToken: "tok" });
+
+      expect(mockSyncShopReferenceToIABackend).toHaveBeenCalledWith({
+        id: "shop-1",
+        domain: "example.myshopify.com",
+        accessToken: "tok",
+      }, { force: true });
     });
 
     it("resets onboarding metadata when a cancelled shop reinstalls", async () => {

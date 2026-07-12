@@ -12,7 +12,7 @@ import { verifyShopifyProxyRequest } from "../services/shopify-proxy-auth.server
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, PATCH, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Accept, X-Shopify-Shop-Domain",
+  "Access-Control-Allow-Headers": "Content-Type, Accept, X-Shopify-Shop-Domain, ngrok-skip-browser-warning",
 };
 
 function json(data: unknown, init?: ResponseInit) {
@@ -63,7 +63,6 @@ export async function action({ request }: ActionFunctionArgs) {
       variantId,
       productRef,
       quantity = 1,
-      commit = false,
       conversationId,
       sessionId,
     } = body as Record<string, any>;
@@ -75,20 +74,7 @@ export async function action({ request }: ActionFunctionArgs) {
       );
     }
 
-    if (commit) {
-      const committed = await CommerceActionsService.commitAddToCart({
-        shopDomain,
-        productRef,
-        variantId,
-        quantity,
-        conversationId,
-        sessionId,
-        source: "widget",
-      });
-      return json({ success: true, committed: true, data: committed });
-    }
-
-    const staged = await CommerceActionsService.prepareAddToCart({
+    const resolution = await CommerceActionsService.prepareAddToCart({
       shopDomain,
       productRef,
       variantId,
@@ -98,9 +84,28 @@ export async function action({ request }: ActionFunctionArgs) {
       source: "widget",
     });
 
-    return json({ success: true, committed: false, data: staged });
+    return json({
+      success: true,
+      data: {
+        variantId: resolution.variantId,
+        productRef: resolution.productRef,
+        productHandle: resolution.productHandle,
+        quantity: resolution.quantity,
+        cartUrl: resolution.cartUrl,
+      },
+    });
   } catch (error) {
-    console.error("[ProxyCartAdd] Error:", error);
+    const message = error instanceof Error ? error.message : "Unknown error";
+    if (message.includes("Could not resolve product variant")) {
+      return json(
+        { success: false, error: "Unable to resolve an available variant for this product" },
+        { status: 422 },
+      );
+    }
+    console.error("[ProxyCartAdd] Error:", {
+      message,
+      route: "/apps/fluxbot/cart/add",
+    });
     return json({ success: false, error: "Internal error" }, { status: 500 });
   }
 }

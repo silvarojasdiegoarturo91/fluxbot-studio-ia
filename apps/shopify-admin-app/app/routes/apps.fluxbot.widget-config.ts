@@ -13,7 +13,7 @@ import { verifyShopifyProxyRequest } from "../services/shopify-proxy-auth.server
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Accept, X-Shopify-Shop-Domain",
+  "Access-Control-Allow-Headers": "Content-Type, Accept, X-Shopify-Shop-Domain, ngrok-skip-browser-warning",
 };
 
 function json(data: unknown, init?: ResponseInit) {
@@ -50,6 +50,24 @@ function buildSafeWidgetBranding(adminLanguage: "es" | "en") {
   };
 }
 
+function buildWidgetEndpoints(_request: Request) {
+  const configuredAppUrl = process.env.SHOPIFY_APP_URL || process.env.APP_URL || "";
+
+  let appOrigin = "";
+  if (configuredAppUrl) {
+    try {
+      appOrigin = new URL(configuredAppUrl).origin;
+    } catch {
+      appOrigin = "";
+    }
+  }
+
+  return {
+    apiBaseUrl: appOrigin,
+    chatEndpoint: "/apps/fluxbot/chat",
+  };
+}
+
 export async function loader({ request }: LoaderFunctionArgs) {
   if (!verifyShopifyProxyRequest(request, { allowUnsignedInDevelopment: true })) {
     return json({ error: "Unauthorized" }, { status: 401 });
@@ -76,29 +94,47 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
   const config = await getMerchantAdminConfig(shop.id);
   const configVersion = config.updatedAt;
+  const endpoints = buildWidgetEndpoints(request);
 
-  if (!config.onboardingCompleted) {
-    return json({
-      success: true,
-      configVersion,
-      widgetBranding: buildSafeWidgetBranding(config.adminLanguage),
-    });
-  }
+  const onboardingCompleted = config.onboardingCompleted;
+  const widgetBranding = onboardingCompleted
+    ? {
+        avatarStyle: config.widgetBranding.avatarStyle,
+        launcherLabel: config.widgetBranding.launcherLabel,
+        primaryColor: config.widgetBranding.primaryColor,
+        launcherPosition: config.widgetBranding.launcherPosition,
+        welcomeMessage: config.welcomeMessage,
+        botName: config.botName,
+        botGoal: config.botGoal,
+        adminLanguage: config.adminLanguage,
+        onboardingCompleted: true,
+      }
+    : buildSafeWidgetBranding(config.adminLanguage);
+
+  console.info("[WidgetConfig] serving config", {
+    shopDomain,
+    configVersion,
+    onboardingCompleted,
+    botName: widgetBranding.botName,
+    primaryColor: widgetBranding.primaryColor,
+    launcherPosition: widgetBranding.launcherPosition,
+    avatarStyle: widgetBranding.avatarStyle,
+    adminLanguage: widgetBranding.adminLanguage,
+  });
+
+  console.info("[WidgetConfig] chatEndpoint servido", {
+    chatEndpoint: endpoints.chatEndpoint,
+    apiBaseUrl: endpoints.apiBaseUrl,
+  });
 
   return json({
     success: true,
     configVersion,
-    widgetBranding: {
-      avatarStyle: config.widgetBranding.avatarStyle,
-      launcherLabel: config.widgetBranding.launcherLabel,
-      primaryColor: config.widgetBranding.primaryColor,
-      launcherPosition: config.widgetBranding.launcherPosition,
-      welcomeMessage: config.welcomeMessage,
-      botName: config.botName,
-      botGoal: config.botGoal,
-      adminLanguage: config.adminLanguage,
-      onboardingCompleted: true,
-    },
+    apiBaseUrl: endpoints.apiBaseUrl,
+    chatEndpoint: endpoints.chatEndpoint,
+    botLanguage: config.primaryBotLanguage,
+    supportedLanguages: config.supportedLanguages,
+    widgetBranding,
   });
 }
 

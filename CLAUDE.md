@@ -36,6 +36,15 @@ Esta guía es la referencia principal para:
 - La guía testRigor cubre la superficie amplia de testing del ecosistema Shopify
 - OpenSpec docs hook: los cambios en documentación crean tareas `planned` vía `.githooks/post-commit`
 
+## 🔁 Regla Git obligatoria (todos los agentes)
+
+- Activar hooks del repo: `npm run githooks:install` (`core.hooksPath=.githooks`).
+- Ningún cambio se considera cerrado si no quedó **commiteado y empujado** al remoto del branch.
+- Si el remoto avanzó, bajar cambios antes de empujar con `git fetch` + `git pull --rebase --autostash`.
+- Si falla `fetch`, `pull --rebase` o `push`, la tarea queda abierta/bloqueada hasta resolverlo.
+- Prohibido usar `--no-verify`.
+- Prohibido cerrar tareas con worktree sucio.
+
 ---
 
 ## Reglas críticas del proyecto
@@ -76,4 +85,4 @@ Esta guía es la referencia principal para:
 Ver `AGENTS.md` para la arquitectura completa front/back.
 
 ## Skills disponibles
-Ver `.agents/skills/` — 35 skills instaladas (19 oficiales Shopify + 16 custom del proyecto).
+Ver `.agents/skills/` — 11 skills activas del proyecto.

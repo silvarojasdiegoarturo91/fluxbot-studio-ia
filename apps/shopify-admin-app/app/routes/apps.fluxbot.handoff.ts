@@ -13,7 +13,7 @@ import { verifyShopifyProxyRequest } from "../services/shopify-proxy-auth.server
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, PATCH, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Accept, X-Shopify-Shop-Domain",
+  "Access-Control-Allow-Headers": "Content-Type, Accept, X-Shopify-Shop-Domain, ngrok-skip-browser-warning",
 };
 
 function json(data: unknown, init?: ResponseInit) {

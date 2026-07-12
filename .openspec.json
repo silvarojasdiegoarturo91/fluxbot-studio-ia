@@ -5,7 +5,7 @@
     "description": "OpenSpec local para requisitos de fluxbot-studio-ia-shopify. Los requisitos aquí son espejo de los requisitos root que afectan este repositorio.",
     "owner": "frontend_shopify",
     "status": "in-development",
-    "last_updated": "2026-07-03T23:59:38.976Z",
+    "last_updated": "2026-07-12T12:10:44.128Z",
     "source_of_truth": ".openspec.json",
     "mirror_root": "../.openspec.json"
   },
@@ -142,6 +142,102 @@
         ],
         "dependencies": [],
         "user_story": "Como merchant hispanohablante, quiero ver el Admin de Shopify con español correctamente acentuado y con ñ, para percibir la app como profesional y confiable."
+      },
+      {
+        "id": "REQ-IA-SHOPIFY-005",
+        "mirror_of": "REQ-ROOT-007",
+        "title": "[BUG] Billing Shopify: resolver HTTP 500 y forzar modo de cobro por entorno",
+        "description": "BUG CONFIRMADO (espejo de REQ-ROOT-007): iniciar suscripción en producción puede devolver HTTP 500 con mensaje 'Error al iniciar suscripción'. Además, el merchant no debe elegir manualmente modo de prueba/producción. El modo de billing se debe resolver internamente por entorno de ejecución: producción (deploy oficial) cobra real; desarrollo usa test.",
+        "priority": "critical",
+        "status": "planned",
+        "owner": "frontend_shopify",
+        "affected_apps": [
+          "fluxbot-studio-ia-shopify"
+        ],
+        "components": [
+          "apps/shopify-admin-app/app/routes/app.billing.tsx",
+          "apps/shopify-admin-app/app/services/billing.server.ts",
+          "apps/shopify-admin-app/test/integration/billing-route.test.ts",
+          "apps/shopify-admin-app/test/unit/services/billing.server.test.ts"
+        ],
+        "acceptance_criteria": [
+          "El flujo de inicio de suscripción no expone selector manual de modo test/producción en la UI.",
+          "El backend resuelve modo de billing automáticamente por entorno de ejecución (production/development).",
+          "En entorno producción el payload a /api/v1/billing/subscribe usa test=false.",
+          "En entorno desarrollo el payload a /api/v1/billing/subscribe usa test=true.",
+          "Los errores de billing devuelven mensaje controlado al merchant y registran contexto técnico estructurado para diagnóstico.",
+          "Existe cobertura automatizada para el route action y la resolución de modo de billing."
+        ],
+        "dependencies": [],
+        "user_story": "Como merchant, quiero que mi suscripción se inicie sin error 500 y con cobro correcto según entorno, para evitar bloqueos y cargos incorrectos."
+      },
+      {
+        "id": "REQ-IA-SHOPIFY-006",
+        "title": "[BUG] Billing post-pago: retorno embebido, thank-you, upgrades/downgrades y prorrateo",
+        "description": "BUG CONFIRMADO: después de confirmar el pago en Shopify, producción puede caer en login manual de dominio en lugar de volver al Admin embebido. Se requiere un retorno post-pago confiable con contexto shop/host, sección thank-you con ventajas del plan, bloqueo de recompra del mismo plan y cambios upgrade/downgrade usando comportamiento de reemplazo/prorrateo de Shopify Billing.",
+        "priority": "critical",
+        "status": "planned",
+        "owner": "frontend_shopify",
+        "affected_apps": [
+          "fluxbot-studio-ia-shopify"
+        ],
+        "components": [
+          "apps/shopify-admin-app/app/routes/app.billing.tsx",
+          "apps/shopify-admin-app/app/routes/app.billing.thank-you.tsx",
+          "apps/shopify-admin-app/app/services/billing.server.ts",
+          "apps/shopify-admin-app/test/integration/billing-route.test.ts",
+          "apps/shopify-admin-app/test/integration/billing-thank-you-route.test.ts",
+          "apps/shopify-admin-app/test/unit/routes/billing-plan-options.test.ts",
+          "apps/shopify-admin-app/test/unit/services/billing.server.test.ts",
+          "specs/features/shopify-app-store-compliance/requirements.md",
+          "specs/features/shopify-app-store-compliance/test-cases.md"
+        ],
+        "acceptance_criteria": [
+          "Tras confirmar el cobro en Shopify, el merchant vuelve al Admin embebido sin pantalla manual de 'Shop domain'.",
+          "El flujo de compra aterriza en una sección thank-you con ventajas del plan y continuidad al dashboard.",
+          "El returnUrl de billing preserva/reconstruye shop/host/embedded sin exceder el límite de Shopify.",
+          "La UI de cambio de plan usa cards visuales (no dropdown simple) con precio, badge de dirección y lista breve de beneficios/límites.",
+          "El plan activo se muestra solo como estado (nombre/fecha/estado) y nunca aparece como opción seleccionable de compra/cambio.",
+          "Las opciones disponibles se etiquetan como Upgrade o Downgrade según jerarquía/precio del plan activo.",
+          "Si no hay planes alternativos, la UI muestra mensaje explícito de mejor plan disponible sin acción de compra.",
+          "Si el merchant ya tiene el mismo plan activo, el sistema bloquea recompra duplicada y exige cambio de plan.",
+          "Para upgrade/downgrade, el mutation usa replacementBehavior de Shopify para que el prorrateo lo gestione Shopify y no queden dos planes activos.",
+          "Existe cobertura automatizada para retorno post-billing, pérdida parcial de contexto, plan duplicado, clasificación de plan options y cambio de plan."
+        ],
+        "dependencies": [
+          "REQ-IA-SHOPIFY-003",
+          "REQ-IA-SHOPIFY-005"
+        ],
+        "user_story": "Como merchant, quiero volver al panel embebido tras confirmar el pago para continuar operando sin login manual ni cobros duplicados."
+      },
+      {
+        "id": "REQ-IA-SHOPIFY-009",
+        "mirror_of": "REQ-ROOT-012",
+        "title": "[GUARDRAIL] Widget Shopify local: app proxy y theme extension no son el SDK externo",
+        "description": "Espejo de REQ-ROOT-012 para Shopify Admin. El storefront Shopify usa la theme app extension y chat-launcher.js con rutas /apps/fluxbot/* servidas por el app proxy del tunnel de Shopify CLI. Validar Shopify Admin con scripts/dev-shopify-admin-local.sh no implica que fluxbot-external-widget esté levantado en localhost:3004. Para validar integración completa o el SDK externo, usar scripts/dev-all.sh.",
+        "priority": "high",
+        "status": "planned",
+        "owner": "frontend_shopify",
+        "affected_apps": [
+          "fluxbot-studio-ia-shopify"
+        ],
+        "components": [
+          "apps/shopify-admin-app/app/routes/apps.fluxbot.widget-config.ts",
+          "apps/shopify-admin-app/.shopify/dev-bundle/**/assets/chat-launcher.js",
+          "apps/shopify-admin-app/scripts/dev-shopify-cli.sh",
+          "AGENTS.md"
+        ],
+        "acceptance_criteria": [
+          "El agente distingue Shopify theme app extension (chat-launcher.js) del SDK externo (chat-widget.js).",
+          "El widget Shopify usa /apps/fluxbot/chat y /apps/fluxbot/widget-config vía app proxy.",
+          "El agente no interpreta la ausencia de localhost:3004 tras scripts/dev-shopify-admin-local.sh como fallo del Shopify widget.",
+          "Para pruebas full-stack con widget externo se usa scripts/dev-all.sh desde la raíz.",
+          "Si cambia widget-config, chat-launcher.js, app proxy o rutas /apps/fluxbot/*, se actualiza esta regla y se mantienen pruebas de endpoint local/proxy."
+        ],
+        "dependencies": [
+          "REQ-IA-SHOPIFY-008"
+        ],
+        "user_story": "Como desarrollador del Admin Shopify, quiero validar el widget storefront contra el app proxy local correcto, para no confundirlo con el SDK externo ni con producción."
       }
     ],
     "documentation": [
@@ -179,6 +275,72 @@
           "completion_rate": 0,
           "velocity": 1
         }
+      },
+      {
+        "id": "REQ-IA-SHOPIFY-007",
+        "mirror_of": "REQ-ROOT-010",
+        "title": "E2E obligatorio para cambios del Shopify Admin",
+        "description": "Espejo de REQ-ROOT-010. Todo cambio en el Shopify Admin debe ejecutar la suite Playwright E2E aplicable antes de cerrarse. Si GitHub Actions falla en `tests/e2e`, el agente debe corregir la regresión o el test obsoleto, repetir E2E y no cerrar ni empujar con E2E rojo.",
+        "priority": "critical",
+        "status": "planned",
+        "owner": "frontend_shopify",
+        "affected_apps": [
+          "fluxbot-studio-ia-shopify"
+        ],
+        "components": [
+          "package.json",
+          "apps/shopify-admin-app/playwright.config.ts",
+          "apps/shopify-admin-app/tests/e2e",
+          "apps/shopify-admin-app/app/routes/app.onboarding.tsx"
+        ],
+        "acceptance_criteria": [
+          "`qa:gate:full` ejecuta `qa:gate` y la suite Playwright completa mediante `npm --workspace @fluxbot/shopify-admin-app run test:e2e`.",
+          "Los cambios de rutas, loaders, acciones, UI o configuración del Admin se validan con E2E antes de cierre.",
+          "Los fallos E2E de GitHub Actions se tratan como bloqueantes hasta reproducir o aislar, corregir y reejecutar.",
+          "El flujo de onboarding permite navegación directa por pasos en `E2E_TEST_MODE=true` para que Playwright pueda validar pasos sembrados como completados sin romper producción.",
+          "No se permite commit/push/cierre con E2E rojo salvo bloqueo externo documentado."
+        ],
+        "dependencies": [
+          "REQ-IA-SHOPIFY-004"
+        ],
+        "user_story": "Como equipo de Fluxbot, quiero que cada cambio del Shopify Admin pase Playwright E2E para bloquear regresiones de onboarding y flujos críticos antes de llegar a CI."
+      },
+      {
+        "id": "REQ-IA-SHOPIFY-008",
+        "mirror_of": "REQ-ROOT-011",
+        "title": "[BUG] Widget Shopify FluxBot: eliminar HTTP 500 con endpoint de chat estable",
+        "description": "Espejo de REQ-ROOT-011. El widget de storefront debe resolver un endpoint de chat que llegue realmente a Remix. En dev preview, el fallback relativo `/apps/fluxbot/chat` puede renderizar HTML del storefront y devolver HTTP 500; por eso `widget-config` y el override Liquid deben poder publicar `https://<active-app-url>/chat`. El launcher debe registrar la selección del endpoint y enviar `ngrok-skip-browser-warning` solo cuando el destino sea ngrok.",
+        "priority": "critical",
+        "status": "completed",
+        "completed_date": "2026-07-05",
+        "owner": "frontend_shopify",
+        "affected_apps": [
+          "fluxbot-studio-ia-shopify"
+        ],
+        "components": [
+          "apps/shopify-admin-app/app/routes/apps.fluxbot.widget-config.ts",
+          "apps/shopify-admin-app/app/routes/apps.fluxbot.chat.ts",
+          "apps/storefront-widget/extensions/chat-widget/assets/chat-launcher.js",
+          "apps/shopify-admin-app/test/integration/widget-proxy-routes.test.ts",
+          "apps/shopify-admin-app/test/integration/widget-chat-proxy-route.test.ts",
+          "../specs/005-shopify-widget-500-root-cause/spec.md",
+          "../specs/005-shopify-widget-500-root-cause/blueprint.md"
+        ],
+        "acceptance_criteria": [
+          "El widget-config devuelve `chatEndpoint` absoluto con `/chat` cuando `SHOPIFY_APP_URL`, `APP_URL` o headers forwarded permiten resolver la app activa.",
+          "El bloque Liquid expone `data-chat-endpoint` como override explícito para dev previews donde Shopify sirva configuración antigua.",
+          "El launcher prioriza `data-chat-endpoint`, luego `widget-config.chatEndpoint`, luego compatibilidad por `apiBaseUrl`, y deja `/apps/fluxbot/chat` solo como fallback defensivo.",
+          "El launcher registra `debugVersion`, `scriptSrc`, configuración, endpoint elegido, headers enviados, respuesta HTTP y body preview de error.",
+          "El launcher no envía `ngrok-skip-browser-warning` a Cloudflare/trycloudflare; solo lo envía cuando el host destino es ngrok.",
+          "La ruta `apps.fluxbot.chat` conserva validación de app proxy, resolución de shop y persistencia de mensajes.",
+          "Los errores visibles del widget siguen siendo mensajes públicos sanitizados y nunca muestran `[object Object]`.",
+          "Existe cobertura automatizada para proteger que `SHOPIFY_APP_URL` publique `https://<active-app-url>/chat` y que la ruta chat proxy responda JSON público.",
+          "SpecKit documenta causa raíz, hipótesis descartadas, decisión, blueprint y verificación del caso HTTP 500 reportado."
+        ],
+        "dependencies": [
+          "REQ-IA-SHOPIFY-007"
+        ],
+        "user_story": "Como cliente de una tienda Shopify, quiero que el widget envíe mensajes por el endpoint proxy correcto para recibir respuesta del asistente sin HTTP 500."
       },
       {
         "id": "DOC-34c0919-2026-07-02T08-18-18-907Z",
@@ -260,6 +422,418 @@
         ],
         "source_files": [
           "specs/features/admin-spanish-localization/requirements.md"
+        ],
+        "acceptance_criteria": [
+          "Documentation references remain synchronized",
+          "Agent instructions stay aligned with the latest docs",
+          "Follow-up work is tracked in OpenSpec"
+        ],
+        "dependencies": [],
+        "metrics": {
+          "quality_score": 90,
+          "completion_rate": 0,
+          "velocity": 1
+        }
+      },
+      {
+        "id": "REQ-IA-AI-001",
+        "mirror_of": "REQ-ROOT-AI-001",
+        "title": "[MIRROR] IA orientada a ventas con contexto de tienda — frontend",
+        "user_story": "Como merchant de Shopify, quiero configurar la identidad del asistente IA y sincronizar mi catálogo de productos para personalizar la experiencia de mis clientes.",
+        "description": "Espejo de REQ-ROOT-AI-001. El frontend Shopify Admin debe exponer una UI para configurar AssistantConfig (nombre, personalidad, tono, instrucciones, idioma) y disparar sincronización del catálogo hacia fluxbot-studio-back-ia. La página /app/assistant-config permite al merchant personalizar la identidad del asistente y sincronizar productos vía POST /api/v1/catalog/sync. Los contratos OpenAPI están en fluxbot-studio-contracts v0.4.0.",
+        "priority": "high",
+        "status": "in-progress",
+        "components": [
+          "apps/shopify-admin-app/app/routes/app.assistant-config.tsx",
+          "apps/shopify-admin-app/app/services/ia-backend.server.ts",
+          "apps/shopify-admin-app/app/utils/admin-navigation.ts"
+        ],
+        "acceptance_criteria": [
+          "La ruta /app/assistant-config existe y muestra un formulario Polaris con nombre, personalidad, tono, instrucciones de ventas, mensaje de bienvenida e idioma",
+          "El formulario guarda la configuración vía POST /api/v1/assistant-config en el backend IA",
+          "El botón 'Sincronizar catálogo' dispara POST /api/v1/catalog/sync y muestra el número de fragmentos indexados y duración",
+          "La página aparece en el menú de navegación bajo la sección 'Configurar'",
+          "El iaClient expone iaClient.assistantConfig.get(), iaClient.assistantConfig.upsert() e iaClient.catalog.sync()",
+          "Las interfaces AssistantConfigRequest, AssistantConfigResponse, CatalogSyncRequest y CatalogSyncResponse están tipadas en ia-backend.server.ts",
+          "La UI muestra un Banner de advertencia si el backend IA no está disponible",
+          "Los tests de Fase 0 siguen pasando (68/68)"
+        ],
+        "dependencies": [
+          "REQ-IA-SHOPIFY-001"
+        ],
+        "metrics": {
+          "quality_score": 85,
+          "completion_rate": 70,
+          "velocity": 2
+        }
+      },
+      {
+        "id": "REQ-IA-AI-002",
+        "mirror_of": "REQ-ROOT-009",
+        "title": "[BUG] Personalizar la IA: error claro al sincronizar catálogo",
+        "user_story": "Como dueño de una tienda Shopify, quiero que el botón Sincronizar catálogo en Personalizar la IA termine correctamente o muestre un error claro y accionable, para poder actualizar el conocimiento del asistente sin ver errores técnicos incomprensibles.",
+        "description": "Espejo de REQ-ROOT-009. En /app/assistant-config, el click en 'Sincronizar catálogo' actualmente puede mostrar 'Error al sincronizar catálogo: IA backend request failed (POST http://localhost:3001/api/v1/catalog/sync) with status 500: [object Object]. Backend service is up but failing internally; inspect backend logs.'. El frontend debe normalizar errores JSON estructurados del backend IA, evitar [object Object], usar durationMs del contrato de sync y mostrar feedback localizado accionable.",
+        "priority": "critical",
+        "status": "planned",
+        "components": [
+          "apps/shopify-admin-app/app/routes/app.assistant-config.tsx",
+          "apps/shopify-admin-app/app/services/ia-backend.server.ts",
+          "apps/shopify-admin-app/test/unit/services/ia-backend.server.test.ts",
+          "apps/shopify-admin-app/test/integration/assistant-config-route.test.ts"
+        ],
+        "acceptance_criteria": [
+          "La acción catalog_sync de /app/assistant-config nunca muestra [object Object] al merchant.",
+          "ia-backend.server.ts extrae mensajes desde error.message, error.code, message, details y JSON anidado de forma determinística.",
+          "Los HTTP 500 del backend se presentan como mensaje español accionable y sanitizado, conservando contexto técnico solo para logs.",
+          "La UI usa durationMs del resultado de /api/v1/catalog/sync para mostrar duración de sincronización.",
+          "Si el backend devuelve errors parciales, la UI muestra resultado parcial con mensaje claro de revisión, no éxito silencioso.",
+          "El registro de tienda hacia fluxbot-studio-back-ia envía accessToken cuando está disponible para que /api/v1/catalog/sync pueda consultar Shopify Admin GraphQL.",
+          "Existe prueba automatizada que cubre un error JSON anidado y verifica que no aparezca [object Object]."
+        ],
+        "dependencies": [
+          "REQ-IA-AI-001",
+          "REQ-IA-SHOPIFY-001"
+        ],
+        "metrics": {
+          "quality_score": 90,
+          "completion_rate": 0,
+          "velocity": 1
+        }
+      },
+      {
+        "id": "DOC-c2359dc-2026-07-04T08-46-01-834Z",
+        "title": "Review documentation update (2 files)",
+        "description": "Documentation changed in: specs/010-shopify-app-store-compliance/spec.md, specs/features/shopify-app-store-compliance/requirements.md. Review and align agent instructions, references, and related docs.",
+        "priority": "medium",
+        "status": "planned",
+        "owner": "docs",
+        "components": [
+          "specs/010-shopify-app-store-compliance/spec.md",
+          "specs/features/shopify-app-store-compliance/requirements.md"
+        ],
+        "source_files": [
+          "specs/010-shopify-app-store-compliance/spec.md",
+          "specs/features/shopify-app-store-compliance/requirements.md"
+        ],
+        "acceptance_criteria": [
+          "Documentation references remain synchronized",
+          "Agent instructions stay aligned with the latest docs",
+          "Follow-up work is tracked in OpenSpec"
+        ],
+        "dependencies": [],
+        "metrics": {
+          "quality_score": 90,
+          "completion_rate": 0,
+          "velocity": 1
+        }
+      },
+      {
+        "id": "DOC-f1a9b70-2026-07-04T17-30-07-345Z",
+        "title": "Review documentation update (1 files)",
+        "description": "Documentation changed in: specs/features/assistant-config-catalog-sync-error/requirements.md. Review and align agent instructions, references, and related docs.",
+        "priority": "medium",
+        "status": "planned",
+        "owner": "docs",
+        "components": [
+          "specs/features/assistant-config-catalog-sync-error/requirements.md"
+        ],
+        "source_files": [
+          "specs/features/assistant-config-catalog-sync-error/requirements.md"
+        ],
+        "acceptance_criteria": [
+          "Documentation references remain synchronized",
+          "Agent instructions stay aligned with the latest docs",
+          "Follow-up work is tracked in OpenSpec"
+        ],
+        "dependencies": [],
+        "metrics": {
+          "quality_score": 90,
+          "completion_rate": 0,
+          "velocity": 1
+        }
+      },
+      {
+        "id": "DOC-be6faf4-2026-07-04T22-20-35-733Z",
+        "title": "Review documentation update (2 files)",
+        "description": "Documentation changed in: specs/features/shopify-app-store-compliance/requirements.md, specs/features/shopify-app-store-compliance/test-cases.md. Review and align agent instructions, references, and related docs.",
+        "priority": "medium",
+        "status": "planned",
+        "owner": "docs",
+        "components": [
+          "specs/features/shopify-app-store-compliance/requirements.md",
+          "specs/features/shopify-app-store-compliance/test-cases.md"
+        ],
+        "source_files": [
+          "specs/features/shopify-app-store-compliance/requirements.md",
+          "specs/features/shopify-app-store-compliance/test-cases.md"
+        ],
+        "acceptance_criteria": [
+          "Documentation references remain synchronized",
+          "Agent instructions stay aligned with the latest docs",
+          "Follow-up work is tracked in OpenSpec"
+        ],
+        "dependencies": [],
+        "metrics": {
+          "quality_score": 90,
+          "completion_rate": 0,
+          "velocity": 1
+        }
+      },
+      {
+        "id": "DOC-1249bc2-2026-07-04T22-51-37-152Z",
+        "title": "Review documentation update (2 files)",
+        "description": "Documentation changed in: AGENTS.md, specs/features/assistant-config-catalog-sync-error/requirements.md. Review and align agent instructions, references, and related docs.",
+        "priority": "medium",
+        "status": "planned",
+        "owner": "docs",
+        "components": [
+          "AGENTS.md",
+          "specs/features/assistant-config-catalog-sync-error/requirements.md"
+        ],
+        "source_files": [
+          "AGENTS.md",
+          "specs/features/assistant-config-catalog-sync-error/requirements.md"
+        ],
+        "acceptance_criteria": [
+          "Documentation references remain synchronized",
+          "Agent instructions stay aligned with the latest docs",
+          "Follow-up work is tracked in OpenSpec"
+        ],
+        "dependencies": [],
+        "metrics": {
+          "quality_score": 90,
+          "completion_rate": 0,
+          "velocity": 1
+        }
+      },
+      {
+        "id": "DOC-a8de599-2026-07-04T22-56-15-810Z",
+        "title": "Review documentation update (2 files)",
+        "description": "Documentation changed in: specs/features/shopify-app-store-compliance/requirements.md, specs/features/shopify-app-store-compliance/test-cases.md. Review and align agent instructions, references, and related docs.",
+        "priority": "medium",
+        "status": "planned",
+        "owner": "docs",
+        "components": [
+          "specs/features/shopify-app-store-compliance/requirements.md",
+          "specs/features/shopify-app-store-compliance/test-cases.md"
+        ],
+        "source_files": [
+          "specs/features/shopify-app-store-compliance/requirements.md",
+          "specs/features/shopify-app-store-compliance/test-cases.md"
+        ],
+        "acceptance_criteria": [
+          "Documentation references remain synchronized",
+          "Agent instructions stay aligned with the latest docs",
+          "Follow-up work is tracked in OpenSpec"
+        ],
+        "dependencies": [],
+        "metrics": {
+          "quality_score": 90,
+          "completion_rate": 0,
+          "velocity": 1
+        }
+      },
+      {
+        "id": "DOC-e4a0738-2026-07-05T02-14-21-173Z",
+        "title": "Review documentation update (3 files)",
+        "description": "Documentation changed in: .github/copilot-instructions.md, AGENTS.md, CLAUDE.md. Review and align agent instructions, references, and related docs.",
+        "priority": "medium",
+        "status": "planned",
+        "owner": "docs",
+        "components": [
+          ".github/copilot-instructions.md",
+          "AGENTS.md",
+          "CLAUDE.md"
+        ],
+        "source_files": [
+          ".github/copilot-instructions.md",
+          "AGENTS.md",
+          "CLAUDE.md"
+        ],
+        "acceptance_criteria": [
+          "Documentation references remain synchronized",
+          "Agent instructions stay aligned with the latest docs",
+          "Follow-up work is tracked in OpenSpec"
+        ],
+        "dependencies": [],
+        "metrics": {
+          "quality_score": 90,
+          "completion_rate": 0,
+          "velocity": 1
+        }
+      },
+      {
+        "id": "DOC-2e67e34-2026-07-05T02-54-26-316Z",
+        "title": "Review documentation update (1 files)",
+        "description": "Documentation changed in: specs/features/auth-install-recovery/requirements.md. Review and align agent instructions, references, and related docs.",
+        "priority": "medium",
+        "status": "planned",
+        "owner": "docs",
+        "components": [
+          "specs/features/auth-install-recovery/requirements.md"
+        ],
+        "source_files": [
+          "specs/features/auth-install-recovery/requirements.md"
+        ],
+        "acceptance_criteria": [
+          "Documentation references remain synchronized",
+          "Agent instructions stay aligned with the latest docs",
+          "Follow-up work is tracked in OpenSpec"
+        ],
+        "dependencies": [],
+        "metrics": {
+          "quality_score": 90,
+          "completion_rate": 0,
+          "velocity": 1
+        }
+      },
+      {
+        "id": "DOC-d332001-2026-07-05T09-54-00-091Z",
+        "title": "Review documentation update (3 files)",
+        "description": "Documentation changed in: specs/features/auth-install-recovery/test-cases.md, specs/features/shopify-app-store-compliance/requirements.md, specs/features/shopify-app-store-compliance/test-cases.md. Review and align agent instructions, references, and related docs.",
+        "priority": "medium",
+        "status": "planned",
+        "owner": "docs",
+        "components": [
+          "specs/features/auth-install-recovery/test-cases.md",
+          "specs/features/shopify-app-store-compliance/requirements.md",
+          "specs/features/shopify-app-store-compliance/test-cases.md"
+        ],
+        "source_files": [
+          "specs/features/auth-install-recovery/test-cases.md",
+          "specs/features/shopify-app-store-compliance/requirements.md",
+          "specs/features/shopify-app-store-compliance/test-cases.md"
+        ],
+        "acceptance_criteria": [
+          "Documentation references remain synchronized",
+          "Agent instructions stay aligned with the latest docs",
+          "Follow-up work is tracked in OpenSpec"
+        ],
+        "dependencies": [],
+        "metrics": {
+          "quality_score": 90,
+          "completion_rate": 0,
+          "velocity": 1
+        }
+      },
+      {
+        "id": "DOC-5d11688-2026-07-11T02-39-02-315Z",
+        "title": "Review documentation update (1 files)",
+        "description": "Documentation changed in: AGENTS.md. Review and align agent instructions, references, and related docs.",
+        "priority": "medium",
+        "status": "planned",
+        "owner": "docs",
+        "components": [
+          "AGENTS.md"
+        ],
+        "source_files": [
+          "AGENTS.md"
+        ],
+        "acceptance_criteria": [
+          "Documentation references remain synchronized",
+          "Agent instructions stay aligned with the latest docs",
+          "Follow-up work is tracked in OpenSpec"
+        ],
+        "dependencies": [],
+        "metrics": {
+          "quality_score": 90,
+          "completion_rate": 0,
+          "velocity": 1
+        }
+      },
+      {
+        "id": "DOC-73e5b37-2026-07-11T02-41-14-808Z",
+        "title": "Review documentation update (1 files)",
+        "description": "Documentation changed in: AGENTS.md. Review and align agent instructions, references, and related docs.",
+        "priority": "medium",
+        "status": "planned",
+        "owner": "docs",
+        "components": [
+          "AGENTS.md"
+        ],
+        "source_files": [
+          "AGENTS.md"
+        ],
+        "acceptance_criteria": [
+          "Documentation references remain synchronized",
+          "Agent instructions stay aligned with the latest docs",
+          "Follow-up work is tracked in OpenSpec"
+        ],
+        "dependencies": [],
+        "metrics": {
+          "quality_score": 90,
+          "completion_rate": 0,
+          "velocity": 1
+        }
+      },
+      {
+        "id": "DOC-e7c8efb-2026-07-11T10-04-12-409Z",
+        "title": "Review documentation update (2 files)",
+        "description": "Documentation changed in: CLAUDE.md, specs/009-shopify-ai-toolkit/spec.md. Review and align agent instructions, references, and related docs.",
+        "priority": "medium",
+        "status": "planned",
+        "owner": "docs",
+        "components": [
+          "CLAUDE.md",
+          "specs/009-shopify-ai-toolkit/spec.md"
+        ],
+        "source_files": [
+          "CLAUDE.md",
+          "specs/009-shopify-ai-toolkit/spec.md"
+        ],
+        "acceptance_criteria": [
+          "Documentation references remain synchronized",
+          "Agent instructions stay aligned with the latest docs",
+          "Follow-up work is tracked in OpenSpec"
+        ],
+        "dependencies": [],
+        "metrics": {
+          "quality_score": 90,
+          "completion_rate": 0,
+          "velocity": 1
+        }
+      },
+      {
+        "id": "DOC-cd5e1a8-2026-07-12T03-50-24-809Z",
+        "title": "Review documentation update (3 files)",
+        "description": "Documentation changed in: apps/shopify-admin-app/README.md, specs/001-storefront-widget/spec.md, specs/features/assistant-config-catalog-sync-error/requirements.md. Review and align agent instructions, references, and related docs.",
+        "priority": "medium",
+        "status": "planned",
+        "owner": "docs",
+        "components": [
+          "apps/shopify-admin-app/README.md",
+          "specs/001-storefront-widget/spec.md",
+          "specs/features/assistant-config-catalog-sync-error/requirements.md"
+        ],
+        "source_files": [
+          "apps/shopify-admin-app/README.md",
+          "specs/001-storefront-widget/spec.md",
+          "specs/features/assistant-config-catalog-sync-error/requirements.md"
+        ],
+        "acceptance_criteria": [
+          "Documentation references remain synchronized",
+          "Agent instructions stay aligned with the latest docs",
+          "Follow-up work is tracked in OpenSpec"
+        ],
+        "dependencies": [],
+        "metrics": {
+          "quality_score": 90,
+          "completion_rate": 0,
+          "velocity": 1
+        }
+      },
+      {
+        "id": "DOC-6469333-2026-07-12T12-10-44-127Z",
+        "title": "Review documentation update (1 files)",
+        "description": "Documentation changed in: .github/ISSUE_TEMPLATE/bug_report.md. Review and align agent instructions, references, and related docs.",
+        "priority": "medium",
+        "status": "planned",
+        "owner": "docs",
+        "components": [
+          ".github/ISSUE_TEMPLATE/bug_report.md"
+        ],
+        "source_files": [
+          ".github/ISSUE_TEMPLATE/bug_report.md"
         ],
         "acceptance_criteria": [
           "Documentation references remain synchronized",

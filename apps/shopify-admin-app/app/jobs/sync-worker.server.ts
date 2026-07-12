@@ -18,6 +18,8 @@ import {
   type PageDocument,
 } from "../services/sync-service.server";
 import { mergeProductAdminMetadata } from "../services/product-faqs.server";
+import { iaClient, type CatalogSyncResponse } from "../services/ia-backend.server";
+import { syncShopReferenceToIABackend, type ShopReference } from "../services/shop-backend-sync.server";
 
 const ADMIN_API_VERSION = "2026-01";
 const PAGE_SIZE = 50;
@@ -105,6 +107,8 @@ async function fetchAllProducts(shopDomain: string, accessToken: string): Promis
             vendor
             productType
             handle
+            status
+            publishedOnCurrentPublication
             tags
             collections(first: 10) {
               nodes {
@@ -118,6 +122,9 @@ async function fetchAllProducts(shopDomain: string, accessToken: string): Promis
                 title
                 sku
                 price
+                availableForSale
+                inventoryQuantity
+                inventoryPolicy
               }
             }
             images(first: 5) {
@@ -185,6 +192,8 @@ async function fetchAllProducts(shopDomain: string, accessToken: string): Promis
         description: String(node.description || ""),
         vendor: String(node.vendor || ""),
         productType: String(node.productType || ""),
+        status: String(node.status || ""),
+        published: typeof node.publishedOnCurrentPublication === "boolean" ? node.publishedOnCurrentPublication : undefined,
         handle: String(node.handle || ""),
         collections,
         tags,
@@ -201,6 +210,11 @@ async function fetchAllProducts(shopDomain: string, accessToken: string): Promis
             title: String(variant.title || "Default"),
             sku: String(variant.sku || ""),
             price: String(variant.price || ""),
+            availableForSale:
+              typeof variant.availableForSale === "boolean" ? variant.availableForSale : undefined,
+            inventoryQuantity:
+              typeof variant.inventoryQuantity === "number" ? variant.inventoryQuantity : undefined,
+            inventoryPolicy: String(variant.inventoryPolicy || ""),
           };
         }),
         images: imagesNodes.map((imgRaw: any) => {
@@ -472,6 +486,8 @@ async function syncProducts(jobId: string, shopId: string, shopDomain: string, a
       collections: product.collections,
       tags: product.tags,
     });
+    updatedMetadata.status = product.status || null;
+    updatedMetadata.publishedOnCurrentPublication = product.published ?? null;
 
     await prisma.productProjection.upsert({
       where: {
@@ -732,6 +748,7 @@ async function processJob(job: Awaited<ReturnType<typeof claimNextPendingJob>>) 
   switch (job.jobType) {
     case "initial:catalog": {
       const productsResult = await syncProducts(job.id, shopId, shopDomain, accessToken);
+      await syncBackendCatalog(shopId, shopDomain, accessToken);
       const ordersResult = await syncOrders(shopId, shopDomain, accessToken);
 
       await SyncService.updateSyncJob(job.id, {
@@ -744,6 +761,7 @@ async function processJob(job: Awaited<ReturnType<typeof claimNextPendingJob>>) 
 
     case "delta:products":
       await syncProducts(job.id, shopId, shopDomain, accessToken);
+      await syncBackendCatalog(shopId, shopDomain, accessToken);
       break;
 
     case "initial:policies":
@@ -812,6 +830,58 @@ export async function dispatchNextSyncQueueJob(params?: {
  */
 export async function processPendingSyncJobs(limit = 2): Promise<ProcessResult> {
   return processPendingSyncJobsForShop(undefined, limit, "dispatcher");
+}
+
+/**
+ * Push synced products to the backend IA so the chat/RAG engine has them.
+ * First ensures the shop reference exists in the backend, then triggers catalog sync.
+ */
+async function syncBackendCatalog(
+  shopId: string,
+  shopDomain: string,
+  accessToken?: string,
+): Promise<CatalogSyncResponse> {
+  try {
+    // Step 1: Ensure shop reference exists in backend before catalog sync
+    const shopRef: ShopReference = {
+      id: shopId,
+      domain: shopDomain,
+      ...(accessToken ? { accessToken } : {}),
+    };
+    const shopSynced = await syncShopReferenceToIABackend(shopRef, { force: true });
+    if (!shopSynced) {
+      throw new Error(`Could not synchronize shop ${shopDomain} with IA backend`);
+    }
+
+    // Step 2: Sync catalog to backend
+    const result = await iaClient.catalog.sync({ shopId, fullSync: true }, shopDomain);
+    console.info("[SyncWorker] backend IA catalog sync completed", {
+      shopId,
+      shopDomain,
+      chunksIndexed: result?.chunksIndexed,
+      productsProcessed: result?.productsProcessed,
+      errors: result?.errors?.length ?? 0,
+    });
+    if (result?.errors && result.errors.length > 0) {
+      console.warn("[SyncWorker] backend IA catalog sync had partial errors", {
+        shopId,
+        shopDomain,
+        errors: result.errors,
+      });
+    }
+    if ((result.productsProcessed ?? 0) === 0 && (result.errors?.length ?? 0) > 0) {
+      throw new Error(`IA catalog synchronization failed: ${result.errors?.join("; ")}`);
+    }
+    return result;
+  } catch (error) {
+    console.error("[SyncWorker] backend IA catalog sync FAILED", {
+      shopId,
+      shopDomain,
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    });
+    throw error;
+  }
 }
 
 export async function processPendingSyncJobsForShop(

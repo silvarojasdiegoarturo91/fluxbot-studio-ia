@@ -13,7 +13,7 @@ import { verifyShopifyProxyRequest } from "../services/shopify-proxy-auth.server
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, PATCH, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Accept, X-Shopify-Shop-Domain",
+  "Access-Control-Allow-Headers": "Content-Type, Accept, X-Shopify-Shop-Domain, ngrok-skip-browser-warning",
 };
 
 function json(data: unknown, init?: ResponseInit) {
@@ -49,6 +49,11 @@ export async function action({ request }: ActionFunctionArgs) {
   }
 
   try {
+    console.info("[ProxyConsent] action start", {
+      url: request.url,
+      method: request.method,
+    });
+
     const body = (await request.json()) as Record<string, unknown>;
     const url = new URL(request.url);
     const shopFromBody =

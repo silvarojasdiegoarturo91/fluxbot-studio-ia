@@ -1814,7 +1814,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     });
   }
 
-  if (config.onboardingCompleted) {
+  if (config.onboardingCompleted && process.env.E2E_TEST_MODE !== "true") {
     throw redirect(buildRedirectPath("/app", url));
   }
 

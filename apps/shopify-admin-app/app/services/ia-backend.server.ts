@@ -58,13 +58,52 @@ async function parseErrorBody(response: Response): Promise<string> {
   const contentType = response.headers.get('content-type') || '';
 
   if (contentType.includes('application/json')) {
-    const jsonError = await response.json().catch(() => null) as { error?: string; message?: string } | null;
-    if (jsonError?.error) return jsonError.error;
-    if (jsonError?.message) return jsonError.message;
+    const jsonError = await response.json().catch(() => null);
+    return describeBackendErrorPayload(jsonError);
   }
 
   const text = await response.text().catch(() => 'Unknown error');
   return text || 'Unknown error';
+}
+
+export function describeBackendErrorPayload(payload: unknown): string {
+  if (typeof payload === 'string') return payload;
+  if (!payload || typeof payload !== 'object') return 'Unknown error';
+
+  const record = payload as Record<string, unknown>;
+  const error = record.error;
+
+  if (typeof error === 'string') return error;
+  if (error && typeof error === 'object') {
+    const errorRecord = error as Record<string, unknown>;
+    const code = typeof errorRecord.code === 'string' ? errorRecord.code : null;
+    const message = typeof errorRecord.message === 'string' ? errorRecord.message : null;
+    const details = describeDetails(errorRecord.details);
+    return [message, code ? `Código: ${code}` : null, details].filter(Boolean).join(' | ') || JSON.stringify(errorRecord);
+  }
+
+  if (typeof record.message === 'string') return record.message;
+  if (typeof record.code === 'string') return `Código: ${record.code}`;
+  return JSON.stringify(record);
+}
+
+function describeDetails(details: unknown): string | null {
+  if (!details) return null;
+  if (typeof details === 'string') return details;
+  if (Array.isArray(details)) {
+    const messages = details
+      .map((detail) => {
+        if (typeof detail === 'string') return detail;
+        if (detail && typeof detail === 'object' && typeof (detail as { message?: unknown }).message === 'string') {
+          return (detail as { message: string }).message;
+        }
+        return null;
+      })
+      .filter(Boolean);
+    return messages.length > 0 ? messages.join(', ') : null;
+  }
+  if (typeof details === 'object') return JSON.stringify(details);
+  return String(details);
 }
 
 function getHttpStatusHint(status: number): string {
@@ -83,6 +122,24 @@ function getHttpStatusHint(status: number): string {
   return '';
 }
 
+function redactBackendHeaders(headers: Record<string, string>): Record<string, string> {
+  return {
+    ...headers,
+    Authorization: '[redacted]',
+  };
+}
+
+async function readBackendResponseBody(response: Response): Promise<unknown> {
+  const contentType = response?.headers?.get?.('content-type') || '';
+
+  if (contentType.includes('application/json')) {
+    return response.json().catch(() => null);
+  }
+
+  // Fallback: try json first, then text (handles mocks without headers)
+  return response.json?.().catch(() => response.text?.().catch(() => null));
+}
+
 export interface ChatRequest {
   message: string;
   conversationId?: string;
@@ -91,6 +148,7 @@ export interface ChatRequest {
     locale?: string;
     channel?: string;
   };
+  traceId?: string;
 }
 
 export interface ChatResponse {
@@ -277,6 +335,7 @@ export interface ShopSyncRequest {
     id: string;
     domain: string;
     name?: string;
+    accessToken?: string;
   };
 }
 
@@ -288,6 +347,42 @@ export interface ShopSyncResponse {
   };
   created: boolean;
   syncedAt: string;
+}
+
+export type AssistantPersona = 'FRIENDLY' | 'PROFESSIONAL' | 'EXPERT' | 'CASUAL';
+
+export interface AssistantConfigRequest {
+  shopId: string;
+  assistantName?: string;
+  persona?: AssistantPersona;
+  tone?: string;
+  systemInstructions?: string | null;
+  welcomeMessage?: string | null;
+  language?: string;
+  productCategories?: string[];
+}
+
+export interface AssistantConfigResponse {
+  shopId: string;
+  assistantName: string;
+  persona: AssistantPersona;
+  tone: string;
+  systemInstructions: string | null;
+  welcomeMessage: string | null;
+  language: string;
+  productCategories: string[];
+}
+
+export interface CatalogSyncRequest {
+  shopId: string;
+  fullSync?: boolean;
+}
+
+export interface CatalogSyncResponse {
+  chunksIndexed: number;
+  productsProcessed?: number;
+  durationMs: number;
+  errors?: string[];
 }
 
 export interface BillingPlanResponse {
@@ -356,7 +451,8 @@ async function makeRequest<T>(
   endpoint: string,
   method: 'GET' | 'POST' | 'PUT' | 'DELETE',
   body?: unknown,
-  shopDomain?: string
+  shopDomain?: string,
+  traceId?: string
 ): Promise<T> {
   const config = getBackendConfig();
   const requestContext: BackendRequestContext = { endpoint, method };
@@ -371,12 +467,29 @@ async function makeRequest<T>(
     headers['X-Shop-Domain'] = shopDomain;
   }
 
+  if (traceId) {
+    headers['X-FluxBot-Trace-Id'] = traceId;
+  }
+
+  const requestBody = body ? JSON.stringify(body) : undefined;
+
+  console.info("[IABackend] request payload", {
+    traceId: traceId || "(none)",
+    endpoint,
+    method,
+    hasShopDomain: !!shopDomain,
+    shopDomain,
+    url: url.replace(/\/[^/]+\/[^/]+$/, "/..."),
+    requestHeaders: redactBackendHeaders(headers),
+    requestBody: body ?? null,
+  });
+
   let response: Response;
   try {
     response = await fetch(url, {
       method,
       headers,
-      body: body ? JSON.stringify(body) : undefined,
+      body: requestBody,
     });
   } catch (error) {
     if (error instanceof IABackendError) {
@@ -386,7 +499,16 @@ async function makeRequest<T>(
   }
 
   if (!response.ok) {
-    const backendError = await parseErrorBody(response);
+    const responseBody = await readBackendResponseBody(response);
+    console.error("[IABackend] response payload", {
+      traceId: traceId || "(none)",
+      endpoint,
+      method,
+      status: response.status,
+      ok: response.ok,
+      responseBody,
+    });
+    const backendError = describeBackendErrorPayload(responseBody);
     const hint = getHttpStatusHint(response.status);
     const message = `IA backend request failed (${method} ${url}) with status ${response.status}: ${backendError}`;
     throw new IABackendError(hint ? `${message}. ${hint}` : message, response.status);
@@ -394,7 +516,15 @@ async function makeRequest<T>(
 
   // Backend wraps all responses as { data: T, requestId, timestamp }.
   // Unwrap here so callers and gateway normalizers work against the inner payload.
-  const envelope = await response.json();
+  const envelope = await readBackendResponseBody(response);
+  console.info("[IABackend] response payload", {
+    traceId: traceId || "(none)",
+    endpoint,
+    method,
+    status: response.status,
+    ok: response.ok,
+    responseBody: envelope,
+  });
   if (
     envelope !== null &&
     typeof envelope === 'object' &&
@@ -464,7 +594,7 @@ const API_V1 = '/api/v1';
 export const iaClient = {
   chat: {
     send: (request: ChatRequest, shopDomain?: string) =>
-      makeRequest<ChatResponse>(`${API_V1}/chat`, 'POST', request, shopDomain),
+      makeRequest<ChatResponse>(`${API_V1}/chat`, 'POST', request, shopDomain, request.traceId),
 
     stream: (request: ChatRequest, shopDomain?: string) =>
       makeRequest<ChatResponse>(`${API_V1}/chat/stream`, 'POST', request, shopDomain),
@@ -548,6 +678,19 @@ export const iaClient = {
   shops: {
     sync: (request: ShopSyncRequest, shopDomain?: string) =>
       makeRequest<ShopSyncResponse>(`${API_V1}/shops/sync`, 'POST', request, shopDomain),
+  },
+
+  catalog: {
+    sync: (request: CatalogSyncRequest, shopDomain?: string) =>
+      makeRequest<CatalogSyncResponse>(`${API_V1}/catalog/sync`, 'POST', request, shopDomain),
+  },
+
+  assistantConfig: {
+    get: (shopDomain: string) =>
+      makeRequest<AssistantConfigResponse>(`${API_V1}/assistant-config`, 'GET', undefined, shopDomain),
+
+    upsert: (request: AssistantConfigRequest, shopDomain?: string) =>
+      makeRequest<AssistantConfigResponse>(`${API_V1}/assistant-config`, 'POST', request, shopDomain),
   },
 
   billing: {

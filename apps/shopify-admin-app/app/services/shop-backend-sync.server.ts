@@ -5,6 +5,7 @@ export interface ShopReference {
   id: string;
   domain: string;
   name?: string;
+  accessToken?: string;
 }
 
 const SHOP_SYNC_THROTTLE_MS = 5 * 60 * 1000;
@@ -29,11 +30,13 @@ function normalizeShopReference(shop: ShopReference): ShopReference | null {
   }
 
   const normalizedName = typeof shop.name === 'string' ? shop.name.trim() : '';
+  const normalizedAccessToken = typeof shop.accessToken === 'string' ? shop.accessToken.trim() : '';
 
   return {
     id: shop.id,
     domain,
     ...(normalizedName ? { name: normalizedName } : {}),
+    ...(normalizedAccessToken ? { accessToken: normalizedAccessToken } : {}),
   };
 }
 

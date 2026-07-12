@@ -2,8 +2,21 @@ import prisma from '../db.server';
 import { iaClient } from './ia-backend.server';
 
 const ADMIN_API_VERSION = '2026-01';
+const DEFAULT_BILLING_ERROR_MESSAGE =
+  'No se pudo iniciar la suscripción en Shopify. Inténtalo nuevamente en unos segundos.';
 
 const BILLING_PLANS = [
+  {
+    id: 'free',
+    name: 'Free',
+    amountUsd: 0,
+    interval: 'EVERY_30_DAYS' as const,
+    description: 'Free baseline plan',
+    includedMessages: 75,
+    extraBlockSize: 0,
+    extraBlockPrice: 0,
+    cappedAmountUsd: 0,
+  },
   {
     id: 'starter',
     name: 'FluxBot Starter',
@@ -37,6 +50,17 @@ const BILLING_PLANS = [
     extraBlockPrice: 5,
     cappedAmountUsd: 100,
   },
+  {
+    id: 'scale',
+    name: 'FluxBot Scale',
+    amountUsd: 149,
+    interval: 'EVERY_30_DAYS' as const,
+    description: 'Global scale, governance and multi-team controls',
+    includedMessages: 30000,
+    extraBlockSize: 5000,
+    extraBlockPrice: 4,
+    cappedAmountUsd: 100,
+  },
 ] as const;
 
 export type BillingPlanId = (typeof BILLING_PLANS)[number]['id'];
@@ -61,6 +85,8 @@ export interface ActiveSubscription {
   priceAmount: string;
   priceCurrency: string;
   interval: string;
+  createdAt?: string;
+  currentPeriodEnd?: string;
   usageLineItemId?: string;
   cappedAmount?: string;
   balanceUsed?: string;
@@ -91,6 +117,40 @@ export interface BillingSubscriptionResult {
   confirmationUrl: string;
   subscriptionId?: string;
   usageLineItemId?: string;
+}
+
+export type BillingEnvironmentMode = 'production' | 'development';
+
+export function resolveBillingEnvironmentMode(env: NodeJS.ProcessEnv = process.env): BillingEnvironmentMode {
+  const forcedMode = String(env.BILLING_ENV_MODE || '').trim().toLowerCase();
+  if (forcedMode === 'production' || forcedMode === 'development') {
+    return forcedMode;
+  }
+
+  if (env.NODE_ENV !== 'production') {
+    return 'development';
+  }
+
+  const deploymentTarget = String(env.FLUXBOT_DEPLOY_TARGET || env.DEPLOY_TARGET || '')
+    .trim()
+    .toLowerCase();
+  if (deploymentTarget.includes('dev') || deploymentTarget.includes('staging')) {
+    return 'development';
+  }
+
+  const appUrl = String(env.SHOPIFY_APP_URL || env.APP_URL || '')
+    .trim()
+    .toLowerCase();
+  const isLocalAppUrl =
+    appUrl.includes('localhost') ||
+    appUrl.includes('127.0.0.1') ||
+    appUrl.includes('fluxbot-local-dev.invalid');
+
+  if (isLocalAppUrl) {
+    return 'development';
+  }
+
+  return 'production';
 }
 
 async function getShopDomain(shopId: string): Promise<string> {
@@ -162,6 +222,103 @@ async function runShopifyGraphql<T>(params: {
   return payload.data;
 }
 
+type ActiveSubscriptionSummary = {
+  id: string;
+  name: string;
+  status: string;
+};
+
+function normalizePlanText(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/^fluxbot\s+/i, '')
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ');
+}
+
+export function normalizePlanId(raw: string | null | undefined): BillingPlanId | null {
+  if (!raw) return null;
+  const normalized = normalizePlanText(raw);
+  if (!normalized) return null;
+
+  if (normalized === 'free') return 'free';
+  if (normalized === 'starter') return 'starter';
+  if (normalized === 'growth') return 'growth';
+  if (normalized === 'pro') return 'pro';
+  if (normalized === 'scale') return 'scale';
+
+  const tokens = normalized.split(' ');
+  if (tokens.includes('free')) return 'free';
+  if (tokens.includes('starter')) return 'starter';
+  if (tokens.includes('growth')) return 'growth';
+  if (tokens.includes('pro')) return 'pro';
+  if (tokens.includes('scale')) return 'scale';
+
+  return null;
+}
+
+export function findActivePlanIdBySubscriptionName(subscriptionName: string): BillingPlanId | null {
+  const normalized = normalizePlanText(subscriptionName);
+  const directMatch = normalizePlanId(normalized);
+  if (directMatch) {
+    return directMatch;
+  }
+
+  const matched = BILLING_PLANS.find((plan) => normalizePlanText(plan.name) === normalized);
+  return matched?.id ?? null;
+}
+
+function isLiveSubscriptionStatus(status: string): boolean {
+  return ["ACTIVE", "PENDING", "ACCEPTED", "FROZEN"].includes(String(status || "").toUpperCase());
+}
+
+async function loadLocalPlanId(shopId: string): Promise<BillingPlanId | null> {
+  const shop = await prisma.shop.findUnique({
+    where: { id: shopId },
+    select: {
+      plan: true,
+      installations: {
+        where: { uninstalledAt: null },
+        orderBy: { installedAt: 'desc' },
+        take: 1,
+        select: { billingPlan: true },
+      },
+    },
+  });
+
+  const installationPlan = shop?.installations?.[0]?.billingPlan ?? null;
+  return normalizePlanId(installationPlan) ?? normalizePlanId(shop?.plan ?? null);
+}
+
+async function persistResolvedPlan(params: {
+  shopId: string;
+  planId: BillingPlanId;
+  billingStatus?: string;
+}): Promise<void> {
+  await prisma.shop.update({
+    where: { id: params.shopId },
+    data: { plan: params.planId },
+  });
+
+  await prisma.shopInstallation.updateMany({
+    where: {
+      shopId: params.shopId,
+      uninstalledAt: null,
+    },
+    data: {
+      billingPlan: params.planId,
+      ...(params.billingStatus ? { billingStatus: params.billingStatus } : {}),
+    },
+  });
+}
+
+export interface ResolvedCurrentPlan {
+  planId: BillingPlanId | null;
+  source: 'shopify' | 'local' | 'default';
+  hasActiveSubscription: boolean;
+}
+
 export class BillingService {
   static async listPlans(shopId?: string): Promise<BillingPlan[]> {
     if (!shopId) {
@@ -169,23 +326,30 @@ export class BillingService {
     }
 
     const shopDomain = await getShopDomain(shopId);
-    const plans = await iaClient.billing.plans(shopDomain);
+    const remotePlans = await iaClient.billing.plans(shopDomain);
+    const remotePlanIds = new Set(
+      remotePlans
+        .map((plan) => normalizePlanId(plan.code))
+        .filter((planId): planId is BillingPlanId => Boolean(planId)),
+    );
 
-    return plans.map((plan) => ({
-      id: plan.code as BillingPlanId,
-      name: plan.name,
-      amountUsd: plan.basePrice ?? 0,
-      interval: 'EVERY_30_DAYS',
-      description: `${plan.name} plan`,
-      includedMessages: plan.includedMessages,
-      extraBlockSize: plan.extraBlockSize ?? 0,
-      extraBlockPrice: plan.extraBlockPrice ?? 0,
-      cappedAmountUsd: plan.cappedAmount ?? 0,
-    }));
+    if (remotePlanIds.size === 0) {
+      return BILLING_PLANS.map((plan) => ({ ...plan }));
+    }
+
+    return BILLING_PLANS
+      .filter((plan) => remotePlanIds.has(plan.id))
+      .map((plan) => ({ ...plan }));
   }
 
   static getPlan(planId: string): BillingPlan | null {
-    return BILLING_PLANS.find((plan) => plan.id === planId) ? { ...BILLING_PLANS.find((plan) => plan.id === planId)! } : null;
+    const normalizedPlanId = normalizePlanId(planId);
+    if (!normalizedPlanId) {
+      return null;
+    }
+    return BILLING_PLANS.find((plan) => plan.id === normalizedPlanId)
+      ? { ...BILLING_PLANS.find((plan) => plan.id === normalizedPlanId)! }
+      : null;
   }
 
   static async getStatus(shopId: string): Promise<BillingStatus> {
@@ -199,6 +363,8 @@ export class BillingService {
             name
             test
             status
+            createdAt
+            currentPeriodEnd
             lineItems {
               plan {
                 pricingDetails {
@@ -249,15 +415,74 @@ export class BillingService {
         name: String(sub.name || ''),
         status: String(sub.status || ''),
         test: Boolean(sub.test),
+        createdAt: typeof sub.createdAt === "string" ? sub.createdAt : undefined,
+        currentPeriodEnd: typeof sub.currentPeriodEnd === "string" ? sub.currentPeriodEnd : undefined,
         priceAmount: String(price.amount || ''),
         priceCurrency: String(price.currencyCode || 'USD'),
         interval: String(pricingDetails.interval || ''),
       };
     });
 
+    const liveSubscriptions = subscriptions.filter((subscription) => isLiveSubscriptionStatus(subscription.status));
+
     return {
-      hasActiveSubscription: subscriptions.length > 0,
+      hasActiveSubscription: liveSubscriptions.length > 0,
       subscriptions,
+    };
+  }
+
+  static async resolveCurrentPlan(shopId: string, status?: BillingStatus): Promise<ResolvedCurrentPlan> {
+    const billingStatus = status ?? await BillingService.getStatus(shopId);
+    const liveSubscriptions = billingStatus.subscriptions.filter((subscription) =>
+      isLiveSubscriptionStatus(subscription.status),
+    );
+
+    if (liveSubscriptions.length > 0) {
+      for (const subscription of liveSubscriptions) {
+        const mappedPlanId = findActivePlanIdBySubscriptionName(subscription.name);
+        if (!mappedPlanId) {
+          continue;
+        }
+
+        await persistResolvedPlan({
+          shopId,
+          planId: mappedPlanId,
+          billingStatus: subscription.status,
+        });
+
+        return {
+          planId: mappedPlanId,
+          source: 'shopify',
+          hasActiveSubscription: true,
+        };
+      }
+
+      return {
+        planId: null,
+        source: 'shopify',
+        hasActiveSubscription: true,
+      };
+    }
+
+    const localPlanId = await loadLocalPlanId(shopId);
+    if (localPlanId) {
+      return {
+        planId: localPlanId,
+        source: 'local',
+        hasActiveSubscription: false,
+      };
+    }
+
+    await persistResolvedPlan({
+      shopId,
+      planId: 'free',
+      billingStatus: 'INACTIVE',
+    });
+
+    return {
+      planId: 'free',
+      source: 'default',
+      hasActiveSubscription: false,
     };
   }
 
@@ -265,51 +490,236 @@ export class BillingService {
     shopId: string;
     planId: BillingPlanId;
     returnUrl: string;
-    test?: boolean;
+    /** Pass session credentials directly to avoid DB lookup. */
+    shopDomain?: string;
+    accessToken?: string;
   }): Promise<BillingSubscriptionResult> {
     const plan = BILLING_PLANS.find((candidate) => candidate.id === params.planId);
     if (!plan) {
       throw new Error('Invalid billing plan');
     }
 
-    const { domain, accessToken } = await getShopCredentials(params.shopId);
-    const backendUrl = process.env.IA_BACKEND_URL || 'http://localhost:3001';
-    const apiKey = process.env.IA_BACKEND_API_KEY || process.env.MASTER_API_KEY || 'dev_master_key';
+    if (plan.id === 'free') {
+      throw new Error('Free plan does not require Shopify billing approval.');
+    }
 
-    const response = await fetch(`${backendUrl}/api/v1/billing/subscribe`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-        'X-Shop-Domain': domain,
-        'X-Shopify-Access-Token': accessToken,
-      },
-      body: JSON.stringify({
-        planCode: plan.id,
-        returnUrl: params.returnUrl,
-        test: params.test !== false,
-      }),
+    let domain: string;
+    let accessToken: string;
+
+    if (params.shopDomain && params.accessToken) {
+      // Use session credentials directly — avoids a stale-token DB lookup
+      domain = params.shopDomain;
+      accessToken = params.accessToken;
+    } else {
+      const creds = await getShopCredentials(params.shopId);
+      domain = creds.domain;
+      accessToken = creds.accessToken;
+    }
+
+    const billingMode = resolveBillingEnvironmentMode(process.env);
+    const isTestMode = billingMode === 'development';
+    const usageTerms = `${plan.extraBlockSize} messages per block`;
+
+    const activeSubscriptionsQuery = `#graphql
+      query ActiveSubscriptionsForPlanGuard {
+        currentAppInstallation {
+          activeSubscriptions {
+            id
+            name
+            status
+          }
+        }
+      }
+    `;
+
+    const activeSubscriptionsData = await runShopifyGraphql<{
+      currentAppInstallation?: {
+        activeSubscriptions?: Array<Record<string, unknown>>;
+      };
+    }>({
+      shopDomain: domain,
+      accessToken,
+      query: activeSubscriptionsQuery,
     });
 
-    if (!response.ok) {
-      throw new Error(`Shopify billing request failed with HTTP ${response.status}`);
+    const activeSubscriptionsRaw = Array.isArray(activeSubscriptionsData.currentAppInstallation?.activeSubscriptions)
+      ? activeSubscriptionsData.currentAppInstallation?.activeSubscriptions
+      : [];
+    const activeSubscriptions: ActiveSubscriptionSummary[] = activeSubscriptionsRaw.map((sub) => ({
+      id: String((sub as { id?: unknown }).id || ''),
+      name: String((sub as { name?: unknown }).name || ''),
+      status: String((sub as { status?: unknown }).status || ''),
+    })).filter((sub) => sub.id && isLiveSubscriptionStatus(sub.status));
+
+    const hasSamePlanActive = activeSubscriptions.some((sub) => findActivePlanIdBySubscriptionName(sub.name) === plan.id);
+    if (hasSamePlanActive) {
+      throw new Error("You are already subscribed to this plan.");
     }
 
-    const payload = await response.json() as {
-      confirmationUrl?: string;
-      subscriptionId?: string;
-      usageLineItemId?: string;
-      error?: string;
+    const replacementBehavior = activeSubscriptions.length > 0
+      ? 'APPLY_IMMEDIATELY'
+      : 'STANDARD';
+
+    const mutation = `#graphql
+      mutation CreateAppSubscription(
+        $name: String!
+        $returnUrl: URL!
+        $test: Boolean!
+        $lineItems: [AppSubscriptionLineItemInput!]!
+        $replacementBehavior: AppSubscriptionReplacementBehavior
+      ) {
+        appSubscriptionCreate(
+          name: $name
+          returnUrl: $returnUrl
+          test: $test
+          lineItems: $lineItems
+          replacementBehavior: $replacementBehavior
+        ) {
+          confirmationUrl
+          userErrors {
+            field
+            message
+          }
+          appSubscription {
+            id
+            lineItems {
+              id
+              plan {
+                pricingDetails {
+                  __typename
+                }
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    let data: {
+      appSubscriptionCreate?: {
+        confirmationUrl?: string;
+        userErrors?: Array<{ message?: string }>;
+        appSubscription?: {
+          id?: string;
+          lineItems?: Array<{
+            id?: string;
+            plan?: {
+              pricingDetails?: {
+                __typename?: string;
+              };
+            };
+          }>;
+        };
+      };
     };
+    try {
+      data = await runShopifyGraphql<{
+        appSubscriptionCreate?: {
+          confirmationUrl?: string;
+          userErrors?: Array<{ message?: string }>;
+          appSubscription?: {
+            id?: string;
+            lineItems?: Array<{
+              id?: string;
+              plan?: {
+                pricingDetails?: {
+                  __typename?: string;
+                };
+              };
+            }>;
+          };
+        };
+      }>({
+        shopDomain: domain,
+        accessToken,
+        query: mutation,
+        variables: {
+          name: plan.name,
+          returnUrl: params.returnUrl,
+          test: isTestMode,
+          replacementBehavior,
+          lineItems: [
+            {
+              plan: {
+                appRecurringPricingDetails: {
+                  interval: plan.interval,
+                  price: {
+                    amount: String(plan.amountUsd),
+                    currencyCode: 'USD',
+                  },
+                },
+              },
+            },
+            {
+              plan: {
+                appUsagePricingDetails: {
+                  terms: usageTerms,
+                  cappedAmount: {
+                    amount: String(plan.cappedAmountUsd),
+                    currencyCode: 'USD',
+                  },
+                },
+              },
+            },
+          ],
+        },
+      });
+    } catch (error) {
+      console.error('[billing] createSubscription network failure', {
+        shopId: params.shopId,
+        shopDomain: domain,
+        planId: plan.id,
+        billingMode,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw new Error(DEFAULT_BILLING_ERROR_MESSAGE);
+    }
+
+    const payload = data.appSubscriptionCreate;
+    if (!payload) {
+      console.error('[billing] createSubscription failed', {
+        shopId: params.shopId,
+        shopDomain: domain,
+        planId: plan.id,
+        billingMode,
+        reason: 'missing appSubscriptionCreate payload',
+      });
+      throw new Error(DEFAULT_BILLING_ERROR_MESSAGE);
+    }
+
+    if (payload.userErrors?.length) {
+      const firstError = payload.userErrors[0];
+      const shopifyMessage = firstError?.message;
+      console.error('[billing] createSubscription userErrors', {
+        shopId: params.shopId,
+        shopDomain: domain,
+        planId: plan.id,
+        billingMode,
+        userErrors: payload.userErrors,
+      });
+      throw new Error(shopifyMessage || DEFAULT_BILLING_ERROR_MESSAGE);
+    }
 
     if (!payload.confirmationUrl) {
-      throw new Error(payload.error || 'Shopify did not return confirmation URL');
+      console.error('[billing] createSubscription missing confirmationUrl', {
+        shopId: params.shopId,
+        shopDomain: domain,
+        planId: plan.id,
+        billingMode,
+        backendError: null,
+      });
+      throw new Error(DEFAULT_BILLING_ERROR_MESSAGE);
     }
+
+    const lineItems = Array.isArray(payload.appSubscription?.lineItems)
+      ? payload.appSubscription?.lineItems
+      : [];
+    const usageLineItem = lineItems.find((item) => item.plan?.pricingDetails?.__typename === 'AppUsagePricing');
 
     return {
       confirmationUrl: payload.confirmationUrl,
-      subscriptionId: payload.subscriptionId,
-      usageLineItemId: payload.usageLineItemId,
+      subscriptionId: payload.appSubscription?.id,
+      usageLineItemId: usageLineItem?.id,
     };
   }
 

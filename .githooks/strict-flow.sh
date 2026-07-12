@@ -86,7 +86,7 @@ strict_post_commit_sync_and_push() {
   strict_run_doc_hook post-commit
 
   echo "[strict-flow] Fetching origin/$branch..."
-  git fetch --quiet origin "$branch" || true
+  git fetch --quiet origin "$branch" || strict_fail "git fetch failed. Resolve network/auth issues before closing the task."
 
   local_head="$(git rev-parse HEAD)"
   remote_head="$(git rev-parse "origin/$branch" 2>/dev/null || echo "")"
@@ -100,5 +100,5 @@ strict_post_commit_sync_and_push() {
   strict_require_clean_worktree
 
   echo "[strict-flow] Pushing branch '$branch'..."
-  git push --set-upstream origin "$branch"
+  git push --set-upstream origin "$branch" || strict_fail "git push failed. Do not close the task until the branch is pushed."
 }

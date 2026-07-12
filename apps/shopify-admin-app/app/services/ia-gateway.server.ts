@@ -36,6 +36,7 @@ export interface GatewayChatRequest {
   shopId: string;
   locale: string;
   channel?: string;
+  traceId?: string;
 }
 
 export interface GatewayChatResponse {
@@ -330,6 +331,7 @@ export class RemoteIAGateway implements IAGateway {
             locale: request.locale,
             channel: request.channel,
           },
+          traceId: request.traceId,
         },
         shopDomain,
       );

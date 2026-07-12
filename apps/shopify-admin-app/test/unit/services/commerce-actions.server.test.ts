@@ -134,6 +134,30 @@ describe("CommerceActionsService.prepareAddToCart", () => {
     expect(result.cartUrl).toContain("/cart/55:1");
   });
 
+  it("selects the first purchasable variant from projection data", async () => {
+    vi.mocked(prisma.shop.findUnique).mockResolvedValue({
+      id: "shop-id",
+      domain: "myshop.myshopify.com",
+      accessToken: "shpat_valid",
+    } as any);
+
+    vi.mocked(prisma.productProjection.findFirst).mockResolvedValue({
+      productId: "100",
+      handle: "cool-shirt",
+      variants: [
+        { id: "gid://shopify/ProductVariant/55", availableForSale: false },
+        { id: "gid://shopify/ProductVariant/56", availableForSale: true },
+      ],
+    } as any);
+
+    const result = await CommerceActionsService.prepareAddToCart({
+      shopDomain: "myshop.myshopify.com",
+      productRef: "cool-shirt",
+    });
+
+    expect(result.variantId).toBe("56");
+  });
+
   it("falls back to Shopify Admin API when the projection doesn't exist", async () => {
     vi.mocked(prisma.shop.findUnique).mockResolvedValue({
       id: "shop-id",
@@ -165,6 +189,40 @@ describe("CommerceActionsService.prepareAddToCart", () => {
 
     expect(result.variantId).toBe("77");
     expect(result.productHandle).toBe("awesome-product");
+  });
+
+  it("uses an available variant from Shopify Admin fallback", async () => {
+    vi.mocked(prisma.shop.findUnique).mockResolvedValue({
+      id: "shop-id",
+      domain: "myshop.myshopify.com",
+      accessToken: "shpat_valid",
+    } as any);
+
+    vi.mocked(prisma.productProjection.findFirst).mockResolvedValue(null);
+
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        data: {
+          product: {
+            handle: "awesome-product",
+            variants: {
+              nodes: [
+                { id: "gid://shopify/ProductVariant/77", legacyResourceId: "77", availableForSale: false },
+                { id: "gid://shopify/ProductVariant/88", legacyResourceId: "88", availableForSale: true },
+              ],
+            },
+          },
+        },
+      }),
+    });
+
+    const result = await CommerceActionsService.prepareAddToCart({
+      shopDomain: "myshop.myshopify.com",
+      productRef: "gid://shopify/Product/1",
+    });
+
+    expect(result.variantId).toBe("88");
   });
 
   it("throws when the variant cannot be resolved", async () => {

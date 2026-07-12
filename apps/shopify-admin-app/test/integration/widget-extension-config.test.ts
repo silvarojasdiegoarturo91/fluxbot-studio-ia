@@ -82,8 +82,13 @@ describe("Theme App Extension — chat_launcher.liquid", () => {
     expect(liquid).toMatch(/data-locale=.*request\.locale\.iso_code/);
   });
 
-  it("exposes launcher position from block settings", () => {
-    expect(liquid).toMatch(/block\.settings\.launcher_position/);
+  it("exposes chat endpoint override from block settings", () => {
+    expect(liquid).toMatch(/block\.settings\.chat_endpoint/);
+  });
+
+  it("embeds a widget version marker for storefront update diagnostics", () => {
+    expect(liquid).toContain("data-widget-version=");
+    expect(liquid).toContain("product-recommendations-logs");
   });
 
   it("has ARIA role dialog on chat window", () => {
@@ -129,6 +134,38 @@ describe("Theme App Extension — assets", () => {
   it("JS connects to events endpoint for behavior tracking", () => {
     const js = readExtFile("assets/chat-launcher.js");
     expect(js).toContain("/apps/fluxbot/events");
+  });
+
+  it("JS renders product recommendation cards from metadata.products", () => {
+    const js = readExtFile("assets/chat-launcher.js");
+    expect(js).toContain("metadata.products");
+    expect(js).toContain("deduplicateProducts");
+    expect(js).toContain("createProductCards(metadata.products)");
+    expect(js).toContain("fluxbot-product-card");
+  });
+
+  it("JS resolves variant via app proxy and performs cart add in the browser session", () => {
+    const js = readExtFile("assets/chat-launcher.js");
+    expect(js).not.toContain("commit: true");
+    expect(js).toContain("window.Shopify.routes.root");
+    expect(js).toContain("cart/add.js");
+    expect(js).toContain("credentials: 'same-origin'");
+    expect(js).toContain("cartRequestsInFlight");
+  });
+
+  it("JS logs update and product-card diagnostics", () => {
+    const js = readExtFile("assets/chat-launcher.js");
+    expect(js).toContain("Widget update marker");
+    expect(js).toContain("Assistant message includes product metadata");
+    expect(js).toContain("Product cards rendered");
+    expect(js).toContain("WIDGET_BUILD_ID");
+  });
+
+  it("JS keeps storefront chat on the signed app proxy instead of direct app chat", () => {
+    const js = readExtFile("assets/chat-launcher.js");
+    expect(js).toContain("REJECTED remote chatEndpoint (not a proxy path)");
+    expect(js).toContain("chatEndpoint = API_ENDPOINT");
+    expect(js).toContain("Widget config chatEndpoint servido");
   });
 
   it("default locale file (en) exists", () => {

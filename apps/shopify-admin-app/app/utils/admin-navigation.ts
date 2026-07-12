@@ -60,6 +60,18 @@ const ROUTE_COPY: Record<
       section: "Configurar",
     },
   },
+  "/app/assistant-config": {
+    en: {
+      title: "AI Persona",
+      description: "Configure the assistant identity, persona, tone, sales instructions, and catalog sync.",
+      section: "Configure",
+    },
+    es: {
+      title: "Personalidad IA",
+      description: "Configura la identidad, personalidad, tono, instrucciones de ventas y sincronización de catálogo del asistente.",
+      section: "Configurar",
+    },
+  },
   "/app/data-sources": {
     en: {
       title: "Data Sources",
@@ -193,7 +205,7 @@ const NAV_ORDER = [
     key: "configure",
     en: "Configure",
     es: "Configurar",
-    routes: ["/app/settings", "/app/data-sources", "/app/widget-settings", "/app/widget-publish"],
+    routes: ["/app/settings", "/app/assistant-config", "/app/data-sources", "/app/widget-settings", "/app/widget-publish"],
   },
   {
     key: "growth",

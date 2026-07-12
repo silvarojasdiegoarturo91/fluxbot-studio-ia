@@ -67,7 +67,7 @@ Para operaciones de tienda desde el asistente de IA:
 | Claude Code (front) | `.mcp.json` | ✅ |
 | Claude Code (back) | `fluxbot-studio-back-ia/.mcp.json` | ✅ |
 | GitHub Copilot CLI | Configurado via `/mcp` | ✅ |
-| Todos los agentes | `.agents/skills/` (34 skills) | ✅ |
+| Todos los agentes | `.agents/skills/` (11 skills activas) | ✅ |
 
 ### Variables de entorno para Dev MCP:
 ```json

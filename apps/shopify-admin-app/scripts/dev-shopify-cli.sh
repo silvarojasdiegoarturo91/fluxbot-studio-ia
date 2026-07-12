@@ -105,6 +105,10 @@ if [[ -n "${DEV_STORE}" ]]; then
   SHOPIFY_DEV_ARGS+=(--store "$DEV_STORE")
 fi
 
+if [[ "${SHOPIFY_DEV_RESET:-0}" == "1" ]]; then
+  SHOPIFY_DEV_ARGS+=(--reset)
+fi
+
 # Clear previous local dev processes so ports/watchers do not conflict.
 pkill -f "shopify app dev --path $APP_DIR" >/dev/null 2>&1 || true
 pkill -f "$APP_DIR/node_modules/.bin/react-router dev --host" >/dev/null 2>&1 || true
