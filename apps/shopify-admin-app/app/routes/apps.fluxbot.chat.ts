@@ -245,6 +245,25 @@ function asArray(value: unknown): Array<Record<string, any>> {
   return Array.isArray(value) ? value.filter((item) => item && typeof item === "object") as Array<Record<string, any>> : [];
 }
 
+function asBoolean(value: unknown): boolean | undefined {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === "true") return true;
+    if (normalized === "false") return false;
+  }
+  return undefined;
+}
+
+function asNumber(value: unknown): number | undefined {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value.trim());
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return undefined;
+}
+
 function firstString(...values: unknown[]): string | undefined {
   for (const value of values) {
     if (typeof value === "string" && value.trim()) return value.trim();
@@ -291,16 +310,59 @@ function scoreProduct(product: Parameters<typeof productSearchText>[0], terms: s
   }, 0);
 }
 
+function isVariantPurchasable(variant: Record<string, any>): boolean {
+  const availableForSale = asBoolean(variant.availableForSale);
+  if (availableForSale === false) return false;
+  if (availableForSale === true) return true;
+
+  const inventoryPolicy = firstString(variant.inventoryPolicy, variant.inventory_policy)?.toUpperCase();
+  if (inventoryPolicy === "CONTINUE") return true;
+
+  const inventoryManaged = firstString(variant.inventoryManagement, variant.inventory_management);
+  if (!inventoryManaged || inventoryManaged === "null") return true;
+
+  const inventoryQuantity = asNumber(variant.inventoryQuantity ?? variant.inventory_quantity);
+  if (typeof inventoryQuantity === "number") return inventoryQuantity > 0;
+
+  return false;
+}
+
+function selectFirstPurchasableVariant(variants: Array<Record<string, any>>): Record<string, any> | null {
+  if (!variants.length) return null;
+  return variants.find((variant) => isVariantPurchasable(variant)) ?? null;
+}
+
+function isProductPublishable(product: {
+  metadata: unknown;
+  variants: unknown;
+}): boolean {
+  const metadata =
+    product.metadata && typeof product.metadata === "object"
+      ? (product.metadata as Record<string, unknown>)
+      : {};
+
+  const status = firstString(metadata.status)?.toUpperCase();
+  if (status === "ARCHIVED" || status === "DRAFT") return false;
+
+  const published = asBoolean(metadata.published ?? metadata.publishedOnCurrentPublication);
+  if (published === false) return false;
+
+  const variants = asArray(product.variants);
+  if (!variants.length) return false;
+  return selectFirstPurchasableVariant(variants) !== null;
+}
+
 function toProxyProduct(product: {
   productId: string;
   handle: string;
   title: string;
   variants: unknown;
   images: unknown;
+  metadata: unknown;
 }): ProxyProductRecommendation {
   const variants = asArray(product.variants);
   const images = asArray(product.images);
-  const firstVariant = variants[0] ?? {};
+  const firstVariant = selectFirstPurchasableVariant(variants) ?? {};
   const firstImage = images[0] ?? {};
   const price = firstString(
     firstVariant.price,
@@ -357,7 +419,7 @@ async function searchProxyCatalogProducts(params: {
 
   return products
     .map((product) => ({ product, score: scoreProduct(product, terms) }))
-    .filter(({ score }) => score > 0)
+    .filter(({ product, score }) => score > 0 && isProductPublishable(product))
     .sort((a, b) => b.score - a.score || a.product.title.localeCompare(b.product.title))
     .slice(0, 3)
     .map(({ product }) => toProxyProduct(product));
@@ -478,7 +540,6 @@ export async function action({ request }: ActionFunctionArgs) {
       conversation = await prisma.conversation.update({
         where: { id: conversation.id },
         data: { locale: effectiveLocale },
-        include: { messages: { orderBy: { createdAt: "asc" } } },
       });
     }
 

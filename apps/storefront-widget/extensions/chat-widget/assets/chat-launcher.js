@@ -389,8 +389,10 @@
   var launcherLabelText = '';
   var launcherAvatarStyle = 'assistant';
   var lastAppliedConfigVersion = '';
+  var effectiveLocale = 'en';
   var widgetConfigLoaded = false;
   var widgetConfigLoadPromise = null;
+  var cartRequestsInFlight = {};
 
   // W6 — Rate limiting
   var msgTimestamps  = [];
@@ -441,13 +443,14 @@
     var branding = chatWindow.querySelector('.fluxbot-chat-window__branding');
     if (branding) branding.textContent = i18n.poweredBy;
     if (launcher) {
-      if (widgetLocale.indexOf('ar') === 0) launcher.setAttribute('dir', 'rtl');
+      if (widgetLocale.startsWith('ar')) launcher.setAttribute('dir', 'rtl');
       else launcher.removeAttribute('dir');
     }
   }
 
   function setWidgetLocale(nextLocale) {
     widgetLocale = normalizeLocale(nextLocale, widgetLocale || storefrontLocale || 'en');
+    effectiveLocale = widgetLocale;
     i18n = getI18n(widgetLocale);
     if (launcher) launcher.dataset.locale = widgetLocale;
     applyLocalizedStaticLabels();
@@ -660,6 +663,44 @@
     updateLauncherButtonA11y();
   }
 
+  function applyLocaleToUi(elements) {
+    i18n = getI18n(effectiveLocale);
+    launcher.dataset.locale = effectiveLocale;
+
+    if (chatInput) {
+      chatInput.setAttribute('placeholder', i18n.inputPlaceholder);
+      chatInput.setAttribute('aria-label', i18n.inputPlaceholder);
+    }
+
+    var closeBtn = elements && elements.closeBtn;
+    if (closeBtn) {
+      closeBtn.setAttribute('aria-label', i18n.closeChat);
+    }
+
+    var submitBtn = elements && elements.submitBtn;
+    if (submitBtn) {
+      submitBtn.setAttribute('aria-label', i18n.sendMessage);
+    }
+
+    var branding = elements && elements.branding;
+    if (branding) {
+      branding.textContent = i18n.poweredBy;
+    }
+
+    var productButtons = document.querySelectorAll('.fluxbot-product-card__add');
+    productButtons.forEach(function (button) {
+      var el = button;
+      if (!el || el.disabled) return;
+      el.textContent = i18n.addToCart;
+    });
+
+    if (effectiveLocale.toLowerCase().startsWith('ar')) {
+      launcher.setAttribute('dir', 'rtl');
+    } else {
+      launcher.removeAttribute('dir');
+    }
+  }
+
   function getWidgetTitle(config) {
     var nextTitle = sanitizeAttr(config && config.botName);
     if (nextTitle) {
@@ -698,6 +739,11 @@
       document.documentElement.style.setProperty('--fluxbot-primary-color', '#008060');
       launcher.classList.remove('fluxbot-launcher--bottom-right', 'fluxbot-launcher--bottom-left');
       launcher.classList.add('fluxbot-launcher--bottom-right');
+      applyLocaleToUi({
+        closeBtn: chatWindow && chatWindow.querySelector('.fluxbot-chat-window__close'),
+        submitBtn: chatForm && chatForm.querySelector('.fluxbot-chat-form__submit'),
+        branding: chatWindow && chatWindow.querySelector('.fluxbot-chat-window__branding'),
+      });
       applyLauncherPresentation();
       return;
     }
@@ -746,6 +792,11 @@
       subtitle.textContent = getWidgetSubtitle(config);
     }
 
+    applyLocaleToUi({
+      closeBtn: chatWindow && chatWindow.querySelector('.fluxbot-chat-window__close'),
+      submitBtn: chatForm && chatForm.querySelector('.fluxbot-chat-form__submit'),
+      branding: chatWindow && chatWindow.querySelector('.fluxbot-chat-window__branding'),
+    });
     applyLauncherPresentation();
     applyLocalizedStaticLabels();
   }
@@ -1219,6 +1270,9 @@
               ? mergedMetadata.products.concat(actionProducts) : actionProducts;
           }
         }
+        if (Array.isArray(mergedMetadata.products)) {
+          mergedMetadata.products = deduplicateProducts(mergedMetadata.products);
+        }
         addMessage(response.message, 'assistant', mergedMetadata);
 
         // W3 — Handoff detection
@@ -1449,6 +1503,39 @@
     scrollToBottom();
   }
 
+  function getProductDedupKey(product) {
+    if (!product || typeof product !== 'object') return '';
+
+    return String(
+      product.variantId ||
+      product.variant_id ||
+      product.productId ||
+      product.product_id ||
+      product.handle ||
+      product.url ||
+      product.title ||
+      ''
+    ).trim().toLowerCase();
+  }
+
+  function deduplicateProducts(products) {
+    if (!Array.isArray(products)) return [];
+
+    var seen = {};
+    return products.filter(function (product) {
+      var key = getProductDedupKey(product);
+      if (!key || seen[key]) return false;
+      seen[key] = true;
+      return true;
+    });
+  }
+
+  function extractNumericResourceId(value) {
+    if (!value) return null;
+    var match = String(value).match(/(\d+)(?!.*\d)/);
+    return match && match[1] ? match[1] : null;
+  }
+
   /** Add a pre-built DOM node as a message bubble */
   function addMessageNode(node, role) {
     var messageEl = document.createElement('div');
@@ -1464,15 +1551,16 @@
   function createProductCards(products) {
     var container = document.createElement('div');
     container.className = 'fluxbot-product-cards';
-    var renderedCount = Math.min(products.length, 3);
+    var uniqueProducts = deduplicateProducts(products);
+    var renderedCount = Math.min(uniqueProducts.length, 3);
 
     debugLog('Rendering product cards', {
       requestedCount: products.length,
       renderedCount: renderedCount,
-      products: products.slice(0, 3).map(summarizeProductForDebug),
+      products: uniqueProducts.slice(0, 3).map(summarizeProductForDebug),
     });
 
-    products.slice(0, 3).forEach(function (product) {
+    uniqueProducts.slice(0, 3).forEach(function (product) {
       var card = document.createElement('div');
       card.className = 'fluxbot-product-card';
 
@@ -1494,12 +1582,9 @@
       var info = document.createElement('div');
       info.className = 'fluxbot-product-card__info';
 
-      var titleEl = document.createElement('a');
+      var titleEl = document.createElement('span');
       titleEl.className = 'fluxbot-product-card__title';
       titleEl.textContent = product.title ? String(product.title).slice(0, 200) : '';
-      titleEl.href = sanitizeUrl(product.url) || '#';
-      titleEl.target = '_blank';
-      titleEl.rel = 'noopener noreferrer';
       info.appendChild(titleEl);
 
       if (product.price) {
@@ -1519,9 +1604,9 @@
         return function () { addProductToCart(p, btn); };
       })(product, addBtn));
       actions.appendChild(addBtn);
-      info.appendChild(actions);
       link.appendChild(info);
       card.appendChild(link);
+      card.appendChild(actions);
       container.appendChild(card);
     });
 
@@ -1538,8 +1623,16 @@
   async function addProductToCart(product, buttonEl) {
     var variantId  = product.variantId  || product.variant_id  || null;
     var productRef = product.productId  || product.product_id  || product.handle || product.id || null;
+    var requestKey = variantId || productRef;
 
     if (!variantId && !productRef) { addMessage(i18n.cartVariantError, 'assistant'); return; }
+    if (!requestKey) { addMessage(i18n.cartVariantError, 'assistant'); return; }
+    if (cartRequestsInFlight[requestKey]) {
+      debugLog('Add to cart ignored: request already in flight', { requestKey: requestKey });
+      return;
+    }
+
+    cartRequestsInFlight[requestKey] = true;
 
     buttonEl.disabled = true;
     buttonEl.textContent = i18n.adding;
@@ -1547,33 +1640,54 @@
     try {
       var res = await fetch(CART_ENDPOINT, buildJsonRequestOptions('POST', {
         variantId: variantId, productRef: productRef, quantity: 1,
-        commit: true, conversationId: conversationId,
+        conversationId: conversationId,
         sessionId: sessionId, visitorId: visitorId,
       }));
       if (!res.ok) throw new Error('HTTP ' + res.status);
       var payload = await res.json();
       if (!payload || !payload.success) throw new Error((payload && payload.error) || 'Cart add failed');
 
-      var cartUrl = payload.data && payload.data.cartUrl;
-      if (cartUrl) {
-        var span = document.createElement('span');
-        span.appendChild(document.createTextNode(i18n.addedToCart + ' '));
-        var cartLink = document.createElement('a');
-        cartLink.href = sanitizeUrl(cartUrl) || '#';
-        cartLink.textContent = i18n.viewCart;
-        cartLink.target = '_blank';
-        cartLink.rel = 'noopener noreferrer';
-        span.appendChild(cartLink);
-        addMessageNode(span, 'assistant');
-      } else {
-        addMessage(i18n.addedToCart, 'assistant');
+      var resolvedVariantId =
+        payload.data && (payload.data.variantId || payload.data.variant_id || payload.data.resolvedVariantId);
+      if (!resolvedVariantId) throw new Error('Cart variant unresolved');
+      var resolvedVariantNumericId = extractNumericResourceId(resolvedVariantId);
+      if (!resolvedVariantNumericId) throw new Error('Cart variant unresolved');
+
+      var cartRoot = (window.Shopify && window.Shopify.routes && window.Shopify.routes.root) || '/';
+      var addToCartRes = await fetch(cartRoot + 'cart/add.js', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({
+          items: [{
+            id: Number(resolvedVariantNumericId),
+            quantity: 1,
+          }],
+        }),
+      });
+      if (!addToCartRes.ok) {
+        throw new Error('Shopify cart add failed: HTTP ' + addToCartRes.status);
       }
 
-      trackEvent('add_to_cart', { variantId: variantId, productRef: productRef });
+      var span = document.createElement('span');
+      span.appendChild(document.createTextNode(i18n.addedToCart + ' '));
+      var cartLink = document.createElement('a');
+      cartLink.href = sanitizeUrl(cartRoot + 'cart') || '#';
+      cartLink.textContent = i18n.viewCart;
+      cartLink.target = '_blank';
+      cartLink.rel = 'noopener noreferrer';
+      span.appendChild(cartLink);
+      addMessageNode(span, 'assistant');
+
+      trackEvent('add_to_cart', { variantId: String(resolvedVariantNumericId), productRef: productRef });
     } catch (err) {
       console.error('[FluxBot] Add to cart failed:', err);
       addMessage(i18n.cartError, 'assistant');
     } finally {
+      delete cartRequestsInFlight[requestKey];
       buttonEl.disabled = false;
       buttonEl.textContent = i18n.addToCart;
     }

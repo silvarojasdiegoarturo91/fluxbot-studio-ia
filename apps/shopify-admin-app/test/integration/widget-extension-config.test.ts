@@ -139,8 +139,18 @@ describe("Theme App Extension — assets", () => {
   it("JS renders product recommendation cards from metadata.products", () => {
     const js = readExtFile("assets/chat-launcher.js");
     expect(js).toContain("metadata.products");
+    expect(js).toContain("deduplicateProducts");
     expect(js).toContain("createProductCards(metadata.products)");
     expect(js).toContain("fluxbot-product-card");
+  });
+
+  it("JS resolves variant via app proxy and performs cart add in the browser session", () => {
+    const js = readExtFile("assets/chat-launcher.js");
+    expect(js).not.toContain("commit: true");
+    expect(js).toContain("window.Shopify.routes.root");
+    expect(js).toContain("cart/add.js");
+    expect(js).toContain("credentials: 'same-origin'");
+    expect(js).toContain("cartRequestsInFlight");
   });
 
   it("JS logs update and product-card diagnostics", () => {

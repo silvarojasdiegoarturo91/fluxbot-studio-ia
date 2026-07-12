@@ -487,4 +487,95 @@ describe("apps.fluxbot.chat proxy route", () => {
       "quickstart-c8cc9986.myshopify.com",
     );
   });
+
+  it("filters fallback recommendations to published products with purchasable variants", async () => {
+    mockGatewayChat.mockResolvedValue({
+      message: "Buscando opciones del catálogo.",
+      confidence: 0.61,
+      requiresEscalation: false,
+      actions: [],
+      toolsUsed: ["searchProducts"],
+      sourceReferences: [],
+    });
+    mockProductProjectionFindMany.mockResolvedValue([
+      {
+        productId: "gid://shopify/Product/1",
+        handle: "archived-board",
+        title: "Archived Board",
+        description: "Archived product",
+        vendor: "FluxBot",
+        productType: "Snowboard",
+        variants: [{ id: "gid://shopify/ProductVariant/101", availableForSale: true, price: "100.00" }],
+        images: [],
+        metadata: { status: "ARCHIVED", publishedOnCurrentPublication: true },
+      },
+      {
+        productId: "gid://shopify/Product/2",
+        handle: "unpublished-board",
+        title: "Unpublished Board",
+        description: "Unpublished product",
+        vendor: "FluxBot",
+        productType: "Snowboard",
+        variants: [{ id: "gid://shopify/ProductVariant/102", availableForSale: true, price: "100.00" }],
+        images: [],
+        metadata: { status: "ACTIVE", publishedOnCurrentPublication: false },
+      },
+      {
+        productId: "gid://shopify/Product/3",
+        handle: "sold-out-board",
+        title: "Sold Out Board",
+        description: "Sold out product",
+        vendor: "FluxBot",
+        productType: "Snowboard",
+        variants: [{ id: "gid://shopify/ProductVariant/103", availableForSale: false, price: "100.00" }],
+        images: [],
+        metadata: { status: "ACTIVE", publishedOnCurrentPublication: true },
+      },
+      {
+        productId: "gid://shopify/Product/4",
+        handle: "available-board",
+        title: "Available Board",
+        description: "Available product",
+        vendor: "FluxBot",
+        productType: "Snowboard",
+        variants: [{ id: "gid://shopify/ProductVariant/104", availableForSale: true, price: "120.00" }],
+        images: [],
+        metadata: { status: "ACTIVE", publishedOnCurrentPublication: true },
+      },
+    ]);
+
+    const { action } = await import("../../app/routes/apps.fluxbot.chat");
+    const request = new Request(
+      "http://localhost/apps/fluxbot/chat?shop=quickstart-c8cc9986.myshopify.com",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          message: "recomiéndame un snowboard",
+          visitorId: "visitor-1",
+          locale: "es",
+          context: {},
+        }),
+      },
+    );
+
+    const response = await action({
+      request,
+      params: {},
+      context: {},
+    } as never);
+    const data = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(data.metadata.products).toHaveLength(1);
+    expect(data.metadata.products[0]).toEqual(
+      expect.objectContaining({
+        title: "Available Board",
+        productId: "gid://shopify/Product/4",
+        variantId: "gid://shopify/ProductVariant/104",
+      }),
+    );
+  });
 });

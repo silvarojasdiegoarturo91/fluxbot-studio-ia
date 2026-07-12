@@ -140,7 +140,6 @@ export async function action({ request }: ActionFunctionArgs) {
       conversation = await prisma.conversation.update({
         where: { id: conversation.id },
         data: { locale: effectiveLocale },
-        include: { messages: { orderBy: { createdAt: "asc" } } },
       });
     }
 
