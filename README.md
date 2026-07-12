@@ -8,6 +8,9 @@ Este README ya no mantiene checklists de fase para evitar desalineaciones.
 
 La documentacion historica/completada fue centralizada en `documentation/`.
 
+> Nota operativa: en este workspace, cuando se diga "producción" o "server de prod",
+> se entiende el servidor de Contabo, salvo indicación explícita de otro entorno.
+
 ### Resumen rápido
 - ✅ Base estable de app Shopify embebida + widget storefront
 - ✅ Fase 1 cerrada en este repo: gateway IA remoto por defecto + order lookup verificado
@@ -116,7 +119,8 @@ DATABASE_URL="postgresql://fluxbot:dev_password@localhost:5432/fluxbot_dev"
 # Shopify
 SHOPIFY_API_KEY="tu_api_key_aqui"
 SHOPIFY_API_SECRET="tu_api_secret_aqui"
-SHOPIFY_APP_URL="https://tu-tunnel.ngrok.io"
+# En producción, este valor debe apuntar al server de Contabo.
+SHOPIFY_APP_URL="https://tu-servidor-contabo.ejemplo.com"
 SCOPES="write_products,read_customers,read_orders"
 
 # Sesión
