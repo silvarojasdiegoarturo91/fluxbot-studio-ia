@@ -15,6 +15,8 @@ import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
 import { Prisma } from "@prisma/client";
 import prisma from "../db.server";
 import { getIAGateway } from "../services/ia-gateway.server";
+import { getMerchantAdminConfig } from "../services/admin-config.server";
+import { getCatalogFallbackMessage, resolveEffectiveLocale } from "../services/chat-locale.server";
 import { verifyShopifyProxyRequest } from "../services/shopify-proxy-auth.server";
 
 // ── W7 — Startup diagnostics ─────────────────────────────────────────────────
@@ -84,21 +86,6 @@ type ProxyProductRecommendation = {
   productId: string;
   variantId?: string;
 };
-
-function buildProxyCatalogSuccessMessage(
-  products: ProxyProductRecommendation[],
-  locale: string,
-): string {
-  if (locale.toLowerCase().startsWith("es")) {
-    return products.length === 1
-      ? "Sí, encontré este producto relacionado en el catálogo:"
-      : "Sí, encontré estas opciones relacionadas en el catálogo:";
-  }
-
-  return products.length === 1
-    ? "I found this related product in the catalog:"
-    : "I found these related options in the catalog:";
-}
 
 function extractRecommendedProducts(
   actions: Array<Record<string, unknown>> | undefined,
@@ -482,7 +469,7 @@ export async function action({ request }: ActionFunctionArgs) {
       visitorId,
       customerId,
       sessionId,
-      locale = "en",
+      locale,
       context = {},
     } = body as Record<string, any>;
 
@@ -508,6 +495,7 @@ export async function action({ request }: ActionFunctionArgs) {
     if (!shop) {
       return json({ success: false, error: "Shop not found" }, { status: 404 }, traceId);
     }
+    const adminConfig = await getMerchantAdminConfig(shop.id);
 
     // Get or create conversation
     let conversation;
@@ -520,6 +508,12 @@ export async function action({ request }: ActionFunctionArgs) {
         return json({ success: false, error: "Conversation not found" }, { status: 404 }, traceId);
       }
     } else {
+      const initialLocale = resolveEffectiveLocale({
+        primaryBotLanguage: adminConfig.primaryBotLanguage,
+        supportedLanguages: adminConfig.supportedLanguages,
+        requestLocale: locale,
+        storefrontLocale: context.locale,
+      });
       conversation = await prisma.conversation.create({
         data: {
           shopId: shop.id,
@@ -527,10 +521,26 @@ export async function action({ request }: ActionFunctionArgs) {
           visitorId: visitorId ?? context.visitorId,
           customerId: customerId ?? context.customerId,
           sessionId: sessionId ?? context.sessionId,
-          locale,
+          locale: initialLocale,
           status: "ACTIVE",
         },
         include: { messages: true },
+      });
+    }
+
+    const effectiveLocale = resolveEffectiveLocale({
+      primaryBotLanguage: adminConfig.primaryBotLanguage,
+      supportedLanguages: adminConfig.supportedLanguages,
+      requestLocale: locale,
+      storefrontLocale: context.locale,
+      conversationLocale: conversation.locale,
+    });
+
+    if (conversation.locale !== effectiveLocale) {
+      conversation = await prisma.conversation.update({
+        where: { id: conversation.id },
+        data: { locale: effectiveLocale },
+        include: { messages: { orderBy: { createdAt: "asc" } } },
       });
     }
 
@@ -546,7 +556,7 @@ export async function action({ request }: ActionFunctionArgs) {
         message,
         conversationId: conversationId || conversation.id,
         shopId: shop.id,
-        locale,
+        locale: effectiveLocale,
         channel: "SHOPIFY_PROXY",
         traceId,
       },
@@ -574,7 +584,7 @@ export async function action({ request }: ActionFunctionArgs) {
         });
     const productRecommendations = backendProducts.length > 0 ? backendProducts : proxyFallbackProducts;
     const resolvedMessage = proxyFallbackProducts.length > 0
-      ? buildProxyCatalogSuccessMessage(proxyFallbackProducts, locale)
+      ? getCatalogFallbackMessage(effectiveLocale, proxyFallbackProducts.length)
       : chatResponse.message;
     const actions = productRecommendations.length > 0 && backendProducts.length === 0
       ? [

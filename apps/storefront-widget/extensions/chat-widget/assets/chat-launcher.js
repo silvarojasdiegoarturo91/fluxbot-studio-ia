@@ -380,6 +380,8 @@
   var sessionId         = null;
   var hasConsent        = false;
   var i18n              = I18N.en;
+  var storefrontLocale  = 'en';
+  var widgetLocale      = 'en';
   var isHandoffActive   = false;
   var proactivePollTimer = null;
   var dwellTimer        = null;
@@ -402,6 +404,58 @@
 
   // ─── DOM elements ─────────────────────────────────────────────────────────
   var launcher, launcherButton, chatWindow, messagesContainer, chatForm, chatInput;
+
+  function normalizeLocale(value, fallback) {
+    if (typeof value !== 'string') return fallback || 'en';
+    var normalized = value.trim().toLowerCase();
+    if (!normalized) return fallback || 'en';
+    return normalized.split('-')[0];
+  }
+
+  function normalizeSupportedLanguages(rawLanguages) {
+    if (!Array.isArray(rawLanguages)) return [];
+    return rawLanguages
+      .map(function (entry) { return normalizeLocale(entry, ''); })
+      .filter(function (entry) { return !!entry; });
+  }
+
+  function resolveConfigLocale(config) {
+    var botLanguage = normalizeLocale(
+      (config && (config.botLanguage || config.adminLanguage)) || widgetLocale || storefrontLocale,
+      'en'
+    );
+    var supportedLanguages = normalizeSupportedLanguages(config && config.supportedLanguages);
+    if (supportedLanguages.indexOf(botLanguage) === -1) {
+      supportedLanguages.push(botLanguage);
+    }
+    var storefrontCandidate = normalizeLocale(storefrontLocale, botLanguage);
+    return supportedLanguages.indexOf(storefrontCandidate) !== -1 ? storefrontCandidate : botLanguage;
+  }
+
+  function applyLocalizedStaticLabels() {
+    if (!chatInput || !chatWindow || !chatForm) return;
+    chatInput.setAttribute('placeholder', i18n.inputPlaceholder);
+    chatInput.setAttribute('aria-label', i18n.inputPlaceholder);
+    var closeBtn = chatWindow.querySelector('.fluxbot-chat-window__close');
+    if (closeBtn) closeBtn.setAttribute('aria-label', i18n.closeChat);
+    var submitBtn = chatForm.querySelector('.fluxbot-chat-form__submit');
+    if (submitBtn) submitBtn.setAttribute('aria-label', i18n.sendMessage);
+    var branding = chatWindow.querySelector('.fluxbot-chat-window__branding');
+    if (branding) branding.textContent = i18n.poweredBy;
+    if (launcher) {
+      if (widgetLocale.indexOf('ar') === 0) launcher.setAttribute('dir', 'rtl');
+      else launcher.removeAttribute('dir');
+    }
+  }
+
+  function setWidgetLocale(nextLocale) {
+    widgetLocale = normalizeLocale(nextLocale, widgetLocale || storefrontLocale || 'en');
+    effectiveLocale = widgetLocale;
+    i18n = getI18n(widgetLocale);
+    if (launcher) launcher.dataset.locale = widgetLocale;
+    applyLocalizedStaticLabels();
+    updateLauncherButtonA11y();
+  }
 
   // ─── Init ─────────────────────────────────────────────────────────────────
   if (document.readyState === 'loading') {
@@ -458,8 +512,8 @@
     }
 
     // W5 — Locale
-    effectiveLocale = sanitizeAttr(launcher.dataset.locale) || 'en';
-    i18n = getI18n(effectiveLocale);
+    storefrontLocale = normalizeLocale(sanitizeAttr(launcher.dataset.locale), 'en');
+    setWidgetLocale(storefrontLocale);
 
     // W1 — Identity: visitorId persists in localStorage, sessionId per tab
     visitorId = safeGet(localStorage, 'fluxbot_visitor_id');
@@ -523,22 +577,11 @@
     }
 
     // W5 — Localise static labels
+    applyLocalizedStaticLabels();
     var closeBtn = chatWindow.querySelector('.fluxbot-chat-window__close');
-    var submitBtn = chatForm.querySelector('.fluxbot-chat-form__submit');
-    var branding = chatWindow.querySelector('.fluxbot-chat-window__branding');
-    applyLocaleToUi({
-      closeBtn: closeBtn,
-      submitBtn: submitBtn,
-      branding: branding,
-    });
 
     applyLauncherPresentation();
     loadRemoteWidgetConfig();
-
-    // W5 — RTL for Arabic
-    if (effectiveLocale.toLowerCase().startsWith('ar')) {
-      launcher.setAttribute('dir', 'rtl');
-    }
 
     // Event listeners
     debugLog('Adding event listeners');
@@ -664,11 +707,11 @@
       return nextTitle.slice(0, 64);
     }
 
-    return config && config.adminLanguage === 'en' ? 'AI Assistant' : 'Asistente AI';
+    return resolveConfigLocale(config) === 'en' ? 'AI Assistant' : 'Asistente AI';
   }
 
   function getWidgetSubtitle(config) {
-    var isEnglish = config && config.adminLanguage === 'en';
+    var isEnglish = resolveConfigLocale(config) === 'en';
     var goal =
       config && (config.botGoal === 'SALES' || config.botGoal === 'SUPPORT' || config.botGoal === 'SALES_SUPPORT')
         ? config.botGoal
@@ -688,10 +731,7 @@
   function applyRemoteWidgetConfig(config) {
     if (!config || typeof config !== 'object') return;
 
-    var configuredLocale = sanitizeAttr(config.language) || sanitizeAttr(config.adminLanguage) || sanitizeAttr(config.locale);
-    if (configuredLocale) {
-      effectiveLocale = configuredLocale.toLowerCase();
-    }
+    setWidgetLocale(resolveConfigLocale(config));
 
     if (config.onboardingCompleted === false) {
       launcherLabelText = '';
@@ -758,6 +798,7 @@
       branding: chatWindow && chatWindow.querySelector('.fluxbot-chat-window__branding'),
     });
     applyLauncherPresentation();
+    applyLocalizedStaticLabels();
   }
 
   function loadRemoteWidgetConfig() {
@@ -802,6 +843,8 @@
           configVersion: payload && payload.configVersion,
           apiBaseUrl: payload && payload.apiBaseUrl,
           chatEndpoint: payload && payload.chatEndpoint,
+          botLanguage: payload && payload.botLanguage,
+          supportedLanguages: payload && payload.supportedLanguages,
           hasWidgetBranding: !!(payload && payload.widgetBranding),
         });
         if (!payload || payload.success !== true || !payload.widgetBranding) {
@@ -840,6 +883,8 @@
         });
         var mergedConfig = Object.assign({}, payload.widgetBranding, {
           configVersion: payload.configVersion,
+          botLanguage: payload.botLanguage,
+          supportedLanguages: payload.supportedLanguages,
         });
         applyRemoteWidgetConfig(mergedConfig);
         publishDebugState({
@@ -1135,7 +1180,7 @@
       visitorId: visitorId,
       customerId: sanitizeAttr(launcher.dataset.customerId) || undefined,
       shop: sanitizeAttr(launcher.dataset.shop),
-      locale: sanitizeAttr(launcher.dataset.locale) || 'en',
+      locale: widgetLocale,
       consentVersion: '1.0',
     };
 
@@ -1283,10 +1328,11 @@
       conversationId: conversationId,
       sessionId: sessionId,
       visitorId: visitorId,
+      locale: widgetLocale,
       traceId: traceId,
       context: {
         shop: sanitizeAttr(launcher.dataset.shop),
-        locale: sanitizeAttr(launcher.dataset.locale),
+        locale: widgetLocale,
         customerId: sanitizeAttr(launcher.dataset.customerId) || undefined,
         customerEmail: sanitizeAttr(launcher.dataset.customerEmail) || undefined,
         url: window.location.href,
