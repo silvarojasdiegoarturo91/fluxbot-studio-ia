@@ -443,7 +443,7 @@
     var branding = chatWindow.querySelector('.fluxbot-chat-window__branding');
     if (branding) branding.textContent = i18n.poweredBy;
     if (launcher) {
-      if (widgetLocale.indexOf('ar') === 0) launcher.setAttribute('dir', 'rtl');
+      if (widgetLocale.startsWith('ar')) launcher.setAttribute('dir', 'rtl');
       else launcher.removeAttribute('dir');
     }
   }
