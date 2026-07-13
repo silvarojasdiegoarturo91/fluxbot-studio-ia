@@ -147,6 +147,46 @@ export interface ChatRequest {
     shopId: string;
     locale?: string;
     channel?: string;
+    shop?: {
+      id: string;
+      domain?: string;
+      name?: string;
+    };
+    store?: {
+      locale?: string;
+      channel?: string;
+    };
+    widget?: {
+      botName?: string;
+      botGoal?: string;
+      welcomeMessage?: string;
+      launcherLabel?: string;
+      launcherPosition?: string;
+      primaryColor?: string;
+    };
+    conversation?: {
+      history?: Array<{
+        role: string;
+        content: string;
+      }>;
+      previousSessions?: Array<{
+        conversationId: string;
+        sessionId?: string | null;
+        locale?: string | null;
+        lastMessages: Array<{
+          role: string;
+          content: string;
+        }>;
+      }>;
+    };
+    catalog?: {
+      source: 'productProjection' | 'search' | 'none';
+      products: Array<Record<string, unknown>>;
+    };
+    diagnostics?: {
+      traceId?: string;
+      route?: string;
+    };
   };
   traceId?: string;
 }

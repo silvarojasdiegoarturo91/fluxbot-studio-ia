@@ -362,6 +362,63 @@ describe('AIOrchestrationService', () => {
         })
       );
     });
+
+    it('should inject the current question and chat context into the system prompt', async () => {
+      const requestContext = {
+        shop: {
+          id: 'shop-456',
+          domain: 'example.myshopify.com',
+          name: 'Example Store',
+        },
+        store: {
+          locale: 'en',
+          channel: 'WEB_CHAT',
+        },
+        widget: {
+          botName: 'ShopBot',
+          botGoal: 'SALES_SUPPORT',
+          welcomeMessage: 'Hi there',
+          launcherLabel: 'Assistant',
+          launcherPosition: 'bottom-right',
+          primaryColor: '#008060',
+        },
+        conversation: {
+          history: [
+            { role: 'USER' as const, content: 'Previous message' },
+            { role: 'ASSISTANT' as const, content: 'Previous response' },
+          ],
+          previousSessions: [
+            {
+              conversationId: 'conv-prev',
+              sessionId: 'session-prev',
+              locale: 'en',
+              lastMessages: [
+                { role: 'USER' as const, content: 'Older question' },
+                { role: 'ASSISTANT' as const, content: 'Older answer' },
+              ],
+            },
+          ],
+        },
+        diagnostics: {
+          route: 'api.chat',
+        },
+      };
+
+      await AIOrchestrationService.chat(
+        'shop-456',
+        'conv-123',
+        'Do you have winter products?',
+        'en',
+        requestContext as any
+      );
+
+      const [, requestInit] = vi.mocked(global.fetch).mock.calls[0];
+      expect(String(requestInit.body)).toContain('Current shopper question:');
+      expect(String(requestInit.body)).toContain('Do you have winter products?');
+      expect(String(requestInit.body)).toContain('shop domain: example.myshopify.com');
+      expect(String(requestInit.body)).toContain('Previous message');
+      expect(String(requestInit.body)).toContain('Older question');
+    });
   });
 
   describe('ToolRegistry', () => {

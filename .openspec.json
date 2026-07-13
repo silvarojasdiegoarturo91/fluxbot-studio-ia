@@ -5,7 +5,7 @@
     "description": "OpenSpec local para requisitos de fluxbot-studio-ia-shopify. Los requisitos aquí son espejo de los requisitos root que afectan este repositorio.",
     "owner": "frontend_shopify",
     "status": "in-development",
-    "last_updated": "2026-07-12T22:13:14.137Z",
+    "last_updated": "2026-07-13T00:00:00.000Z",
     "source_of_truth": ".openspec.json",
     "mirror_root": "../.openspec.json"
   },
@@ -149,7 +149,8 @@
         "title": "[BUG] Billing Shopify: resolver HTTP 500 y forzar modo de cobro por entorno",
         "description": "BUG CONFIRMADO (espejo de REQ-ROOT-007): iniciar suscripción en producción puede devolver HTTP 500 con mensaje 'Error al iniciar suscripción'. Además, el merchant no debe elegir manualmente modo de prueba/producción. El modo de billing se debe resolver internamente por entorno de ejecución: producción (deploy oficial) cobra real; desarrollo usa test.",
         "priority": "critical",
-        "status": "planned",
+        "status": "completed",
+        "completed_date": "2026-07-13",
         "owner": "frontend_shopify",
         "affected_apps": [
           "fluxbot-studio-ia-shopify"
@@ -238,6 +239,43 @@
           "REQ-IA-SHOPIFY-008"
         ],
         "user_story": "Como desarrollador del Admin Shopify, quiero validar el widget storefront contra el app proxy local correcto, para no confundirlo con el SDK externo ni con producción."
+      },
+      {
+        "id": "REQ-IA-SHOPIFY-010",
+        "title": "[BUG] Shopify Admin chat: pregunta actual primero y contexto humano completo para IA",
+        "description": "El flujo de chat de Shopify Admin y del app proxy de storefront sigue desalineado con el comportamiento humano esperado: la pregunta actual del shopper debe llegar siempre como entrada primaria a la IA y el resto de información (shop, widget config, catálogo, historia reciente, sesiones previas) debe viajar solo como contexto. El sistema no debe convertir conversaciones generales en respuestas de catálogo repetitivas ni reemplazar la respuesta humana de la IA por fallback de productos salvo que el usuario pida explícitamente recomendaciones de producto.",
+        "priority": "critical",
+        "status": "planned",
+        "owner": "frontend_shopify",
+        "affected_apps": [
+          "fluxbot-studio-ia-shopify"
+        ],
+        "components": [
+          "apps/shopify-admin-app/app/routes/apps.fluxbot.chat.ts",
+          "apps/shopify-admin-app/app/routes/api.chat.ts",
+          "apps/shopify-admin-app/app/services/ia-gateway.server.ts",
+          "apps/shopify-admin-app/app/services/ai-orchestration.server.ts",
+          "apps/storefront-widget/extensions/chat-widget/assets/chat-launcher.js",
+          "apps/shopify-admin-app/test/integration/widget-chat-proxy-route.test.ts",
+          "apps/shopify-admin-app/test/integration/route-handlers-execution.test.ts",
+          "specs/features/admin-chat-human-context/requirements.md",
+          "specs/features/admin-chat-human-context/test-cases.md",
+          "specs/features/assistant-config-catalog-sync-error/requirements.md"
+        ],
+        "acceptance_criteria": [
+          "La pregunta actual del shopper se conserva literalmente como entrada principal de IA y no queda enterrada detrás del historial o de los productos sugeridos.",
+          "La solicitud a IA incluye contexto canónico de tienda, configuración visible del widget, catálogo disponible y configuración del asistente cuando existan.",
+          "La solicitud a IA incluye el historial actual de la conversación y, si existen, resúmenes o señales de sesiones previas como contexto no autoritativo.",
+          "Las respuestas del asistente mantienen tono de servicio al cliente, humanas y orientadas a resolver la pregunta del usuario antes de listar productos.",
+          "El fallback de catálogo no puede sustituir la respuesta de IA por una lista de productos salvo que el usuario haya pedido explícitamente recomendaciones de productos.",
+          "Existen pruebas que cubren saludo inicial, pregunta de producto, pregunta de soporte, historial de conversación, sesiones previas y ausencia de historial."
+        ],
+        "dependencies": [
+          "REQ-IA-SHOPIFY-008",
+          "REQ-IA-SHOPIFY-009",
+          "REQ-IA-AI-001"
+        ],
+        "user_story": "Como merchant, quiero que el chatbot de Shopify responda como una persona de servicio al cliente usando la pregunta actual y todo el contexto disponible, para no ver respuestas robotizadas ni listados de catálogo fuera de lugar."
       }
     ],
     "documentation": [

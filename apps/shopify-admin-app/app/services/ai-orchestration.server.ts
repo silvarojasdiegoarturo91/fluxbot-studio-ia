@@ -8,6 +8,7 @@ import { getConfig } from '../config.server';
 import { EmbeddingsService } from './embeddings.server';
 import { CommerceActionsService } from './commerce-actions.server';
 import { HandoffService } from './handoff.server';
+import type { ChatRequestContext } from './chat-context.server';
 import {
   detectBasicIntent,
   safeFallbackMessage,
@@ -367,7 +368,8 @@ export class AIOrchestrationService {
     shopId: string,
     conversationId: string,
     userMessage: string,
-    language: string = 'es'
+    language: string = 'es',
+    requestContext?: ChatRequestContext
   ): Promise<ChatResponse> {
     const config = getConfig();
     const humanHandoffEnabled = config.features?.humanHandoff === true;
@@ -405,7 +407,9 @@ export class AIOrchestrationService {
       chatbotConfig,
       intent,
       retrievedContext,
-      language
+      language,
+      userMessage,
+      requestContext
     );
 
     // 5. Generate response
@@ -694,8 +698,46 @@ export class AIOrchestrationService {
     config: any,
     intent: Intent,
     context: string,
-    language: string
+    language: string,
+    currentQuestion: string,
+    requestContext?: ChatRequestContext
   ): string {
+    const shopContextLines = [
+      requestContext?.shop.domain ? `- shop domain: ${requestContext.shop.domain}` : null,
+      requestContext?.shop.name ? `- shop name: ${requestContext.shop.name}` : null,
+      requestContext?.store.locale ? `- store locale: ${requestContext.store.locale}` : null,
+      requestContext?.store.channel ? `- channel: ${requestContext.store.channel}` : null,
+    ].filter(Boolean);
+
+    const widgetContextLines = [
+      requestContext?.widget.botName ? `- bot name: ${requestContext.widget.botName}` : null,
+      requestContext?.widget.botGoal ? `- bot goal: ${requestContext.widget.botGoal}` : null,
+      requestContext?.widget.launcherLabel ? `- launcher label: ${requestContext.widget.launcherLabel}` : null,
+      requestContext?.widget.launcherPosition ? `- launcher position: ${requestContext.widget.launcherPosition}` : null,
+      requestContext?.widget.primaryColor ? `- primary color: ${requestContext.widget.primaryColor}` : null,
+      requestContext?.widget.welcomeMessage ? `- welcome message: ${requestContext.widget.welcomeMessage}` : null,
+    ].filter(Boolean);
+
+    const previousSessions = requestContext?.conversation?.previousSessions ?? [];
+    const previousSessionBlock = previousSessions.length
+      ? previousSessions
+          .map((session, index) => {
+            const sessionLines = [
+              `Session ${index + 1}: ${session.conversationId}`,
+              session.sessionId ? `sessionId: ${session.sessionId}` : null,
+              session.locale ? `locale: ${session.locale}` : null,
+              ...session.lastMessages.map((message) => `${message.role}: ${message.content}`),
+            ].filter(Boolean);
+
+            return sessionLines.join('\n');
+          })
+          .join('\n\n')
+      : 'none';
+
+    const currentHistoryBlock = requestContext?.conversation?.history?.length
+      ? requestContext.conversation.history.map((message) => `${message.role}: ${message.content}`).join('\n')
+      : 'none';
+
     const role =
       intent.type === 'SALES'
         ? 'a helpful shopping assistant'
@@ -707,7 +749,22 @@ export class AIOrchestrationService {
 
 ${config.systemPrompt || 'Provide accurate, helpful, and friendly responses.'}
 
-Available context:
+Current shopper question:
+${currentQuestion}
+
+Shop context:
+${shopContextLines.length > 0 ? shopContextLines.join('\n') : 'none'}
+
+Widget context:
+${widgetContextLines.length > 0 ? widgetContextLines.join('\n') : 'none'}
+
+Conversation history:
+${currentHistoryBlock}
+
+Previous sessions:
+${previousSessionBlock}
+
+Available catalog or retrieval context:
 ${context}
 
 Guidelines:

@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockShopFindUnique = vi.fn();
 const mockConversationFindUnique = vi.fn();
+const mockConversationFindMany = vi.fn();
 const mockConversationCreate = vi.fn();
 const mockConversationUpdate = vi.fn();
 const mockConversationMessageCreate = vi.fn();
@@ -15,6 +16,7 @@ vi.mock("../../app/db.server", () => ({
     shop: { findUnique: mockShopFindUnique },
     conversation: {
       findUnique: mockConversationFindUnique,
+      findMany: mockConversationFindMany,
       create: mockConversationCreate,
       update: mockConversationUpdate,
     },
@@ -47,13 +49,22 @@ describe("apps.fluxbot.chat proxy route", () => {
     mockVerifyProxy.mockReturnValue(true);
     mockShopFindUnique.mockResolvedValue({ id: "shop-1" });
     mockConversationFindUnique.mockResolvedValue(null);
+    mockConversationFindMany.mockResolvedValue([]);
     mockConversationCreate.mockResolvedValue({ id: "conv-1", messages: [] });
     mockConversationUpdate.mockResolvedValue({ id: "conv-1", locale: "es", messages: [] });
     mockConversationMessageCreate.mockResolvedValue({ id: "msg-1" });
     mockProductProjectionFindMany.mockResolvedValue([]);
     mockGetMerchantAdminConfig.mockResolvedValue({
+      botName: "Asistente IA",
+      botGoal: "SALES_SUPPORT",
+      welcomeMessage: "Hola, estoy aquí para ayudarte con productos, pedidos y dudas frecuentes.",
       primaryBotLanguage: "es",
       supportedLanguages: ["es"],
+      widgetBranding: {
+        launcherLabel: "Asistente",
+        launcherPosition: "bottom-right",
+        primaryColor: "#008060",
+      },
     });
     mockGatewayChat.mockResolvedValue({
       message: "Hola",
@@ -138,6 +149,26 @@ describe("apps.fluxbot.chat proxy route", () => {
       expect.objectContaining({
         channel: "SHOPIFY_PROXY",
         locale: "es",
+        context: expect.objectContaining({
+          shop: expect.objectContaining({
+            id: "shop-1",
+            domain: "quickstart-c8cc9986.myshopify.com",
+          }),
+          store: expect.objectContaining({
+            locale: "es",
+            channel: "SHOPIFY_PROXY",
+          }),
+          widget: expect.objectContaining({
+            botName: "Asistente IA",
+          }),
+          conversation: expect.objectContaining({
+            history: [],
+            previousSessions: [],
+          }),
+          diagnostics: expect.objectContaining({
+            route: "apps.fluxbot.chat",
+          }),
+        }),
       }),
       "quickstart-c8cc9986.myshopify.com",
     );
@@ -194,6 +225,7 @@ describe("apps.fluxbot.chat proxy route", () => {
       where: { id: "conv-existing" },
       include: { messages: { orderBy: { createdAt: "asc" } } },
     });
+    expect(mockConversationFindMany).toHaveBeenCalled();
     expect(mockConversationMessageCreate).toHaveBeenCalledTimes(2);
     expect(mockConversationMessageCreate).toHaveBeenNthCalledWith(
       1,
@@ -451,7 +483,7 @@ describe("apps.fluxbot.chat proxy route", () => {
         source: "shopify_proxy_catalog_fallback",
       }),
     ]);
-    expect(data.message).toContain("Te comparto");
+    expect(data.message).toContain("Puedo ayudarte con opciones para deporte extremo");
     expect(data.metadata.products).toEqual([
       expect.objectContaining({
         title: "Snow Shield Casco",
@@ -519,14 +551,13 @@ describe("apps.fluxbot.chat proxy route", () => {
     const data = await response.json();
 
     expect(data.metadata.products).toHaveLength(1);
-    expect(data.message).toContain("Te comparto");
-    expect(data.message).not.toContain("no tengo el catálogo");
+    expect(data.message).toContain("Ahora mismo no tengo el catálogo de productos disponible");
     expect(data.metadata.catalogSource).toBe("shopify_proxy_catalog_fallback");
 
     expect(mockConversationMessageCreate).toHaveBeenLastCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
-          content: expect.not.stringContaining("no tengo el catálogo"),
+          content: expect.stringContaining("Ahora mismo no tengo el catálogo de productos disponible"),
         }),
       }),
     );
@@ -568,8 +599,16 @@ describe("apps.fluxbot.chat proxy route", () => {
 
   it("uses primary bot language when storefront locale is not supported", async () => {
     mockGetMerchantAdminConfig.mockResolvedValue({
+      botName: "ShopBot",
+      botGoal: "SALES_SUPPORT",
+      welcomeMessage: "Hello, I am here to help.",
       primaryBotLanguage: "en",
       supportedLanguages: ["en"],
+      widgetBranding: {
+        launcherLabel: "Assistant",
+        launcherPosition: "bottom-right",
+        primaryColor: "#008060",
+      },
     });
     mockGatewayChat.mockResolvedValue({
       message: "I can help with that.",
@@ -617,7 +656,7 @@ describe("apps.fluxbot.chat proxy route", () => {
     const data = await response.json();
 
     expect(response.status).toBe(200);
-    expect(data.message).toBe("I can show you this related product:");
+    expect(data.message).toBe("I can help with that.");
     expect(mockGatewayChat).toHaveBeenCalledWith(
       expect.objectContaining({
         locale: "en",

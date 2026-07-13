@@ -20,6 +20,7 @@ vi.mock('../../app/db.server', () => {
     conversation: {
       create: vi.fn(),
       findUnique: vi.fn(),
+      findMany: vi.fn(),
       update: vi.fn(),
     },
     webhookEvent: {
@@ -39,8 +40,16 @@ vi.mock('../../app/services/ia-gateway.server', () => ({
 
 vi.mock('../../app/services/admin-config.server', () => ({
   getMerchantAdminConfig: vi.fn(async () => ({
+    botName: 'ShopBot',
+    botGoal: 'SALES_SUPPORT',
+    welcomeMessage: 'Hola, estoy aquí para ayudarte con productos, pedidos y dudas frecuentes.',
     primaryBotLanguage: 'en',
     supportedLanguages: ['en'],
+    widgetBranding: {
+      launcherLabel: 'Assistant',
+      launcherPosition: 'bottom-right',
+      primaryColor: '#008060',
+    },
   })),
 }));
 
@@ -66,6 +75,7 @@ describe('Route Handler Execution - Chat API', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockGatewayChat.mockReset();
+    vi.mocked(prisma.conversation.findMany).mockResolvedValue([] as any);
   });
 
   describe('POST /api/chat - Action Handler', () => {
@@ -143,6 +153,22 @@ describe('Route Handler Execution - Chat API', () => {
           shopId: 'shop-123',
           locale: 'en',
           channel: 'WEB_CHAT',
+          context: expect.objectContaining({
+            shop: expect.objectContaining({
+              id: 'shop-123',
+            }),
+            store: expect.objectContaining({
+              locale: 'en',
+              channel: 'WEB_CHAT',
+            }),
+            widget: expect.objectContaining({
+              botName: 'ShopBot',
+            }),
+            conversation: expect.objectContaining({
+              history: [],
+              previousSessions: [],
+            }),
+          }),
         },
         'test-store.myshopify.com',
       );

@@ -8,6 +8,7 @@ import { cors } from "remix-utils/cors";
 import prisma from "../db.server";
 import { getIAGateway } from "../services/ia-gateway.server";
 import { getMerchantAdminConfig } from "../services/admin-config.server";
+import { buildChatRequestContext, loadPreviousConversationContexts } from "../services/chat-context.server";
 import { resolveEffectiveLocale } from "../services/chat-locale.server";
 import {
   detectBasicIntent,
@@ -169,8 +170,33 @@ export async function action({ request }: ActionFunctionArgs) {
       conversation = await prisma.conversation.update({
         where: { id: conversation.id },
         data: { locale: effectiveLocale },
+        include: { messages: { orderBy: { createdAt: "asc" } } },
       });
     }
+
+    const conversationHistory = (conversation.messages ?? []).map((item) => ({
+      role: item.role,
+      content: item.content,
+    })) as Array<{ role: "USER" | "ASSISTANT"; content: string }>;
+    const previousSessions = await loadPreviousConversationContexts({
+      shopId: shop.id,
+      conversationId: conversation.id,
+      visitorId: conversation.visitorId ?? visitorId ?? null,
+      customerId: conversation.customerId ?? customerId ?? null,
+      sessionId: conversation.sessionId ?? sessionId ?? null,
+    });
+    const chatContext = await buildChatRequestContext({
+      shopId: shop.id,
+      shopDomain,
+      locale: effectiveLocale,
+      channel,
+      adminConfig,
+      conversationHistory,
+      previousSessions,
+      diagnostics: {
+        route: "api.chat",
+      },
+    });
 
     // Process chat message via IAGateway (local or remote depending on IA_EXECUTION_MODE)
     const gateway = getIAGateway();
@@ -181,6 +207,7 @@ export async function action({ request }: ActionFunctionArgs) {
         shopId: shop.id,
         locale: effectiveLocale,
         channel,
+        context: chatContext,
       },
       shopDomain,
     );

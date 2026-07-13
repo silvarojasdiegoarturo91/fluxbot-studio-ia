@@ -7,6 +7,7 @@
  */
 
 import { AIOrchestrationService } from './ai-orchestration.server';
+import type { ChatRequestContext } from './chat-context.server';
 import { getIAExecutionMode } from "./ia-execution-mode.server";
 import {
   type EmbeddingSearchRequest,
@@ -37,6 +38,7 @@ export interface GatewayChatRequest {
   locale: string;
   channel?: string;
   traceId?: string;
+  context?: ChatRequestContext;
 }
 
 export interface GatewayChatResponse {
@@ -261,12 +263,20 @@ export interface IAGateway {
 
 export class LocalIAGateway implements IAGateway {
   async chat(request: GatewayChatRequest, _shopDomain?: string): Promise<GatewayChatResponse> {
-    const result = await AIOrchestrationService.chat(
-      request.shopId,
-      request.conversationId,
-      request.message,
-      request.locale,
-    );
+    const result = request.context
+      ? await AIOrchestrationService.chat(
+          request.shopId,
+          request.conversationId,
+          request.message,
+          request.locale,
+          request.context,
+        )
+      : await AIOrchestrationService.chat(
+          request.shopId,
+          request.conversationId,
+          request.message,
+          request.locale,
+        );
 
     return {
       message: result.message,
@@ -330,6 +340,7 @@ export class RemoteIAGateway implements IAGateway {
             shopId: request.shopId,
             locale: request.locale,
             channel: request.channel,
+            ...request.context,
           },
           traceId: request.traceId,
         },

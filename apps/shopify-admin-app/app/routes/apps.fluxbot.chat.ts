@@ -16,7 +16,8 @@ import { Prisma } from "@prisma/client";
 import prisma from "../db.server";
 import { getIAGateway } from "../services/ia-gateway.server";
 import { getMerchantAdminConfig } from "../services/admin-config.server";
-import { getCatalogFallbackMessage, resolveEffectiveLocale } from "../services/chat-locale.server";
+import { buildChatRequestContext, loadPreviousConversationContexts } from "../services/chat-context.server";
+import { resolveEffectiveLocale } from "../services/chat-locale.server";
 import { verifyShopifyProxyRequest } from "../services/shopify-proxy-auth.server";
 import {
   safeFallbackMessage,
@@ -590,6 +591,43 @@ export async function action({ request }: ActionFunctionArgs) {
       });
     }
 
+    const conversationHistory = (conversation.messages ?? []).map((item: any) => ({
+      role: item.role,
+      content: item.content,
+    }));
+    const previousSessions = await loadPreviousConversationContexts({
+      shopId: shop.id,
+      conversationId: conversation.id,
+      visitorId: conversation.visitorId ?? visitorId ?? null,
+      customerId: conversation.customerId ?? customerId ?? null,
+      sessionId: conversation.sessionId ?? sessionId ?? null,
+    });
+    const explicitProductRequest = isProductSeekingProxyMessage(message, conversationHistory);
+    const proxyFallbackProducts = explicitProductRequest
+      ? await searchProxyCatalogProducts({
+          shopId: shop.id,
+          message,
+          history: conversationHistory,
+        })
+      : [];
+    const chatContext = await buildChatRequestContext({
+      shopId: shop.id,
+      shopDomain,
+      locale: effectiveLocale,
+      channel: "SHOPIFY_PROXY",
+      adminConfig,
+      conversationHistory,
+      previousSessions,
+      catalog: {
+        source: proxyFallbackProducts.length > 0 ? "search" : "none",
+        products: proxyFallbackProducts as Array<Record<string, unknown>>,
+      },
+      diagnostics: {
+        traceId,
+        route: "apps.fluxbot.chat",
+      },
+    });
+
     const gateway = getIAGateway();
     console.info("[ProxyChat] llamando backend IA", {
       traceId,
@@ -605,6 +643,7 @@ export async function action({ request }: ActionFunctionArgs) {
         locale: effectiveLocale,
         channel: "SHOPIFY_PROXY",
         traceId,
+        context: chatContext,
       },
       shopDomain,
     );
@@ -618,22 +657,10 @@ export async function action({ request }: ActionFunctionArgs) {
     });
 
     const backendProducts = extractRecommendedProducts(chatResponse.actions);
-    const proxyFallbackProducts = backendProducts.length > 0
-      ? []
-      : await searchProxyCatalogProducts({
-          shopId: shop.id,
-          message,
-          history: (conversation.messages ?? []).map((item: any) => ({
-            role: item.role,
-            content: item.content,
-          })),
-        });
     const productRecommendations = dedupeRecommendations(
       backendProducts.length > 0 ? backendProducts : proxyFallbackProducts,
     );
-    const resolvedMessage = proxyFallbackProducts.length > 0
-      ? getCatalogFallbackMessage(effectiveLocale, proxyFallbackProducts.length)
-      : chatResponse.message;
+    const resolvedMessage = chatResponse.message;
     const actions = productRecommendations.length > 0 && backendProducts.length === 0
       ? [
           ...(chatResponse.actions ?? []),
