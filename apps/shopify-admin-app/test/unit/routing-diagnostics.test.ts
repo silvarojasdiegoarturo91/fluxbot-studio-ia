@@ -330,7 +330,7 @@ describe("Backend tenant resolution (T1)", () => {
   itIfBackend("chat route uses Request and validates shopId in body context", () => {
     const content = readFile("fluxbot-studio-back-ia/src/routes/chat.ts");
 
-    expect(content).toMatch(/import { Router, Request, Response }/);
+    expect(content).toMatch(/import { Router, Response }/);
     expect(content).toMatch(/context:\s*z\.object\(\{/);
     expect(content).toMatch(/shopId:\s*z\.string\(\)/);
   });
@@ -346,18 +346,18 @@ describe("Backend tenant resolution (T1)", () => {
   itIfBackend("chat route uses the payload context.shopId throughout request handling", () => {
     const content = readFile("fluxbot-studio-back-ia/src/routes/chat.ts");
 
-    expect(content).toMatch(/shopId:\s*context\.shopId/);
-    expect(content).toMatch(/UsageService\.assertCanConsumeMessage\(context\.shopId/);
-    expect(content).toMatch(/shopContextService\.loadContext\(context\.shopId/);
-    expect(content).toMatch(/UsageService\.incrementUsage\(context\.shopId/);
+    expect(content).toMatch(/const shopId = authenticatedShopId/);
+    expect(content).toMatch(/UsageService\.assertCanConsumeMessage\(shopId/);
+    expect(content).toMatch(/shopContextService\.loadContext\(shopId/);
+    expect(content).toMatch(/UsageService\.incrementUsage\(shopId/);
   });
 
   itIfBackend("chat route keeps usage and context lookups scoped to context.shopId", () => {
     const content = readFile("fluxbot-studio-back-ia/src/routes/chat.ts");
 
-    expect(content).toMatch(/UsageService\.assertCanConsumeMessage\(context\.shopId/);
-    expect(content).toMatch(/shopContextService\.loadContext\(context\.shopId/);
-    expect(content).toMatch(/UsageService\.incrementUsage\(context\.shopId/);
+    expect(content).toMatch(/UsageService\.assertCanConsumeMessage\(shopId/);
+    expect(content).toMatch(/shopContextService\.loadContext\(shopId/);
+    expect(content).toMatch(/UsageService\.incrementUsage\(shopId/);
   });
 
   itIfBackend("chat route validates conversation belongs to same tenant", () => {
@@ -373,8 +373,8 @@ describe("Backend tenant resolution (T1)", () => {
     const streamIdx = content.indexOf("router.post('/stream'");
     expect(streamIdx).toBeGreaterThan(0);
     const streamSection = content.slice(streamIdx);
-    expect(streamSection).toMatch(/context\.shopId/);
-    expect(streamSection).toMatch(/UsageService\.assertCanConsumeMessage\(context\.shopId/);
-    expect(streamSection).toMatch(/UsageService\.incrementUsage\(context\.shopId/);
+    expect(streamSection).toMatch(/const shopId = req\.shopId/);
+    expect(streamSection).toMatch(/UsageService\.assertCanConsumeMessage\(shopId/);
+    expect(streamSection).toMatch(/UsageService\.incrementUsage\(shopId/);
   });
 });

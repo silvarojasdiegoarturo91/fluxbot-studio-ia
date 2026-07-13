@@ -268,7 +268,7 @@ describe('Route Handler Execution - Chat API', () => {
 
       expect(response.status).toBe(200);
       expect(data.success).toBe(true);
-      expect(data.message).toContain('Hola');
+      expect(data.message).toContain('cuéntame un poco más');
     });
   });
 

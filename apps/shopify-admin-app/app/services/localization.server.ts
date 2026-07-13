@@ -32,14 +32,14 @@ export const SUPPORTED_LOCALES = [
 
 const translations: Record<string, Record<string, string>> = {
   en: {
-    'chat.welcome': 'Hi! 👋 How can I help you today?',
-    'chat.thinking': 'Let me think about that...',
-    'chat.sorry': 'I\'m not sure about that. Would you like to speak with a human?',
+    'chat.welcome': 'Hi 👋 I am here to help. What do you need?',
+    'chat.thinking': 'Let me check that for you...',
+    'chat.sorry': 'I am not fully sure yet. Tell me a bit more and I will help.',
     'chat.offTopic': 'That\'s outside my area. Our team can help better.',
     'chat.handoff': 'Connecting you to our team...',
     
-    'prompts.shopping': 'You are a helpful shopping assistant for {{shopName}}. Help customers find products, answer questions about policies, and recover abandoned carts.',
-    'prompts.support': 'You are a customer support agent for {{shopName}}. Answer questions about orders, shipping, returns, and policies.',
+    'prompts.shopping': 'You are a helpful customer service assistant for {{shopName}}. Answer the shopper\'s current question first, then recommend products only when relevant.',
+    'prompts.support': 'You are a customer support agent for {{shopName}}. Answer questions about orders, shipping, returns, and policies in a natural, human tone.',
     
     'error.notFound': 'I couldn\'t find that product. Would you like to search again?',
     'error.outOfStock': 'Unfortunately, {{product}} is out of stock. Similar options: {{alternatives}}',
@@ -51,19 +51,19 @@ const translations: Record<string, Record<string, string>> = {
     
     'cart.abandoned': 'You have items in your cart. Would you like to purchase them?',
     'cart.total': 'Total: {{price}}',
-    'catalog.relatedOptions.single': 'I found this related product in the catalog:',
-    'catalog.relatedOptions.multiple': 'I found these related options in the catalog:',
+    'catalog.relatedOptions.single': 'I can show you this related product:',
+    'catalog.relatedOptions.multiple': 'I can show you these related options:',
   },
   
   es: {
-    'chat.welcome': '¡Hola! 👋 ¿Cómo puedo ayudarte hoy?',
-    'chat.thinking': 'Déjame pensar en eso...',
-    'chat.sorry': 'No estoy seguro de eso. ¿Te gustaría hablar con una persona?',
+    'chat.welcome': 'Hola 👋 Estoy aquí para ayudarte. ¿Qué necesitas?',
+    'chat.thinking': 'Déjame revisar eso...',
+    'chat.sorry': 'Aún no lo tengo claro. Cuéntame un poco más y te ayudo.',
     'chat.offTopic': 'Eso está fuera de mi área. Nuestro equipo puede ayudar mejor.',
     'chat.handoff': 'Conectándote con nuestro equipo...',
     
-    'prompts.shopping': 'Eres un asistente de compras útil para {{shopName}}. Ayuda a los clientes a encontrar productos, responde preguntas sobre políticas y recupera carritos abandonados.',
-    'prompts.support': 'Eres un agente de servicio al cliente para {{shopName}}. Responde preguntas sobre pedidos, envíos, devoluciones y políticas.',
+    'prompts.shopping': 'Eres un asistente de servicio al cliente útil para {{shopName}}. Responde primero la pregunta del cliente y recomienda productos solo cuando sea relevante.',
+    'prompts.support': 'Eres un agente de servicio al cliente para {{shopName}}. Responde preguntas sobre pedidos, envíos, devoluciones y políticas con un tono natural y humano.',
     
     'error.notFound': 'No pude encontrar ese producto. ¿Te gustaría buscar de nuevo?',
     'error.outOfStock': 'Desafortunadamente, {{product}} no está en stock. Alternativas similares: {{alternatives}}',
@@ -75,8 +75,8 @@ const translations: Record<string, Record<string, string>> = {
     
     'cart.abandoned': 'Tienes artículos en tu carrito. ¿Te gustaría comprarlos?',
     'cart.total': 'Total: {{price}}',
-    'catalog.relatedOptions.single': 'Sí, encontré este producto relacionado en el catálogo:',
-    'catalog.relatedOptions.multiple': 'Sí, encontré estas opciones relacionadas en el catálogo:',
+    'catalog.relatedOptions.single': 'Te comparto este producto relacionado:',
+    'catalog.relatedOptions.multiple': 'Te comparto estas opciones relacionadas:',
   },
 
   fr: {

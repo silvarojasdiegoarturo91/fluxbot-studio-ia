@@ -40,7 +40,11 @@ export function isSimpleMessage(message: string): boolean {
 }
 
 export function safeGreetingMessage(): string {
-  return "Hola 👋 ¿En qué puedo ayudarte? Puedo ayudarte con productos, pedidos o dudas frecuentes.";
+  return "Hola 👋 Estoy aquí para ayudarte. ¿Qué necesitas?";
+}
+
+export function safeClarificationMessage(): string {
+  return "Claro, cuéntame un poco más y te ayudo con la opción correcta.";
 }
 
 export function safeFallbackMessage(intent: BasicIntent = "unknown", hasCatalog = true): string {
@@ -49,15 +53,15 @@ export function safeFallbackMessage(intent: BasicIntent = "unknown", hasCatalog 
     if (!hasCatalog) {
       return "Puedo ayudarte con productos, pero ahora no tengo catálogo disponible en este canal. Si quieres, te ayudo a buscar por categoría, uso o presupuesto.";
     }
-    return "Puedo ayudarte con productos. Cuéntame qué tipo de producto buscas y te recomiendo opciones.";
+    return "Puedo ayudarte con productos. Cuéntame qué tipo de producto buscas y te recomiendo algunas opciones.";
   }
   if (intent === "order_question") {
-    return "Puedo ayudarte con pedidos, pero para consultarlos necesito validar datos como número de pedido y correo asociado. Si este canal no tiene permisos de pedidos, te indico el siguiente paso para gestionarlo.";
+    return "Puedo ayudarte con pedidos. Compárteme el número de pedido y el correo usado en la compra, y te guío desde ahí.";
   }
   if (intent === "faq_question") {
-    return "Claro, puedo ayudarte con dudas frecuentes sobre productos, pedidos, envíos y políticas. ¿Qué te gustaría consultar?";
+    return "Claro, puedo ayudarte con productos, pedidos, envíos y políticas. ¿Qué te gustaría consultar?";
   }
-  return safeGreetingMessage();
+  return safeClarificationMessage();
 }
 
 export function sanitizeAssistantMessage(message: string, intent: BasicIntent = "unknown"): string {

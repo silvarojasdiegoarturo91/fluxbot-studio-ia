@@ -116,6 +116,30 @@ function extractRecommendedProducts(
       }
 
       return [];
+    })
+    .filter((product): product is ProxyProductRecommendation => Boolean(product && typeof product === "object"))
+    .filter((product, index, list) => {
+      const key = [
+        product.variantId ?? "",
+        product.productId ?? "",
+        product.handle ?? "",
+        product.title ?? "",
+      ]
+        .map((value) => String(value).trim().toLowerCase())
+        .filter(Boolean)
+        .join("|");
+      return index === list.findIndex((item) => {
+        const itemKey = [
+          item.variantId ?? "",
+          item.productId ?? "",
+          item.handle ?? "",
+          item.title ?? "",
+        ]
+          .map((value) => String(value).trim().toLowerCase())
+          .filter(Boolean)
+          .join("|");
+        return itemKey === key;
+      });
     });
 }
 
@@ -181,6 +205,29 @@ function normalizeSearchText(value: unknown): string {
     .toLowerCase();
 }
 
+function dedupeRecommendations(products: ProxyProductRecommendation[]): ProxyProductRecommendation[] {
+  const seen = new Set<string>();
+  const unique: ProxyProductRecommendation[] = [];
+
+  for (const product of products) {
+    const key = [
+      product.variantId ?? "",
+      product.productId ?? "",
+      product.handle ?? "",
+      product.title ?? "",
+    ]
+      .map((value) => String(value).trim().toLowerCase())
+      .filter(Boolean)
+      .join("|");
+
+    if (seen.has(key)) continue;
+    seen.add(key);
+    unique.push(product);
+  }
+
+  return unique;
+}
+
 function expandProductQuery(query: string): string[] {
   const normalized = normalizeSearchText(query);
   const terms = new Set(
@@ -206,7 +253,7 @@ function expandProductQuery(query: string): string[] {
   return Array.from(terms);
 }
 
-function isProductSeekingProxyMessage(message: string, history: Array<{ role: string; content: string }>): boolean {
+function isProductSeekingProxyMessage(message: string, _history: Array<{ role: string; content: string }>): boolean {
   const terms = [
     "producto",
     "productos",
@@ -237,11 +284,7 @@ function isProductSeekingProxyMessage(message: string, history: Array<{ role: st
   const current = normalizeSearchText(message);
   if (terms.some((term) => current.includes(term))) return true;
 
-  return history.slice(-4).some((item) => {
-    if (item.role !== "USER" && item.role !== "user") return false;
-    const content = normalizeSearchText(item.content);
-    return terms.some((term) => content.includes(term));
-  });
+  return false;
 }
 
 function asArray(value: unknown): Array<Record<string, any>> {
@@ -420,12 +463,12 @@ async function searchProxyCatalogProducts(params: {
     },
   });
 
-  return products
+  return dedupeRecommendations(products
     .map((product) => ({ product, score: scoreProduct(product, terms) }))
     .filter(({ product, score }) => score > 0 && isProductPublishable(product))
     .sort((a, b) => b.score - a.score || a.product.title.localeCompare(b.product.title))
     .slice(0, 3)
-    .map(({ product }) => toProxyProduct(product));
+    .map(({ product }) => toProxyProduct(product)));
 }
 
 // ── loader (GET — not used, but needs a response) ────────────────────────────
@@ -585,7 +628,9 @@ export async function action({ request }: ActionFunctionArgs) {
             content: item.content,
           })),
         });
-    const productRecommendations = backendProducts.length > 0 ? backendProducts : proxyFallbackProducts;
+    const productRecommendations = dedupeRecommendations(
+      backendProducts.length > 0 ? backendProducts : proxyFallbackProducts,
+    );
     const resolvedMessage = proxyFallbackProducts.length > 0
       ? getCatalogFallbackMessage(effectiveLocale, proxyFallbackProducts.length)
       : chatResponse.message;

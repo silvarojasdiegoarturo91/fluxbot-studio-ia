@@ -264,6 +264,137 @@ describe("apps.fluxbot.chat proxy route", () => {
     ]);
   });
 
+  it("does not promote catalog products on unrelated follow-up messages", async () => {
+    mockConversationFindUnique.mockResolvedValue({
+      id: "conv-existing",
+      shopId: "shop-1",
+      locale: "es",
+      messages: [
+        {
+          role: "USER",
+          content: "¿Tienen productos de deporte?",
+          createdAt: new Date("2026-07-11T10:00:00.000Z"),
+        },
+        {
+          role: "ASSISTANT",
+          content: "Sí, te puedo ayudar con eso.",
+          createdAt: new Date("2026-07-11T10:01:00.000Z"),
+        },
+      ],
+    });
+    mockGatewayChat.mockResolvedValue({
+      message: "Te ayudo con eso. ¿Quieres que revise envíos, devoluciones o pagos?",
+      confidence: 0.72,
+      requiresEscalation: false,
+      actions: [],
+      toolsUsed: [],
+      sourceReferences: [],
+    });
+
+    const { action } = await import("../../app/routes/apps.fluxbot.chat");
+
+    const request = new Request(
+      "http://localhost/apps/fluxbot/chat?shop=quickstart-c8cc9986.myshopify.com",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          message: "y tarjetas de regalo?",
+          conversationId: "conv-existing",
+          visitorId: "visitor-1",
+          context: { locale: "es" },
+        }),
+      },
+    );
+
+    const response = await action({
+      request,
+      params: {},
+      context: {},
+    } as never);
+
+    expect(response.status).toBe(200);
+    const data = await response.json();
+    expect(data.message).toBe("Te ayudo con eso. ¿Quieres que revise envíos, devoluciones o pagos?");
+    expect(data.metadata.products).toEqual([]);
+    expect(mockProductProjectionFindMany).not.toHaveBeenCalled();
+  });
+
+  it("deduplicates repeated product recommendations before exposing them to the widget", async () => {
+    mockGatewayChat.mockResolvedValue({
+      message: "Te comparto opciones.",
+      confidence: 0.81,
+      requiresEscalation: false,
+      actions: [
+        {
+          type: "product_recommend",
+          products: [
+            {
+              title: "The 3p Fulfilled Snowboard",
+              price: "2629.95",
+              url: "/products/the-3p-fulfilled-snowboard",
+              image: "https://cdn.example.com/snowboard.jpg",
+              handle: "the-3p-fulfilled-snowboard",
+              productId: "gid://shopify/Product/3001",
+              variantId: "gid://shopify/ProductVariant/4001",
+            },
+            {
+              title: "The 3p Fulfilled Snowboard",
+              price: "2629.95",
+              url: "/products/the-3p-fulfilled-snowboard",
+              image: "https://cdn.example.com/snowboard.jpg",
+              handle: "the-3p-fulfilled-snowboard",
+              productId: "gid://shopify/Product/3001",
+              variantId: "gid://shopify/ProductVariant/4001",
+            },
+          ],
+        },
+      ],
+      toolsUsed: ["searchProducts"],
+      sourceReferences: [],
+    });
+
+    const { action } = await import("../../app/routes/apps.fluxbot.chat");
+    const request = new Request(
+      "http://localhost/apps/fluxbot/chat?shop=quickstart-c8cc9986.myshopify.com",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          message: "algo como un snowboard",
+          visitorId: "visitor-1",
+          context: { locale: "es" },
+        }),
+      },
+    );
+
+    const response = await action({
+      request,
+      params: {},
+      context: {},
+    } as never);
+
+    expect(response.status).toBe(200);
+    const data = await response.json();
+    expect(data.metadata.products).toHaveLength(1);
+    expect(data.actions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "product_recommend",
+          products: expect.arrayContaining([
+            expect.objectContaining({
+              productId: "gid://shopify/Product/3001",
+            }),
+          ]),
+        }),
+      ]),
+    );
+  });
+
   it("falls back to real synced product projections when backend returns no product actions", async () => {
     mockGatewayChat.mockResolvedValue({
       message: "Puedo ayudarte con opciones para deporte extremo.",
@@ -320,7 +451,7 @@ describe("apps.fluxbot.chat proxy route", () => {
         source: "shopify_proxy_catalog_fallback",
       }),
     ]);
-    expect(data.message).toContain("encontré");
+    expect(data.message).toContain("Te comparto");
     expect(data.metadata.products).toEqual([
       expect.objectContaining({
         title: "Snow Shield Casco",
@@ -388,7 +519,7 @@ describe("apps.fluxbot.chat proxy route", () => {
     const data = await response.json();
 
     expect(data.metadata.products).toHaveLength(1);
-    expect(data.message).toContain("encontré");
+    expect(data.message).toContain("Te comparto");
     expect(data.message).not.toContain("no tengo el catálogo");
     expect(data.metadata.catalogSource).toBe("shopify_proxy_catalog_fallback");
 
@@ -486,7 +617,7 @@ describe("apps.fluxbot.chat proxy route", () => {
     const data = await response.json();
 
     expect(response.status).toBe(200);
-    expect(data.message).toBe("I found this related product in the catalog:");
+    expect(data.message).toBe("I can show you this related product:");
     expect(mockGatewayChat).toHaveBeenCalledWith(
       expect.objectContaining({
         locale: "en",

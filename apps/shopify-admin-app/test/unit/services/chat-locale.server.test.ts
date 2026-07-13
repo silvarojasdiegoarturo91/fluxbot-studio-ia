@@ -55,8 +55,7 @@ describe("chat-locale.server", () => {
   });
 
   it("resolves catalog fallback messages from centralized i18n keys", () => {
-    expect(getCatalogFallbackMessage("es", 1)).toContain("encontré");
+    expect(getCatalogFallbackMessage("es", 1)).toContain("Te comparto");
     expect(getCatalogFallbackMessage("en", 2)).toContain("related options");
   });
 });
-

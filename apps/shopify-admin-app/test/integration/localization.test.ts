@@ -208,7 +208,7 @@ describe('Localization - Translation Lookups', () => {
 
   it('should fallback to English when locale not available', () => {
     const text = getTranslation('chat.thinking', 'unknown-lang');
-    expect(text).toContain('think'); // English fallback
+    expect(text).toContain('check'); // English fallback
   });
 
   it('should support Japanese translations', () => {
@@ -314,7 +314,7 @@ describe('Localization - Prompt Localization', () => {
   it('should return English shopping prompt with shop name', () => {
     const prompt = getShoppingPrompt('Acme Store', 'en');
     expect(prompt).toContain('Acme Store');
-    expect(prompt).toContain('shopping assistant');
+    expect(prompt).toContain('customer service assistant');
   });
 
   it('should return Spanish shopping prompt', () => {
