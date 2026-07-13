@@ -473,6 +473,7 @@
     window.__FLUXBOT_WIDGET_TEST__.openCartDrawerIfAvailable = openCartDrawerIfAvailable;
     window.__FLUXBOT_WIDGET_TEST__.fallbackToCartPage = fallbackToCartPage;
     window.__FLUXBOT_WIDGET_TEST__.classifyCartAddFailure = classifyCartAddFailure;
+    window.__FLUXBOT_WIDGET_TEST__.sanitizeAssistantMessage = sanitizeAssistantMessage;
   }
 
   // ─── Init ─────────────────────────────────────────────────────────────────
@@ -1275,7 +1276,7 @@
       hideTypingIndicator();
 
       if (response.message) {
-        response.message = sanitizeAssistantMessage(response.message);
+        response.message = sanitizeAssistantMessage(response.message) || i18n.errorRetry;
         var mergedMetadata = response.metadata || {};
         if (Array.isArray(response.actions)) {
           var actionProducts = response.actions
@@ -1483,17 +1484,20 @@
   }
 
   function sanitizeAssistantMessage(text) {
-    if (typeof text !== 'string') return i18n.greeting;
+    if (typeof text !== 'string') return '';
     var normalized = text.trim();
-    if (!normalized) return i18n.greeting;
+    if (!normalized) return '';
 
     var blocked = [
       'Sorry, I had trouble processing that. Please try again.',
       'I apologize, but I encountered an issue processing your request. Please try again.',
+      'Hola 👋 Estoy aquí para ayudarte. ¿Qué necesitas?',
+      'Hola, estoy aqui para ayudarte con productos, pedidos y dudas frecuentes.',
+      'Hola 👋 ¿En qué puedo ayudarte? Puedo ayudarte con productos, pedidos o dudas frecuentes.',
     ];
 
     if (blocked.indexOf(normalized) !== -1) {
-      return i18n.greeting;
+      return '';
     }
 
     return normalized;

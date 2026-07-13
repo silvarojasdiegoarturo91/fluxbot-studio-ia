@@ -174,6 +174,63 @@ describe('Route Handler Execution - Chat API', () => {
       );
     });
 
+    it('should always send simple greetings through the gateway instead of short-circuiting them', async () => {
+      const mockShop = {
+        id: 'shop-123',
+        domain: 'test-store.myshopify.com',
+        name: 'Test Store',
+        accessToken: 'token',
+      };
+
+      const mockConversation = {
+        id: 'conv-457',
+        shopId: 'shop-123',
+        channel: 'WEB_CHAT',
+        status: 'ACTIVE',
+        locale: 'en',
+        messages: [],
+      };
+
+      const mockChatResponse = {
+        message: 'Claro, dime en qué te ayudo.',
+        confidence: 0.82,
+        requiresEscalation: false,
+        toolsUsed: [],
+        sourceReferences: [],
+      };
+
+      vi.mocked(prisma.shop.findUnique).mockResolvedValue(mockShop as any);
+      vi.mocked(prisma.conversation.create).mockResolvedValue(mockConversation as any);
+      mockGatewayChat.mockResolvedValue(mockChatResponse as any);
+
+      const request = new Request('http://localhost/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Shop-Domain': 'test-store.myshopify.com',
+        },
+        body: JSON.stringify({
+          message: 'hola',
+          visitorId: 'visitor-789',
+          sessionId: 'session-999',
+          channel: 'WEB_CHAT',
+          locale: 'en',
+          metadata: { shop: 'test-store.myshopify.com' },
+        }),
+      });
+
+      const response = await chatAction({ request, params: {}, context: {} } as any);
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data.message).toBe('Claro, dime en qué te ayudo.');
+      expect(mockGatewayChat).toHaveBeenCalledTimes(1);
+      expect(mockGatewayChat).toHaveBeenCalledWith(
+        expect.objectContaining({ message: 'hola' }),
+        'test-store.myshopify.com',
+      );
+    });
+
     it('should execute chat action with existing conversation', async () => {
       const mockShop = {
         id: 'shop-123',

@@ -21,6 +21,7 @@ import { resolveEffectiveLocale } from "../services/chat-locale.server";
 import { verifyShopifyProxyRequest } from "../services/shopify-proxy-auth.server";
 import {
   safeFallbackMessage,
+  sanitizeAssistantMessage,
 } from "../services/chat-safety.server";
 
 // ── W7 — Startup diagnostics ─────────────────────────────────────────────────
@@ -660,7 +661,7 @@ export async function action({ request }: ActionFunctionArgs) {
     const productRecommendations = dedupeRecommendations(
       backendProducts.length > 0 ? backendProducts : proxyFallbackProducts,
     );
-    const resolvedMessage = chatResponse.message;
+    const resolvedMessage = sanitizeAssistantMessage(chatResponse.message || "");
     const actions = productRecommendations.length > 0 && backendProducts.length === 0
       ? [
           ...(chatResponse.actions ?? []),

@@ -11,10 +11,7 @@ import { getMerchantAdminConfig } from "../services/admin-config.server";
 import { buildChatRequestContext, loadPreviousConversationContexts } from "../services/chat-context.server";
 import { resolveEffectiveLocale } from "../services/chat-locale.server";
 import {
-  detectBasicIntent,
-  isSimpleMessage,
   safeFallbackMessage,
-  safeGreetingMessage,
   sanitizeAssistantMessage,
 } from "../services/chat-safety.server";
 
@@ -109,21 +106,6 @@ export async function action({ request }: ActionFunctionArgs) {
     }
     const adminConfig = await getMerchantAdminConfig(shop.id);
 
-    const basicIntent = detectBasicIntent(message);
-    if (basicIntent === "greeting" || (basicIntent === "unknown" && isSimpleMessage(message))) {
-      const response: ChatResponse = {
-        success: true,
-        conversationId: conversationId || `conv-${Date.now()}`,
-        message: safeGreetingMessage(),
-        confidence: 0.99,
-        requiresEscalation: false,
-        toolsUsed: [],
-        actions: [],
-        sourceReferences: [],
-      };
-      return await cors(request, json(response));
-    }
-
     // Get or create conversation
     let conversation;
     if (conversationId) {
@@ -216,7 +198,7 @@ export async function action({ request }: ActionFunctionArgs) {
     const response: ChatResponse = {
       success: true,
       conversationId: conversation.id,
-      message: sanitizeAssistantMessage(chatResponse.message || "", basicIntent),
+      message: sanitizeAssistantMessage(chatResponse.message || ""),
       confidence: chatResponse.confidence,
       requiresEscalation: chatResponse.requiresEscalation,
       escalationReason: chatResponse.escalationReason,

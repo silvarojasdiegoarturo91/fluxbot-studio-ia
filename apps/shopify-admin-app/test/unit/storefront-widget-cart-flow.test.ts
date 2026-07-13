@@ -250,4 +250,13 @@ describe("storefront widget cart flow", () => {
     expect(button.disabled).toBe(true);
     expect(button.textContent).toContain("Unavailable");
   });
+
+  it("does not turn assistant responses into the legacy greeting fallback", async () => {
+    const { hooks } = await setupWidget();
+
+    expect(
+      hooks.sanitizeAssistantMessage("Hola 👋 Estoy aquí para ayudarte. ¿Qué necesitas?"),
+    ).toBe("");
+    expect(hooks.sanitizeAssistantMessage("Gracias por tu ayuda.")).toBe("Gracias por tu ayuda.");
+  });
 });

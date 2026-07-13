@@ -178,6 +178,44 @@ describe("apps.fluxbot.chat proxy route", () => {
     expect((assistantMessageCall.metadata as Record<string, unknown>)).toHaveProperty("traceId");
   });
 
+  it("sanitizes legacy greeting replies returned by the gateway", async () => {
+    mockGatewayChat.mockResolvedValue({
+      message: "Hola 👋 Estoy aquí para ayudarte. ¿Qué necesitas?",
+      confidence: 0.91,
+      requiresEscalation: false,
+      actions: [],
+      toolsUsed: undefined,
+      sourceReferences: undefined,
+    });
+
+    const { action } = await import("../../app/routes/apps.fluxbot.chat");
+
+    const request = new Request(
+      "http://localhost/apps/fluxbot/chat?shop=quickstart-c8cc9986.myshopify.com",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          message: "hola",
+          visitorId: "visitor-2",
+          context: { locale: "es" },
+        }),
+      },
+    );
+
+    const response = await action({
+      request,
+      params: {},
+      context: {},
+    } as never);
+
+    const data = await response.json();
+
+    expect(data.message).toBe("Claro, cuéntame un poco más y te ayudo con eso.");
+  });
+
   it("reuses an existing conversation id and keeps writing messages to the same row", async () => {
     mockConversationFindUnique.mockResolvedValue({
       id: "conv-existing",

@@ -16,6 +16,9 @@ const FAQ_REGEX =
 const BLOCKED_LEGACY_REPLIES = new Set([
   "Sorry, I had trouble processing that. Please try again.",
   "I apologize, but I encountered an issue processing your request. Please try again.",
+  "Hola 👋 Estoy aquí para ayudarte. ¿Qué necesitas?",
+  "Hola, estoy aqui para ayudarte con productos, pedidos y dudas frecuentes.",
+  "Hola 👋 ¿En qué puedo ayudarte? Puedo ayudarte con productos, pedidos o dudas frecuentes.",
 ]);
 
 function normalize(message: string): string {
@@ -40,11 +43,11 @@ export function isSimpleMessage(message: string): boolean {
 }
 
 export function safeGreetingMessage(): string {
-  return "Hola 👋 Estoy aquí para ayudarte. ¿Qué necesitas?";
+  return "Claro, dime en qué te ayudo.";
 }
 
 export function safeClarificationMessage(): string {
-  return "Claro, cuéntame un poco más y te ayudo con la opción correcta.";
+  return "Claro, cuéntame un poco más y te ayudo con eso.";
 }
 
 export function safeFallbackMessage(intent: BasicIntent = "unknown", hasCatalog = true): string {
@@ -66,8 +69,11 @@ export function safeFallbackMessage(intent: BasicIntent = "unknown", hasCatalog 
 
 export function sanitizeAssistantMessage(message: string, intent: BasicIntent = "unknown"): string {
   const normalized = normalize(message);
-  if (!normalized || BLOCKED_LEGACY_REPLIES.has(normalized)) {
-    return safeFallbackMessage(intent);
+  if (!normalized) {
+    return safeClarificationMessage();
+  }
+  if (BLOCKED_LEGACY_REPLIES.has(normalized)) {
+    return safeClarificationMessage();
   }
   return normalized;
 }

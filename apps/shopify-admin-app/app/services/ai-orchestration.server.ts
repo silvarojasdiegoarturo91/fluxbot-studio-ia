@@ -433,7 +433,7 @@ export class AIOrchestrationService {
           ? "I apologize, but I couldn't process that request right now. Please try again."
           : safeFallbackMessage(basicIntent);
     }
-    botMessage = sanitizeAssistantMessage(botMessage, basicIntent);
+    botMessage = sanitizeAssistantMessage(botMessage);
 
     // 6. Apply guardrails
     const guardrailResult = this.applyGuardrails(botMessage, intent);
