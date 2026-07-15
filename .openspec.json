@@ -966,6 +966,21 @@
           "velocity": 1
         }
       }
+    ],
+    "conversation_continuity": [
+      {
+        "id": "REQ-IA-CONT-001",
+        "mirror_of": "REQ-ROOT-013",
+        "title": "Selección de perfil conversacional en onboarding",
+        "description": "El onboarding Shopify debe permitir seleccionar PERSUASIVE, PROFESSIONAL, FRIENDLY, EXPERT o CASUAL y guardar el perfil para que el backend aplique el paquete de entrenamiento correspondiente.",
+        "priority": "high",
+        "status": "planned",
+        "owner": "frontend_shopify",
+        "components": ["apps/shopify-admin-app/app/routes/app.onboarding.tsx", "apps/shopify-admin-app/app/routes/app.assistant-config.tsx"],
+        "acceptance_criteria": ["El merchant puede elegir un perfil accesible y localizado", "La selección viaja en contrato tipado", "La UI muestra modo de continuidad sin exponer detalles internos", "Playwright cubre selección y persistencia"],
+        "dependencies": ["REQ-ROOT-013"],
+        "user_story": "Como merchant, quiero elegir el estilo de mi asistente durante onboarding para que represente a mi tienda incluso en modo de continuidad."
+      }
     ]
   }
 }
