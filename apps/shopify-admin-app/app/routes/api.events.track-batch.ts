@@ -8,6 +8,7 @@
 import type { ActionFunctionArgs } from "react-router";
 import prisma from "../db.server";
 import { EventTrackingService, type TrackEventParams } from "../services/event-tracking.server";
+import { verifyShopifyProxyRequest } from "../services/shopify-proxy-auth.server";
 
 // Helper to create JSON responses
 function json(data: any, init?: ResponseInit) {
@@ -45,8 +46,19 @@ export async function action({ request }: ActionFunctionArgs) {
       return json({}, { status: 204 });
     }
 
+    if (!verifyShopifyProxyRequest(request)) {
+      return json({ success: false, error: "Unauthorized" }, { status: 401 });
+    }
+
     const body = (await request.json()) as TrackBatchRequest;
-    const { shopDomain, events } = body;
+    const { events } = body;
+    const url = new URL(request.url);
+    const shopDomain =
+      url.searchParams.get("shop") ||
+      body.shopDomain ||
+      request.headers.get("X-Shop-Domain") ||
+      request.headers.get("X-Shopify-Shop-Domain") ||
+      "";
 
     // Validate
     if (!shopDomain || !events || !Array.isArray(events) || events.length === 0) {

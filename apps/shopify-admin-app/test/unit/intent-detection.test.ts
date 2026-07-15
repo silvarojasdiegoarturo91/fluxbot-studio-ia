@@ -51,7 +51,10 @@ describe("IntentDetectionEngine", () => {
         likelyPriceShopping: false,
       });
 
-      const analysis = await IntentDetectionEngine.analyzeSession("test-session");
+      const analysis = await IntentDetectionEngine.analyzeSession(
+        "shop1",
+        "test-session"
+      );
 
       expect(analysis.scores.purchaseIntent).toBe(0);
       expect(analysis.scores.abandonmentRisk).toBe(0);
@@ -99,7 +102,10 @@ describe("IntentDetectionEngine", () => {
         likelyPriceShopping: false,
       });
 
-      const analysis = await IntentDetectionEngine.analyzeSession("test-session");
+      const analysis = await IntentDetectionEngine.analyzeSession(
+        "shop1",
+        "test-session"
+      );
 
       expect(analysis.scores.purchaseIntent).toBeGreaterThan(0.7);
       expect(analysis.dominantIntent).toBe("PURCHASE_INTENT");
@@ -145,7 +151,10 @@ describe("IntentDetectionEngine", () => {
         likelyPriceShopping: false,
       });
 
-      const analysis = await IntentDetectionEngine.analyzeSession("test-session");
+      const analysis = await IntentDetectionEngine.analyzeSession(
+        "shop1",
+        "test-session"
+      );
 
       expect(analysis.scores.abandonmentRisk).toBeGreaterThan(0.6);
       expect(analysis.triggers).toContain("HIGH_ABANDONMENT_RISK");
@@ -228,7 +237,10 @@ describe("IntentDetectionEngine", () => {
         likelyPriceShopping: false,
       });
 
-      const analysis = await IntentDetectionEngine.analyzeSession("test-session");
+      const analysis = await IntentDetectionEngine.analyzeSession(
+        "shop1",
+        "test-session"
+      );
 
       expect(analysis.scores.needsHelp).toBeGreaterThan(0.5);
       expect(analysis.triggers).toContain("CUSTOMER_NEEDS_HELP");
@@ -302,7 +314,10 @@ describe("IntentDetectionEngine", () => {
         likelyPriceShopping: true,
       });
 
-      const analysis = await IntentDetectionEngine.analyzeSession("test-session");
+      const analysis = await IntentDetectionEngine.analyzeSession(
+        "shop1",
+        "test-session"
+      );
 
       expect(analysis.scores.priceShopperRisk).toBeGreaterThan(0.6);
       expect(analysis.triggers).toContain("PRICE_SHOPPING_DETECTED");
@@ -360,7 +375,10 @@ describe("IntentDetectionEngine", () => {
         likelyPriceShopping: false,
       });
 
-      const analysis = await IntentDetectionEngine.analyzeSession("test-session");
+      const analysis = await IntentDetectionEngine.analyzeSession(
+        "shop1",
+        "test-session"
+      );
 
       expect(analysis.scores.browseIntent).toBeGreaterThan(0.5);
       expect(analysis.dominantIntent).toBe("BROWSE_INTENT");

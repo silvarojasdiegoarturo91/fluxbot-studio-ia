@@ -8,6 +8,7 @@ import type { ActionFunctionArgs } from "react-router";
 import prisma from "../db.server";
 import { IABackendError } from "../services/ia-backend.server";
 import { getIAGateway, type GatewayTriggerEvaluation } from "../services/ia-gateway.server";
+import { verifyShopifyProxyRequest } from "../services/shopify-proxy-auth.server";
 
 // Helper to create JSON responses
 function json(data: any, init?: ResponseInit) {
@@ -62,6 +63,10 @@ export async function action({ request }: ActionFunctionArgs) {
   }
 
   try {
+    if (!verifyShopifyProxyRequest(request, { allowUnsignedInDevelopment: true })) {
+      return json({ success: false, error: "Unauthorized" }, { status: 401 });
+    }
+
     const body = await request.json();
     const { shopDomain, sessionId, visitorId } = body;
 

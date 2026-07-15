@@ -10,6 +10,7 @@ import type { LoaderFunctionArgs, ActionFunctionArgs } from "react-router";
 import { cors } from "remix-utils/cors";
 import prisma from "../db.server";
 import { ProactiveMessagingService } from "../services/proactive-messaging.server";
+import { verifyShopifyProxyRequest } from "../services/shopify-proxy-auth.server";
 
 function json(data: unknown, init?: ResponseInit) {
   return new Response(JSON.stringify(data), {
@@ -42,8 +43,15 @@ export async function loader({ request }: LoaderFunctionArgs) {
     return json({ error: "sessionId required" }, { status: 400 });
   }
 
+  if (!verifyShopifyProxyRequest(request)) {
+    return json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const shopDomain =
-    url.searchParams.get("shopDomain") || request.headers.get("X-Shop-Domain");
+    url.searchParams.get("shopDomain") ||
+    url.searchParams.get("shop") ||
+    request.headers.get("X-Shop-Domain") ||
+    request.headers.get("X-Shopify-Shop-Domain");
   if (!shopDomain) {
     return json({ error: "shopDomain required" }, { status: 400 });
   }
@@ -58,7 +66,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
       return json({ error: "Shop not found" }, { status: 404 });
     }
 
-    const messages = await ProactiveMessagingService.getSessionMessages(sessionId);
+    const messages = await ProactiveMessagingService.getSessionMessages(shop.id, sessionId);
 
     return await cors(
       request,
@@ -94,9 +102,17 @@ export async function action({ request }: ActionFunctionArgs) {
   }
 
   try {
+    if (!verifyShopifyProxyRequest(request)) {
+      return json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const body = (await request.json()) as InteractionRequest;
     const url = new URL(request.url);
-    const shopDomain = body.shopDomain || request.headers.get("X-Shop-Domain");
+    const shopDomain =
+      body.shopDomain ||
+      url.searchParams.get("shop") ||
+      request.headers.get("X-Shop-Domain") ||
+      request.headers.get("X-Shopify-Shop-Domain");
     const messageId = body.messageId || url.searchParams.get("messageId");
     const interaction = body.interaction;
 
@@ -128,7 +144,7 @@ export async function action({ request }: ActionFunctionArgs) {
     }
 
     // Record the interaction
-    await ProactiveMessagingService.recordInteraction(messageId, interaction);
+    await ProactiveMessagingService.recordInteraction(shop.id, messageId, interaction);
 
     return await cors(
       request,

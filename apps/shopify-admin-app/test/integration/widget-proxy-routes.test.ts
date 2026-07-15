@@ -133,6 +133,7 @@ describe("widget proxy routes", () => {
     delete process.env.SHOPIFY_APP_URL;
     delete process.env.APP_URL;
     mockHandoffEnabled.mockReturnValue(true);
+    mockShopFindUnique.mockResolvedValue({ id: "shop-1" } as any);
   });
 
   it("filters proactive messages to pending WEB_CHAT entries", async () => {
@@ -154,7 +155,7 @@ describe("widget proxy routes", () => {
 
     const data = await response.json();
 
-    expect(mockGetSessionMessages).toHaveBeenCalledWith("sess-1");
+    expect(mockGetSessionMessages).toHaveBeenCalledWith("shop-1", "sess-1");
     expect(data).toMatchObject({ success: true });
     expect(data.messages).toHaveLength(1);
     expect(data.messages[0].id).toBe("msg-web-chat-queued");
@@ -200,7 +201,7 @@ describe("widget proxy routes", () => {
     const data = await response.json();
 
     expect(data).toMatchObject({ success: true });
-    expect(mockMarkAsDelivered).toHaveBeenCalledWith("msg-1");
+    expect(mockMarkAsDelivered).toHaveBeenCalledWith("shop-1", "msg-1");
     expect(mockRecordInteraction).not.toHaveBeenCalled();
   });
 
@@ -220,7 +221,11 @@ describe("widget proxy routes", () => {
     const data = await response.json();
 
     expect(data).toMatchObject({ success: true });
-    expect(mockRecordInteraction).toHaveBeenCalledWith("msg-2", "REJECTED");
+    expect(mockRecordInteraction).toHaveBeenCalledWith(
+      "shop-1",
+      "msg-2",
+      "REJECTED"
+    );
     expect(mockMarkAsDelivered).not.toHaveBeenCalled();
   });
 

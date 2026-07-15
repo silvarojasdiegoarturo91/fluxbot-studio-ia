@@ -101,11 +101,12 @@ export class EventTrackingService {
    * Used for intent detection and context building
    */
   static async getSessionEvents(
+    shopId: string,
     sessionId: string,
     limit: number = 50
   ): Promise<BehaviorEventRecord[]> {
     const events = await prisma.behaviorEvent.findMany({
-      where: { sessionId },
+      where: { shopId, sessionId },
       orderBy: { timestamp: "desc" },
       take: limit,
     });
@@ -118,11 +119,13 @@ export class EventTrackingService {
    * Useful for specific behavior analysis (e.g., all product views)
    */
   static async getSessionEventsByType(
+    shopId: string,
     sessionId: string,
     eventType: string
   ): Promise<BehaviorEventRecord[]> {
     const events = await prisma.behaviorEvent.findMany({
       where: {
+        shopId,
         sessionId,
         eventType,
       },
@@ -136,15 +139,15 @@ export class EventTrackingService {
    * Get timeline of events for a session
    * Returns chronologically ordered events with time gaps
    */
-  static async getSessionTimeline(sessionId: string): Promise<{
+  static async getSessionTimeline(shopId: string, sessionId: string): Promise<{
     events: BehaviorEventRecord[];
     totalEvents: number;
     firstEvent: Date | null;
     lastEvent: Date | null;
     sessionDurationMs: number | null;
-  }> {
+    }> {
     const events = await prisma.behaviorEvent.findMany({
-      where: { sessionId },
+      where: { shopId, sessionId },
       orderBy: { timestamp: "asc" },
     });
 
@@ -175,7 +178,7 @@ export class EventTrackingService {
    * Get aggregate stats for a session
    * Returns counts by event type, products viewed, cart value, etc.
    */
-  static async getSessionStats(sessionId: string): Promise<{
+  static async getSessionStats(shopId: string, sessionId: string): Promise<{
     totalEvents: number;
     eventCounts: Record<string, number>;
     uniqueProductsViewed: number;
@@ -184,9 +187,9 @@ export class EventTrackingService {
     exitIntentCount: number;
     maxScrollDepth: number;
     estimatedCartValue: number;
-  }> {
+    }> {
     const events = await prisma.behaviorEvent.findMany({
-      where: { sessionId },
+      where: { shopId, sessionId },
     });
 
     const eventCounts: Record<string, number> = {};
@@ -301,15 +304,15 @@ export class EventTrackingService {
    * Detect patterns in session behavior
    * Returns computed insights like abandoned cart, browsing intent, etc.
    */
-  static async detectSessionPatterns(sessionId: string): Promise<{
+  static async detectSessionPatterns(shopId: string, sessionId: string): Promise<{
     hasAbandonedCart: boolean;
     isBrowsingHeavily: boolean;
     showedExitIntent: boolean;
     isEngaged: boolean; // High scroll depth + multiple page views
     likelyPriceShopping: boolean; // Multiple similar product views + cart adds/removes
   }> {
-    const stats = await this.getSessionStats(sessionId);
-    const events = await this.getSessionEvents(sessionId, 100);
+    const stats = await this.getSessionStats(shopId, sessionId);
+    const events = await this.getSessionEvents(shopId, sessionId, 100);
 
     const hasAbandonedCart = stats.addToCartCount > 0 && stats.removeFromCartCount === 0;
     const isBrowsingHeavily = stats.uniqueProductsViewed >= 3;

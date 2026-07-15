@@ -125,6 +125,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   console.info("[WidgetConfig] chatEndpoint servido", {
     chatEndpoint: endpoints.chatEndpoint,
     apiBaseUrl: endpoints.apiBaseUrl,
+    iaBackendUrl: process.env.IA_BACKEND_URL || "(not set)",
   });
 
   return json({

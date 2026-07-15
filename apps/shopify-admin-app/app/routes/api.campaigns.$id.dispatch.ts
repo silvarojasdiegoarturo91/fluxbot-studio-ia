@@ -11,6 +11,7 @@
 import type { ActionFunctionArgs } from "react-router";
 import { cors } from "remix-utils/cors";
 import { dispatchCampaign } from '../services/campaign.server';
+import { verifyShopifyProxyRequest } from "../services/shopify-proxy-auth.server";
 
 function json(data: unknown, init?: ResponseInit) {
   return new Response(JSON.stringify(data), {
@@ -27,6 +28,10 @@ export async function action({ request, params }: ActionFunctionArgs) {
   const campaignId = params.id;
   if (!campaignId) {
     return cors(request, json({ error: 'Missing campaign ID' }, { status: 400 }));
+  }
+
+  if (!verifyShopifyProxyRequest(request, { allowUnsignedInDevelopment: true })) {
+    return cors(request, json({ error: 'Unauthorized' }, { status: 401 }));
   }
 
   const shopDomain = request.headers.get('X-Shop-Domain');

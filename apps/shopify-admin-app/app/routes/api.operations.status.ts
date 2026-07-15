@@ -8,6 +8,7 @@ import type { LoaderFunctionArgs } from "react-router";
 import { getDeliveryStatus } from "../services/delivery.server";
 import { getProactiveJobSchedulerStats } from "../jobs/scheduler.server";
 import { getOperationsMetrics } from "../services/operations-metrics.server";
+import { authenticateAdminRequest } from "../utils/authenticate-admin.server";
 
 function json(data: unknown, init?: ResponseInit) {
   return new Response(JSON.stringify(data), {
@@ -24,6 +25,8 @@ function json(data: unknown, init?: ResponseInit) {
  */
 export async function loader({ request }: LoaderFunctionArgs) {
   try {
+    await authenticateAdminRequest(request);
+
     const requestUrl = new URL(request.url);
     const windowMinutesRaw = Number(requestUrl.searchParams.get("windowMinutes") || "60");
     const windowMinutes =
@@ -41,6 +44,10 @@ export async function loader({ request }: LoaderFunctionArgs) {
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
+    if (error instanceof Response) {
+      throw error;
+    }
+
     const message = error instanceof Error ? error.message : "Failed to get operations status";
     return json(
       {

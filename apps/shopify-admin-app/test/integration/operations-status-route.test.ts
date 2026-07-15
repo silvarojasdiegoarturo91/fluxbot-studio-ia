@@ -12,14 +12,22 @@ vi.mock("../../app/services/operations-metrics.server", () => ({
   getOperationsMetrics: vi.fn(),
 }));
 
+vi.mock("../../app/utils/authenticate-admin.server", () => ({
+  authenticateAdminRequest: vi.fn(),
+}));
+
 import { getDeliveryStatus } from "../../app/services/delivery.server";
 import { getProactiveJobSchedulerStats } from "../../app/jobs/scheduler.server";
 import { getOperationsMetrics } from "../../app/services/operations-metrics.server";
+import { authenticateAdminRequest } from "../../app/utils/authenticate-admin.server";
 import { loader } from "../../app/routes/api.operations.status";
 
 describe("Operations Status Route", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(authenticateAdminRequest).mockResolvedValue({
+      session: { id: "session-1" },
+    } as any);
   });
 
   it("returns delivery and scheduler status", async () => {

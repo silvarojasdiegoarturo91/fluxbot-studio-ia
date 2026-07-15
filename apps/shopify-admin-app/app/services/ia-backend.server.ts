@@ -34,6 +34,29 @@ function buildBackendUrl(baseUrl: string, endpoint: string): string {
   }
 }
 
+function describeBackendTarget(baseUrl: string, endpoint: string): Record<string, string | boolean> {
+  const resolvedUrl = buildBackendUrl(baseUrl, endpoint);
+  let targetOrigin = resolvedUrl;
+
+  try {
+    targetOrigin = new URL(resolvedUrl).origin;
+  } catch {
+    // Keep the resolved URL when the origin cannot be parsed.
+  }
+
+  return {
+    baseUrl,
+    endpoint,
+    resolvedUrl,
+    targetOrigin,
+    localTarget:
+      targetOrigin === 'http://localhost' ||
+      targetOrigin === 'http://127.0.0.1' ||
+      targetOrigin.startsWith('http://localhost:') ||
+      targetOrigin.startsWith('http://127.0.0.1:'),
+  };
+}
+
 function describeNetworkError(error: unknown): string {
   if (error instanceof Error) {
     const cause = (error as Error & { cause?: { code?: string; message?: string } }).cause;
@@ -515,11 +538,10 @@ async function makeRequest<T>(
 
   console.info("[IABackend] request payload", {
     traceId: traceId || "(none)",
-    endpoint,
     method,
     hasShopDomain: !!shopDomain,
     shopDomain,
-    url: url.replace(/\/[^/]+\/[^/]+$/, "/..."),
+    ...describeBackendTarget(config.baseUrl, endpoint),
     requestHeaders: redactBackendHeaders(headers),
     requestBody: body ?? null,
   });
@@ -542,10 +564,10 @@ async function makeRequest<T>(
     const responseBody = await readBackendResponseBody(response);
     console.error("[IABackend] response payload", {
       traceId: traceId || "(none)",
-      endpoint,
       method,
       status: response.status,
       ok: response.ok,
+      ...describeBackendTarget(config.baseUrl, endpoint),
       responseBody,
     });
     const backendError = describeBackendErrorPayload(responseBody);
@@ -559,10 +581,10 @@ async function makeRequest<T>(
   const envelope = await readBackendResponseBody(response);
   console.info("[IABackend] response payload", {
     traceId: traceId || "(none)",
-    endpoint,
     method,
     status: response.status,
     ok: response.ok,
+    ...describeBackendTarget(config.baseUrl, endpoint),
     responseBody: envelope,
   });
   if (

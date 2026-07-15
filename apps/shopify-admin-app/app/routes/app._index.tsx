@@ -17,6 +17,7 @@ import prisma from "../db.server";
 import { AnalyticsService } from "../services/analytics.server";
 import { getMerchantAdminConfig } from "../services/admin-config.server";
 import { ensureShopForSession } from "../services/shop-context.server";
+import { fetchShopConnection } from "../services/shop-connection.server";
 import { authenticateAdminRequest } from "../utils/authenticate-admin.server";
 import { useIsSpanish } from "../hooks/use-admin-language";
 import { AdminInfoCallout, AdminPageHeader, AdminSectionCard, AdminStatCard, AdminStatusBadge } from "../components/admin-ui";
@@ -29,6 +30,7 @@ interface DashboardLoaderData {
     primaryDomainHost: string | null;
     planName: string | null;
     error: string | null;
+    source: "live" | "cache";
   };
   business: {
     conversationsLast7d: number;
@@ -54,21 +56,6 @@ interface DashboardLoaderData {
   showOnboardingSuccess: boolean;
 }
 
-const SHOP_CONNECTION_QUERY = `#graphql
-  query DashboardShopConnection {
-    shop {
-      name
-      myshopifyDomain
-      primaryDomain {
-        host
-      }
-      plan {
-        displayName
-      }
-    }
-  }
-`;
-
 function buildOnboardingRedirectPath(requestUrl: URL, step: number): string {
   const params = new URLSearchParams(requestUrl.search);
   params.delete("saved");
@@ -91,6 +78,7 @@ export const loader = async ({ request }: LoaderFunctionArgs): Promise<Dashboard
       primaryDomainHost: null,
       planName: null,
       error: "Unknown error",
+      source: "live",
     },
     business: {
       conversationsLast7d: 0,
@@ -118,49 +106,17 @@ export const loader = async ({ request }: LoaderFunctionArgs): Promise<Dashboard
 
   try {
     const { admin, session } = await authenticateAdminRequest(request);
-    const response = await admin.graphql(SHOP_CONNECTION_QUERY);
-
-    const payload = (await response.json()) as {
-      data?: {
-        shop?: {
-          name?: string;
-          myshopifyDomain?: string;
-          primaryDomain?: {
-            host?: string;
-          };
-          plan?: {
-            displayName?: string;
-          };
-        };
-      };
-      errors?: Array<{
-        message?: string;
-      }>;
-    };
-
-    const shopConnection = !payload.data?.shop || payload.errors?.length
-      ? {
-        connected: false,
-        name: null,
-        myshopifyDomain: null,
-        primaryDomainHost: null,
-        planName: null,
-        error: payload.errors?.[0]?.message || "No shop data returned by Admin API",
-      }
-      : {
-        connected: true,
-        name: payload.data.shop.name || null,
-        myshopifyDomain: payload.data.shop.myshopifyDomain || null,
-        primaryDomainHost: payload.data.shop.primaryDomain?.host || null,
-        planName: payload.data.shop.plan?.displayName || null,
-        error: null,
-      };
+    const shopConnectionResult = await fetchShopConnection({
+      admin,
+      shopId: session?.shop || null,
+    });
 
     // In tests, session may be omitted from mocks; keep loader resilient.
     if (!session?.shop) {
       return {
         ...fallbackData,
-        shopConnection,
+        shopConnection: shopConnectionResult.shopConnection,
+        alerts: [...shopConnectionResult.alerts],
         showOnboardingSuccess,
       };
     }
@@ -170,14 +126,15 @@ export const loader = async ({ request }: LoaderFunctionArgs): Promise<Dashboard
     if (!shop) {
       return {
         ...fallbackData,
-        shopConnection,
-        alerts: ["Unable to resolve shop context."],
+        shopConnection: shopConnectionResult.shopConnection,
+        alerts: ["Unable to resolve shop context.", ...shopConnectionResult.alerts],
         showOnboardingSuccess,
       };
     }
 
     const adminConfig = await getMerchantAdminConfig(shop.id);
     const isEs = adminConfig.adminLanguage === "es";
+    const businessAlerts = [...shopConnectionResult.alerts];
     if (!adminConfig.onboardingCompleted) {
       throw redirect(buildOnboardingRedirectPath(requestUrl, adminConfig.onboardingStep));
     }
@@ -230,24 +187,23 @@ export const loader = async ({ request }: LoaderFunctionArgs): Promise<Dashboard
       enableHandoff: chatbotConfig?.enableHandoff ?? true,
     };
 
-    const alerts: string[] = [];
-    if (!assistant.isActive) alerts.push(isEs ? "El asistente está en pausa." : "Assistant is currently paused.");
+    if (!assistant.isActive) businessAlerts.push(isEs ? "El asistente está en pausa." : "Assistant is currently paused.");
     if (totalSources === 0) {
-      alerts.push(
+      businessAlerts.push(
         isEs
           ? "No hay fuentes de conocimiento configuradas. Agrega al menos una fuente."
           : "No knowledge source configured. Add at least one source.",
       );
     }
     if (failedSyncJobs > 0) {
-      alerts.push(
+      businessAlerts.push(
         isEs
           ? `${failedSyncJobs} job(s) de sincronización fallaron y requieren revisión.`
           : `${failedSyncJobs} sync job(s) failed and need review.`,
       );
     }
     if (activeCampaigns === 0) {
-      alerts.push(
+      businessAlerts.push(
         isEs
           ? "No hay campañas activas para ventas proactivas."
           : "No active campaign running for proactive sales.",
@@ -255,7 +211,7 @@ export const loader = async ({ request }: LoaderFunctionArgs): Promise<Dashboard
     }
 
     return {
-      shopConnection,
+      shopConnection: shopConnectionResult.shopConnection,
       business: {
         conversationsLast7d: report7d.conversations.total,
         assistedRevenueLast7d: report7d.revenue.totalRevenue,
@@ -272,7 +228,7 @@ export const loader = async ({ request }: LoaderFunctionArgs): Promise<Dashboard
           : isEs ? "Sin sincronizaciones" : "No sync yet",
       },
       assistant,
-      alerts,
+      alerts: businessAlerts,
       showOnboardingSuccess,
     };
   } catch (error) {
@@ -289,6 +245,7 @@ export const loader = async ({ request }: LoaderFunctionArgs): Promise<Dashboard
         primaryDomainHost: null,
         planName: null,
         error: error instanceof Error ? error.message : "Unknown error",
+        source: "live",
       },
       alerts: ["Unable to load business metrics. Please refresh."],
       showOnboardingSuccess,

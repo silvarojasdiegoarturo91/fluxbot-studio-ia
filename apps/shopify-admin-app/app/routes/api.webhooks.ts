@@ -13,6 +13,7 @@
 import type { ActionFunctionArgs } from "react-router";
 import type { Prisma } from "@prisma/client";
 import prisma from "../db.server";
+import { authenticate } from "../shopify.server";
 import { WebhookHandlers } from "../services/sync-service.server";
 import { AnalyticsService } from "../services/analytics.server";
 
@@ -21,10 +22,6 @@ function json(data: unknown, init?: ResponseInit) {
     ...init,
     headers: { "Content-Type": "application/json", ...init?.headers },
   });
-}
-
-function isSignedRequest(request: Request): boolean {
-  return !!request.headers.get("X-Shopify-Hmac-Sha256");
 }
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -147,18 +144,11 @@ async function handleAppSubscriptionUpdate(shopId: string, payload: unknown): Pr
 
 export async function action({ request }: ActionFunctionArgs) {
   try {
-    if (!isSignedRequest(request)) {
-      return json({ error: "Invalid signature" }, { status: 401 });
-    }
-
-    const topic = request.headers.get("X-Shopify-Topic");
-    const shopDomain = request.headers.get("X-Shopify-Shop-Domain");
+    const { topic, shop: shopDomain, payload } = await authenticate.webhook(request);
 
     if (!topic || !shopDomain) {
-      return json({ error: "Missing required headers" }, { status: 400 });
+      return json({ error: "Missing required webhook context" }, { status: 400 });
     }
-
-    const payload = await request.json();
 
     const shop = await prisma.shop.findUnique({ where: { domain: shopDomain } });
     if (!shop) {
@@ -172,30 +162,42 @@ export async function action({ request }: ActionFunctionArgs) {
     switch (topic) {
       case "products/create":
       case "products/update":
+      case "PRODUCTS_CREATE":
+      case "PRODUCTS_UPDATE":
         await WebhookHandlers.handleProductUpdate(shop.id, payload);
         break;
       case "products/delete":
+      case "PRODUCTS_DELETE":
         await WebhookHandlers.handleProductDelete(shop.id, payload);
         break;
       case "collections/create":
       case "collections/update":
+      case "COLLECTIONS_CREATE":
+      case "COLLECTIONS_UPDATE":
         await WebhookHandlers.handleCollectionUpdate(shop.id, payload);
         break;
       case "pages/create":
       case "pages/update":
+      case "PAGES_CREATE":
+      case "PAGES_UPDATE":
         await WebhookHandlers.handlePageUpdate(shop.id, payload);
         break;
       case "orders/paid":
       case "orders/fulfilled":
+      case "ORDERS_PAID":
+      case "ORDERS_FULFILLED":
         await handleOrderPaid(shop.id, payload);
         break;
       case "app_subscriptions/update":
+      case "APP_SUBSCRIPTIONS_UPDATE":
         await handleAppSubscriptionUpdate(shop.id, payload);
         break;
+      case "APP_UNINSTALLED":
       case "app/uninstalled":
         await handleAppUninstalled(shop.id);
         break;
       case "shop/update":
+      case "SHOP_UPDATE":
         if (payload.name) {
           const shopRecord = await prisma.shop.findUnique({
             where: { id: shop.id },
@@ -229,6 +231,9 @@ export async function action({ request }: ActionFunctionArgs) {
 
     return json({ success: true });
   } catch (error) {
+    if (error instanceof Response) {
+      return error;
+    }
     console.error("[Webhooks] Processing error:", error);
     return json({ error: "Webhook processing failed" }, { status: 500 });
   }

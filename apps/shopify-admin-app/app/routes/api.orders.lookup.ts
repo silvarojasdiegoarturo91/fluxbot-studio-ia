@@ -4,6 +4,7 @@ import {
   OrderLookupError,
   OrderLookupService,
 } from "../services/order-lookup.server";
+import { verifyShopifyProxyRequest } from "../services/shopify-proxy-auth.server";
 
 function json(data: unknown, init?: ResponseInit) {
   return new Response(JSON.stringify(data), {
@@ -46,6 +47,13 @@ export async function action({ request }: ActionFunctionArgs) {
   }
 
   try {
+    if (!verifyShopifyProxyRequest(request, { allowUnsignedInDevelopment: true })) {
+      return cors(
+        request,
+        json({ success: false, error: "Unauthorized" }, { status: 401 }),
+      );
+    }
+
     const body = (await request.json()) as OrderLookupBody;
     const shopDomain = resolveShopDomain(request, body.shopDomain);
 

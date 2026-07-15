@@ -9,8 +9,9 @@
 
 import type { LoaderFunctionArgs } from "react-router";
 import { cors } from "remix-utils/cors";
-import prisma from "../db.server";
 import { ProactiveMessagingService } from "../services/proactive-messaging.server";
+import { authenticateAdminRequest } from "../utils/authenticate-admin.server";
+import { ensureShopForSession } from "../services/shop-context.server";
 
 function json(data: unknown, init?: ResponseInit) {
   return new Response(JSON.stringify(data), {
@@ -31,25 +32,16 @@ function json(data: unknown, init?: ResponseInit) {
  * - timeWindowMinutes?: number (default: 60)
  */
 export async function loader({ request }: LoaderFunctionArgs) {
-  const url = new URL(request.url);
-  const shopDomain =
-    url.searchParams.get("shopDomain") || request.headers.get("X-Shop-Domain");
-  const timeWindowMinutes = parseInt(url.searchParams.get("timeWindowMinutes") || "60");
-
-  if (!shopDomain) {
-    return json({ error: "shopDomain required" }, { status: 400 });
-  }
-
   try {
-    const shop = await prisma.shop.findUnique({
-      where: { domain: shopDomain },
-      select: { id: true },
-    });
+    const { session } = await authenticateAdminRequest(request);
+    const shop = await ensureShopForSession(session);
 
     if (!shop) {
       return json({ error: "Shop not found" }, { status: 404 });
     }
 
+    const url = new URL(request.url);
+    const timeWindowMinutes = parseInt(url.searchParams.get("timeWindowMinutes") || "60");
     const timeWindowMs = timeWindowMinutes * 60 * 1000;
 
     // Get overall stats
@@ -80,7 +72,11 @@ export async function loader({ request }: LoaderFunctionArgs) {
       })
     );
   } catch (error) {
-    console.error(`[API] Error retrieving message stats for shop: ${shopDomain}`, error);
+    if (error instanceof Response) {
+      throw error;
+    }
+
+    console.error("[API] Error retrieving message stats", error);
     return await cors(
       request,
       json({ error: "Failed to retrieve statistics" }, { status: 500 })

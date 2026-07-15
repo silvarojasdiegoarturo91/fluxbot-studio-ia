@@ -276,7 +276,7 @@ async function deliverWebChat(
       // Simulate delivery confirmation
       setTimeout(async () => {
         try {
-          await ProactiveMessagingService.markAsDelivered(msg.id);
+          await ProactiveMessagingService.markAsDelivered(msg.shopId, msg.id);
 
           await createDeliveryAuditLog({
             shopId: msg.shopId,
@@ -387,7 +387,7 @@ async function deliverBridgeChannel(
       await ProactiveMessagingService.markAsSent(msg.id);
 
       if (dispatchResult.status === "DELIVERED") {
-        await ProactiveMessagingService.markAsDelivered(msg.id);
+        await ProactiveMessagingService.markAsDelivered(msg.shopId, msg.id);
       }
 
       await createDeliveryAuditLog({

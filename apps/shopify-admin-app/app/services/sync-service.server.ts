@@ -747,16 +747,6 @@ export class WebhookHandlers {
     const chunks = ProductTransformer.toChunks(product, shopId);
     const count = await SyncService.ingestChunks(shopId, chunks);
 
-    await prisma.webhookEvent.create({
-      data: {
-        shopId,
-        topic: "products/update",
-        payload: { productId: product.id },
-        processed: true,
-        processedAt: new Date(),
-      },
-    });
-
     return count;
   }
 
@@ -785,35 +775,18 @@ export class WebhookHandlers {
         data: { deletedAt: new Date() },
       });
     }
-
-    await prisma.webhookEvent.create({
-      data: {
-        shopId,
-        topic: "products/delete",
-        payload: { productId },
-        processed: true,
-        processedAt: new Date(),
-      },
-    });
   }
 
   /**
    * Handle collection update webhook
    */
-  static async handleCollectionUpdate(shopId: string, payload: Record<string, any> | string) {
+  static async handleCollectionUpdate(_shopId: string, payload: Record<string, any> | string) {
     const collectionId =
       typeof payload === "string"
         ? payload
         : String(payload.id || payload.collectionId || "");
-
-    await prisma.webhookEvent.create({
-      data: {
-        shopId,
-        topic: "collections/update",
-        payload: { collectionId },
-        processed: false,
-      },
-    });
+    void _shopId;
+    void collectionId;
   }
 
   /**
@@ -823,16 +796,6 @@ export class WebhookHandlers {
     const page = normalizePage(payload);
     const chunks = PageTransformer.toChunks(page, shopId);
     const count = await SyncService.ingestChunks(shopId, chunks);
-
-    await prisma.webhookEvent.create({
-      data: {
-        shopId,
-        topic: "pages/update",
-        payload: { pageId: page.id },
-        processed: true,
-        processedAt: new Date(),
-      },
-    });
 
     return count;
   }

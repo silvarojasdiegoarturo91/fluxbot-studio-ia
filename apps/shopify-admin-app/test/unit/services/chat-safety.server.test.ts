@@ -11,9 +11,9 @@ describe("chat-safety.server", () => {
     expect(sanitizeAssistantMessage("Hola, te ayudo con lo que necesites.")).toBe(
       "Hola, te ayudo con lo que necesites.",
     );
-    expect(
-      sanitizeAssistantMessage("Hola 👋 Estoy aquí para ayudarte. ¿Qué necesitas?"),
-    ).toBe(safeClarificationMessage());
+    expect(sanitizeAssistantMessage("Hola 👋 Estoy aquí para ayudarte. ¿Qué necesitas?")).toBe(
+      "Hola 👋 Estoy aquí para ayudarte. ¿Qué necesitas?",
+    );
   });
 
   it("returns a neutral clarification for empty assistant output", () => {

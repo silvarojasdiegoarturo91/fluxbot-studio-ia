@@ -3,6 +3,7 @@ import { cors } from "remix-utils/cors";
 import prisma from "../db.server";
 import { HandoffService } from "../services/handoff.server";
 import type { HandoffStatus } from "../services/handoff.server";
+import { verifyShopifyProxyRequest } from "../services/shopify-proxy-auth.server";
 
 function json(data: unknown, init?: ResponseInit) {
   return new Response(JSON.stringify(data), {
@@ -59,6 +60,10 @@ export async function loader({ request }: LoaderFunctionArgs) {
     );
   }
 
+  if (!verifyShopifyProxyRequest(request)) {
+    return cors(request, json({ success: false, error: "Unauthorized" }, { status: 401 }));
+  }
+
   const shopId = await resolveShopIdByDomain(shopDomain);
   if (!shopId) {
     return cors(request, json({ success: false, error: "Shop not found" }, { status: 404 }));
@@ -80,6 +85,10 @@ export async function loader({ request }: LoaderFunctionArgs) {
 export async function action({ request }: ActionFunctionArgs) {
   if (request.method === "OPTIONS") {
     return cors(request, new Response(null, { status: 204 }));
+  }
+
+  if (!verifyShopifyProxyRequest(request)) {
+    return cors(request, json({ success: false, error: "Unauthorized" }, { status: 401 }));
   }
 
   if (!HandoffService.isEnabled()) {

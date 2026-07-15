@@ -12,6 +12,7 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
 import prisma from "../db.server";
 import { EventTrackingService } from "../services/event-tracking.server";
+import { verifyShopifyProxyRequest } from "../services/shopify-proxy-auth.server";
 
 // Helper to create JSON responses
 function json(data: any, init?: ResponseInit) {
@@ -58,8 +59,19 @@ export async function action({ request }: ActionFunctionArgs) {
       return json({}, { status: 204 });
     }
 
+    if (!verifyShopifyProxyRequest(request)) {
+      return json({ success: false, error: "Unauthorized" }, { status: 401 });
+    }
+
     const body = (await request.json()) as TrackEventRequest;
-    const { shopDomain, sessionId, visitorId, customerId, eventType, eventData } = body;
+    const { sessionId, visitorId, customerId, eventType, eventData } = body;
+    const url = new URL(request.url);
+    const shopDomain =
+      url.searchParams.get("shop") ||
+      body.shopDomain ||
+      request.headers.get("X-Shop-Domain") ||
+      request.headers.get("X-Shopify-Shop-Domain") ||
+      "";
 
     // Validate required fields
     if (!shopDomain || !sessionId || !eventType) {
@@ -115,16 +127,32 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
       return json({ success: false, error: "Session ID is required" }, { status: 400 });
     }
 
-    // Verify shop domain from header
-    const shopDomain = request.headers.get("X-Shop-Domain");
+    if (!verifyShopifyProxyRequest(request)) {
+      return json({ success: false, error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Verify shop domain from header or signed proxy URL
+    const shopDomain =
+      request.headers.get("X-Shop-Domain") ||
+      request.headers.get("X-Shopify-Shop-Domain") ||
+      new URL(request.url).searchParams.get("shop");
     if (!shopDomain) {
       return json({ success: false, error: "Shop domain header missing" }, { status: 401 });
     }
 
+    const shop = await prisma.shop.findUnique({
+      where: { domain: shopDomain },
+      select: { id: true },
+    });
+
+    if (!shop) {
+      return json({ success: false, error: "Shop not found" }, { status: 404 });
+    }
+
     // Get events
-    const events = await EventTrackingService.getSessionEvents(sessionId);
-    const stats = await EventTrackingService.getSessionStats(sessionId);
-    const patterns = await EventTrackingService.detectSessionPatterns(sessionId);
+    const events = await EventTrackingService.getSessionEvents(shop.id, sessionId);
+    const stats = await EventTrackingService.getSessionStats(shop.id, sessionId);
+    const patterns = await EventTrackingService.detectSessionPatterns(shop.id, sessionId);
 
     return json({
       success: true,

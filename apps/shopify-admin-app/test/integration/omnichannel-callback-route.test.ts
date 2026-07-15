@@ -112,7 +112,10 @@ describe("Omnichannel Delivery Callback Route", () => {
     expect(data.success).toBe(true);
     expect(data.status).toBe("DELIVERED");
     expect(data.applied).toBe(true);
-    expect(ProactiveMessagingService.markAsDelivered).toHaveBeenCalledWith("msg-1");
+    expect(ProactiveMessagingService.markAsDelivered).toHaveBeenCalledWith(
+      "shop-1",
+      "msg-1"
+    );
     expect(prisma.auditLog.create).toHaveBeenCalled();
   });
 

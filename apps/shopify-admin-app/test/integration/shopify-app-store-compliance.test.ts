@@ -71,13 +71,17 @@ describe("Shopify App Store compliance baseline", () => {
     expect(billingRoute).toContain("Upgrade to");
   });
 
-  it("reads shop connection data through GraphQL Admin API on the dashboard", () => {
-    const dashboard = readText("apps/shopify-admin-app/app/routes/app._index.tsx");
+  it("reads shop connection data through the resilient service and health check", () => {
+    const connectionService = readText("apps/shopify-admin-app/app/services/shop-connection.server.ts");
+    const healthRoute = readText("apps/shopify-admin-app/app/routes/api.health.shopify-connectivity.ts");
 
-    expect(dashboard).toContain("SHOP_CONNECTION_QUERY");
-    expect(dashboard).toContain("admin.graphql(SHOP_CONNECTION_QUERY)");
-    expect(dashboard).toContain("myshopifyDomain");
-    expect(dashboard).toContain("primaryDomain");
+    expect(connectionService).toContain("SHOP_CONNECTION_QUERY");
+    expect(connectionService).toContain("fetchShopConnection");
+    expect(connectionService).toContain("myshopifyDomain");
+    expect(connectionService).toContain("primaryDomain");
+    expect(connectionService).toContain("Usando datos en caché de Shopify");
+    expect(healthRoute).toContain("fetchShopConnection");
+    expect(healthRoute).toContain("cacheAgeMs");
   });
 
   it("declares the storefront widget as a theme app extension", () => {

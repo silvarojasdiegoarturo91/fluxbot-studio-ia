@@ -9,6 +9,7 @@ import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
 import prisma from "../db.server";
 import { IABackendError } from "../services/ia-backend.server";
 import { getIAGateway } from "../services/ia-gateway.server";
+import { verifyShopifyProxyRequest } from "../services/shopify-proxy-auth.server";
 
 // Helper to create JSON responses
 function json(data: any, init?: ResponseInit) {
@@ -34,6 +35,10 @@ export async function action({ request }: ActionFunctionArgs) {
   }
 
   try {
+    if (!verifyShopifyProxyRequest(request, { allowUnsignedInDevelopment: true })) {
+      return json({ success: false, error: "Unauthorized" }, { status: 401 });
+    }
+
     const body = await request.json();
     const { shopDomain, sessionId, visitorId } = body;
 
@@ -95,6 +100,10 @@ export async function action({ request }: ActionFunctionArgs) {
  */
 export async function loader({ request }: LoaderFunctionArgs) {
   try {
+    if (!verifyShopifyProxyRequest(request, { allowUnsignedInDevelopment: true })) {
+      return json({ success: false, error: "Unauthorized" }, { status: 401 });
+    }
+
     const url = new URL(request.url);
     const sessionId = url.searchParams.get("sessionId");
     const shopDomain = request.headers.get("X-Shop-Domain") || url.searchParams.get("shopDomain") || undefined;

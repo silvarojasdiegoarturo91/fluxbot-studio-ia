@@ -20,8 +20,8 @@ import {
 import { mergeProductAdminMetadata } from "../services/product-faqs.server";
 import { iaClient, type CatalogSyncResponse } from "../services/ia-backend.server";
 import { syncShopReferenceToIABackend, type ShopReference } from "../services/shop-backend-sync.server";
+import { SHOPIFY_API_VERSION } from "../config/shopify-api-version.server";
 
-const ADMIN_API_VERSION = "2026-01";
 const PAGE_SIZE = 50;
 
 type ProcessResult = {
@@ -65,7 +65,7 @@ async function runShopifyGraphql<T>(params: {
   query: string;
   variables?: Record<string, unknown>;
 }): Promise<T> {
-  const endpoint = `https://${params.shopDomain}/admin/api/${ADMIN_API_VERSION}/graphql.json`;
+  const endpoint = `https://${params.shopDomain}/admin/api/${SHOPIFY_API_VERSION}/graphql.json`;
 
   const response = await fetch(endpoint, {
     method: "POST",

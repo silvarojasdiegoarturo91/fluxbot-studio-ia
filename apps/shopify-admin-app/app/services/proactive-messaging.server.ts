@@ -366,14 +366,14 @@ export class ProactiveMessagingService {
    * Mark message as delivered
    * Called after delivery confirmation (e.g., widget received it)
    */
-  static async markAsDelivered(messageId: string): Promise<void> {
+  static async markAsDelivered(shopId: string, messageId: string): Promise<void> {
     const delegate = getProactiveMessageDelegate(["update"]);
     if (!delegate) {
       return;
     }
 
     await delegate.update({
-      where: { id: messageId },
+      where: { id: messageId, shopId },
       data: {
         status: "DELIVERED",
         deliveredAt: new Date(),
@@ -385,6 +385,7 @@ export class ProactiveMessagingService {
    * Record message interaction (click, accept, dismiss, etc.)
    */
   static async recordInteraction(
+    shopId: string,
     messageId: string,
     outcome: "ACCEPTED" | "REJECTED" | "CLICKED" | "EXPIRED" | string
   ): Promise<void> {
@@ -394,7 +395,7 @@ export class ProactiveMessagingService {
     }
 
     await delegate.update({
-      where: { id: messageId },
+      where: { id: messageId, shopId },
       data: {
         status: outcome === "EXPIRED" ? "FAILED" : "CONVERTED",
         outcome,
@@ -660,6 +661,7 @@ export class ProactiveMessagingService {
    * Get messages for a session (for debugging/UI)
    */
   static async getSessionMessages(
+    shopId: string,
     sessionId: string,
     limit: number = 20
   ): Promise<ProactiveMessageRecord[]> {
@@ -669,7 +671,7 @@ export class ProactiveMessagingService {
     }
 
     const messages = await delegate.findMany({
-      where: { sessionId },
+      where: { shopId, sessionId },
       orderBy: { createdAt: "desc" },
       take: limit,
     });

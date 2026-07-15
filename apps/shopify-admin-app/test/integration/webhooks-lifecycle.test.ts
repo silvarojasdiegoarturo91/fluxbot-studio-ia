@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+const { mockAuthenticateWebhook } = vi.hoisted(() => ({
+  mockAuthenticateWebhook: vi.fn(),
+}));
+
 const mockShopFindUnique = vi.fn();
 const mockShopUpdate = vi.fn();
 const mockWebhookEventCreate = vi.fn();
@@ -37,6 +41,12 @@ vi.mock("../../app/services/analytics.server", () => ({
   },
 }));
 
+vi.mock("../../app/shopify.server", () => ({
+  authenticate: {
+    webhook: mockAuthenticateWebhook,
+  },
+}));
+
 function makeWebhookRequest(topic: string, payload: unknown) {
   return new Request("http://localhost/api/webhooks", {
     method: "POST",
@@ -53,12 +63,18 @@ function makeWebhookRequest(topic: string, payload: unknown) {
 describe("api.webhooks lifecycle behavior", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockAuthenticateWebhook.mockReset();
     mockWebhookEventCreate.mockResolvedValue({});
     mockWebhookEventUpdateMany.mockResolvedValue({ count: 1 });
     mockOrderProjectionUpsert.mockResolvedValue({});
   });
 
   it("resets onboarding metadata when app is uninstalled", async () => {
+    mockAuthenticateWebhook.mockResolvedValue({
+      topic: "app/uninstalled",
+      shop: "store.myshopify.com",
+      payload: { id: "evt-1" },
+    });
     mockShopFindUnique
       .mockResolvedValueOnce({
         id: "shop-1",
@@ -104,6 +120,7 @@ describe("api.webhooks lifecycle behavior", () => {
   });
 
   it("rejects unsigned webhook requests", async () => {
+    mockAuthenticateWebhook.mockRejectedValue(new Response("Invalid signature", { status: 401 }));
     const { action } = await import("../../app/routes/api.webhooks");
     const response = await action({
       request: new Request("http://localhost/api/webhooks", {

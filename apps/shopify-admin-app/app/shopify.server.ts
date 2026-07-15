@@ -1,18 +1,18 @@
 import "@shopify/shopify-app-react-router/adapters/node";
 import {
-  ApiVersion,
   AppDistribution,
   shopifyApp,
 } from "@shopify/shopify-app-react-router/server";
 import { DeliveryMethod } from "@shopify/shopify-api";
 import { PrismaSessionStorage } from "@shopify/shopify-app-session-storage-prisma";
 import prisma from "./db.server";
+import { SHOPIFY_API_VERSION_ENUM } from "./config/shopify-api-version.server";
 import { ensureShopForSession } from "./services/shop-context.server";
 
 const shopify = shopifyApp({
   apiKey: process.env.SHOPIFY_API_KEY,
   apiSecretKey: process.env.SHOPIFY_API_SECRET || "",
-  apiVersion: ApiVersion.January26,
+  apiVersion: SHOPIFY_API_VERSION_ENUM,
   scopes: process.env.SCOPES?.split(","),
   appUrl: process.env.SHOPIFY_APP_URL || "",
   authPathPrefix: "/auth",
@@ -79,7 +79,7 @@ const shopify = shopifyApp({
 });
 
 export default shopify;
-export const apiVersion = ApiVersion.January26;
+export const apiVersion = SHOPIFY_API_VERSION_ENUM;
 export const addDocumentResponseHeaders = shopify.addDocumentResponseHeaders;
 export const authenticate = shopify.authenticate;
 export const unauthenticated = shopify.unauthenticated;

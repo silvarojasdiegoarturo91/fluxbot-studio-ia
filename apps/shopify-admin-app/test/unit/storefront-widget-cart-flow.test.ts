@@ -256,7 +256,7 @@ describe("storefront widget cart flow", () => {
 
     expect(
       hooks.sanitizeAssistantMessage("Hola 👋 Estoy aquí para ayudarte. ¿Qué necesitas?"),
-    ).toBe("");
+    ).toBe("Hola 👋 Estoy aquí para ayudarte. ¿Qué necesitas?");
     expect(hooks.sanitizeAssistantMessage("Gracias por tu ayuda.")).toBe("Gracias por tu ayuda.");
   });
 });

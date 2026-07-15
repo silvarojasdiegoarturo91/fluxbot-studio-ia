@@ -14,6 +14,7 @@ import {
   safeFallbackMessage,
   sanitizeAssistantMessage,
 } from "../services/chat-safety.server";
+import { verifyShopifyProxyRequest } from "../services/shopify-proxy-auth.server";
 
 // Helper to create JSON responses
 function json(data: any, init?: ResponseInit) {
@@ -72,6 +73,10 @@ interface ChatResponse {
  */
 export async function action({ request }: ActionFunctionArgs) {
   try {
+    if (!verifyShopifyProxyRequest(request, { allowUnsignedInDevelopment: true })) {
+      return json({ success: false, error: "Unauthorized" }, { status: 401 });
+    }
+
     // Parse request body
     const body = (await request.json()) as ChatRequest;
     const {
@@ -232,6 +237,10 @@ export async function action({ request }: ActionFunctionArgs) {
  */
 export async function loader({ request }: ActionFunctionArgs) {
   try {
+    if (!verifyShopifyProxyRequest(request, { allowUnsignedInDevelopment: true })) {
+      return json({ success: false, error: "Unauthorized" }, { status: 401 });
+    }
+
     const url = new URL(request.url);
     const conversationId = url.searchParams.get("conversationId");
 

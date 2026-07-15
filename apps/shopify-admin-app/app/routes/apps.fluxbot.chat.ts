@@ -71,6 +71,13 @@ console.info(`[Startup] ${SERVICE_NAME} process started`, {
   dbFingerprint: DB_FINGERPRINT,
   iaExecutionMode: process.env.IA_EXECUTION_MODE || "remote",
   iaBackendUrl: process.env.IA_BACKEND_URL || "(not set)",
+  iaBackendOrigin: (() => {
+    try {
+      return process.env.IA_BACKEND_URL ? new URL(process.env.IA_BACKEND_URL).origin : "(not set)";
+    } catch {
+      return "(invalid url)";
+    }
+  })(),
   port: process.env.PORT || "(not set)",
 });
 

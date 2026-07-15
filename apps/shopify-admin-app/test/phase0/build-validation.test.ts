@@ -143,12 +143,16 @@ describe("Phase 0: Build & TypeScript Validation", () => {
   });
 
   describe("API Version", () => {
-    it("should use January26 (2026-01) API version", () => {
-      const shopifyServerPath = path.join(appRoot, "app/shopify.server.ts");
+    it("should centralize the 2026-01 API version", () => {
+      const versionConfigPath = path.join(
+        appRoot,
+        "app/config/shopify-api-version.server.ts",
+      );
       
-      if (fs.existsSync(shopifyServerPath)) {
-        const content = fs.readFileSync(shopifyServerPath, "utf-8");
-        expect(content).toContain("January26");
+      if (fs.existsSync(versionConfigPath)) {
+        const content = fs.readFileSync(versionConfigPath, "utf-8");
+        expect(content).toContain('SHOPIFY_API_VERSION = "2026-01"');
+        expect(content).toContain("ApiVersion.January26");
       }
     });
   });

@@ -454,7 +454,10 @@ export async function action({ request }: ActionFunctionArgs) {
 
     if (transition.shouldApply) {
       if (normalizedStatus === "DELIVERED") {
-        await ProactiveMessagingService.markAsDelivered(messageId);
+        await ProactiveMessagingService.markAsDelivered(
+          proactiveMessage.shopId,
+          messageId
+        );
       } else if (normalizedStatus === "SENT") {
         await ProactiveMessagingService.markAsSent(messageId);
       } else {

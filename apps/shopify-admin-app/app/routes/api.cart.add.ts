@@ -1,6 +1,7 @@
 import type { ActionFunctionArgs } from "react-router";
 import { cors } from "remix-utils/cors";
 import { CommerceActionsService } from "../services/commerce-actions.server";
+import { verifyShopifyProxyRequest } from "../services/shopify-proxy-auth.server";
 
 function json(data: unknown, init?: ResponseInit) {
   return new Response(JSON.stringify(data), {
@@ -35,6 +36,13 @@ export async function action({ request }: ActionFunctionArgs) {
   }
 
   try {
+    if (!verifyShopifyProxyRequest(request, { allowUnsignedInDevelopment: true })) {
+      return cors(
+        request,
+        json({ success: false, error: "Unauthorized" }, { status: 401 })
+      );
+    }
+
     const body = (await request.json()) as AddToCartBody;
 
     if (!body.shopDomain) {
@@ -58,23 +66,15 @@ export async function action({ request }: ActionFunctionArgs) {
     }
 
     if (body.commit) {
-      const committed = await CommerceActionsService.commitAddToCart({
-        shopDomain: body.shopDomain,
-        productRef: body.productRef,
-        variantId: body.variantId,
-        quantity: body.quantity,
-        conversationId: body.conversationId,
-        sessionId: body.sessionId,
-        source: "api",
-      });
-
       return cors(
         request,
-        json({
-          success: true,
-          committed: true,
-          data: committed,
-        })
+        json(
+          {
+            success: false,
+            error: "Server-side cart commit is not supported. Use the storefront proxy route.",
+          },
+          { status: 400 },
+        ),
       );
     }
 

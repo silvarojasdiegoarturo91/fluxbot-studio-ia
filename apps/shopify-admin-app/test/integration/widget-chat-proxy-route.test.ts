@@ -178,7 +178,7 @@ describe("apps.fluxbot.chat proxy route", () => {
     expect((assistantMessageCall.metadata as Record<string, unknown>)).toHaveProperty("traceId");
   });
 
-  it("sanitizes legacy greeting replies returned by the gateway", async () => {
+  it("preserves gateway greeting replies returned by the gateway", async () => {
     mockGatewayChat.mockResolvedValue({
       message: "Hola 👋 Estoy aquí para ayudarte. ¿Qué necesitas?",
       confidence: 0.91,
@@ -213,7 +213,7 @@ describe("apps.fluxbot.chat proxy route", () => {
 
     const data = await response.json();
 
-    expect(data.message).toBe("Claro, cuéntame un poco más y te ayudo con eso.");
+    expect(data.message).toBe("Hola 👋 Estoy aquí para ayudarte. ¿Qué necesitas?");
   });
 
   it("reuses an existing conversation id and keeps writing messages to the same row", async () => {

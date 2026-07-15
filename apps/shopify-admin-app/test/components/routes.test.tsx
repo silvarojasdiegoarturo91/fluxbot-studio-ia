@@ -13,12 +13,27 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import '@testing-library/jest-dom';
 
-// Mock Shopify modules before importing components
 vi.mock('@shopify/shopify-app-react-router/server', () => ({
   boundary: {
     error: vi.fn((error) => ({ error })),
     headers: vi.fn((args) => args),
   },
+  ApiVersion: {
+    January26: 'January26',
+  },
+  AppDistribution: {
+    AppStore: 'AppStore',
+  },
+  shopifyApp: vi.fn(() => ({
+    authenticate: {
+      admin: vi.fn(),
+    },
+    addDocumentResponseHeaders: vi.fn(),
+    unauthenticated: vi.fn(),
+    login: vi.fn(),
+    registerWebhooks: vi.fn(),
+    sessionStorage: {},
+  })),
 }));
 
 vi.mock('../../app/shopify.server', () => ({
@@ -27,10 +42,43 @@ vi.mock('../../app/shopify.server', () => ({
   },
 }));
 
-// Import components after mocks
+vi.mock('../../app/utils/authenticate-admin.server', async () => {
+  const actual = await vi.importActual<typeof import('../../app/utils/authenticate-admin.server')>(
+    '../../app/utils/authenticate-admin.server',
+  );
+
+  return {
+    ...actual,
+    authenticateAdminRequest: vi.fn(),
+  };
+});
+
+vi.mock('../../app/services/shop-connection.server', () => ({
+  fetchShopConnection: vi.fn(),
+  clearShopConnectionCache: vi.fn(),
+}));
+
+vi.mock('../../app/services/shop-context.server', () => ({
+  ensureShopForSession: vi.fn(),
+}));
+
+vi.mock('../../app/services/admin-config.server', () => ({
+  getMerchantAdminConfig: vi.fn(),
+}));
+
+vi.mock('../../app/services/analytics.server', () => ({
+  AnalyticsService: {
+    getReport: vi.fn(),
+  },
+}));
+
 import { loader as dashboardLoader } from '../../app/routes/app._index';
 import { loader as appLoader } from '../../app/routes/app.tsx';
-import { authenticate } from '../../app/shopify.server';
+import { authenticateAdminRequest } from '../../app/utils/authenticate-admin.server';
+import { fetchShopConnection } from '../../app/services/shop-connection.server';
+import { ensureShopForSession } from '../../app/services/shop-context.server';
+import { getMerchantAdminConfig } from '../../app/services/admin-config.server';
+import { AnalyticsService } from '../../app/services/analytics.server';
 
 // ============================================================================
 // DASHBOARD LOADER TESTS (app._index.tsx)
@@ -39,30 +87,26 @@ import { authenticate } from '../../app/shopify.server';
 describe('DashboardIndex Loader', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(authenticateAdminRequest).mockResolvedValue({
+      admin: {},
+      session: undefined,
+    } as any);
   });
 
-  it('should load connected shop data successfully', async () => {
-    const mockGraphQL = vi.fn().mockResolvedValue({
-      json: async () => ({
-        data: {
-          shop: {
-            name: 'My Shop',
-            myshopifyDomain: 'myshop.myshopify.com',
-            primaryDomain: {
-              host: 'myshop.com',
-            },
-            plan: {
-              displayName: 'Shopify',
-            },
-          },
-        },
-      }),
-    });
-
-    vi.mocked(authenticate.admin).mockResolvedValue({
-      admin: {
-        graphql: mockGraphQL,
+  it('should surface a connected shop when the service returns live data', async () => {
+    vi.mocked(fetchShopConnection).mockResolvedValue({
+      shopConnection: {
+        connected: true,
+        name: 'My Shop',
+        myshopifyDomain: 'myshop.myshopify.com',
+        primaryDomainHost: 'myshop.com',
+        planName: 'Shopify',
+        error: null,
+        source: 'live',
       },
+      alerts: [],
+      cacheHit: false,
+      cacheAgeMs: null,
     } as any);
 
     const request = new Request('http://localhost/app');
@@ -74,174 +118,55 @@ describe('DashboardIndex Loader', () => {
     expect(result.shopConnection.primaryDomainHost).toBe('myshop.com');
     expect(result.shopConnection.planName).toBe('Shopify');
     expect(result.shopConnection.error).toBeNull();
+    expect(result.shopConnection.source).toBe('live');
   });
 
-  it('should handle shop with minimal data', async () => {
-    const mockGraphQL = vi.fn().mockResolvedValue({
-      json: async () => ({
-        data: {
-          shop: {
-            name: 'Test Shop',
-          },
-        },
-      }),
-    });
-
-    vi.mocked(authenticate.admin).mockResolvedValue({
-      admin: {
-        graphql: mockGraphQL,
+  it('should include cache guidance when the helper serves cached data', async () => {
+    vi.mocked(fetchShopConnection).mockResolvedValue({
+      shopConnection: {
+        connected: true,
+        name: 'Cached Shop',
+        myshopifyDomain: 'cached.myshopify.com',
+        primaryDomainHost: 'cached.com',
+        planName: 'Shopify Plus',
+        error: null,
+        source: 'cache',
       },
+      alerts: ['Usando datos en caché de Shopify (120s de antigüedad).'],
+      cacheHit: true,
+      cacheAgeMs: 120_000,
     } as any);
 
     const request = new Request('http://localhost/app');
     const result = await dashboardLoader({ request } as any);
 
     expect(result.shopConnection.connected).toBe(true);
-    expect(result.shopConnection.name).toBe('Test Shop');
-    expect(result.shopConnection.myshopifyDomain).toBeNull();
-    expect(result.shopConnection.primaryDomainHost).toBeNull();
-    expect(result.shopConnection.planName).toBeNull();
+    expect(result.shopConnection.source).toBe('cache');
+    expect(result.alerts).toContain('Usando datos en caché de Shopify (120s de antigüedad).');
   });
 
-  it('should handle GraphQL errors gracefully', async () => {
-    const mockGraphQL = vi.fn().mockResolvedValue({
-      json: async () => ({
-        errors: [
-          {
-            message: 'Access denied',
-          },
-        ],
-      }),
-    });
-
-    vi.mocked(authenticate.admin).mockResolvedValue({
-      admin: {
-        graphql: mockGraphQL,
+  it('should surface a friendly error when the helper returns a failure', async () => {
+    vi.mocked(fetchShopConnection).mockResolvedValue({
+      shopConnection: {
+        connected: false,
+        name: null,
+        myshopifyDomain: null,
+        primaryDomainHost: null,
+        planName: null,
+        error: 'No pudimos conectar con Shopify. Verifica tu conexión a internet.',
+        source: 'live',
       },
+      alerts: ['No pudimos conectar con Shopify. Verifica tu conexión a internet.'],
+      cacheHit: false,
+      cacheAgeMs: null,
     } as any);
 
     const request = new Request('http://localhost/app');
     const result = await dashboardLoader({ request } as any);
 
     expect(result.shopConnection.connected).toBe(false);
-    expect(result.shopConnection.error).toBe('Access denied');
-  });
-
-  it('should handle missing shop data', async () => {
-    const mockGraphQL = vi.fn().mockResolvedValue({
-      json: async () => ({
-        data: {},
-      }),
-    });
-
-    vi.mocked(authenticate.admin).mockResolvedValue({
-      admin: {
-        graphql: mockGraphQL,
-      },
-    } as any);
-
-    const request = new Request('http://localhost/app');
-    const result = await dashboardLoader({ request } as any);
-
-    expect(result.shopConnection.connected).toBe(false);
-    expect(result.shopConnection.error).toBe('No shop data returned by Admin API');
-  });
-
-  it('should handle authentication errors', async () => {
-    vi.mocked(authenticate.admin).mockRejectedValue(new Error('Authentication failed'));
-
-    const request = new Request('http://localhost/app');
-    const result = await dashboardLoader({ request } as any);
-
-    expect(result.shopConnection.connected).toBe(false);
-    expect(result.shopConnection.error).toBe('Authentication failed');
-  });
-
-  it('should handle network errors during GraphQL call', async () => {
-    const mockGraphQL = vi.fn().mockRejectedValue(new Error('Network error'));
-
-    vi.mocked(authenticate.admin).mockResolvedValue({
-      admin: {
-        graphql: mockGraphQL,
-      },
-    } as any);
-
-    const request = new Request('http://localhost/app');
-    const result = await dashboardLoader({ request } as any);
-
-    expect(result.shopConnection.connected).toBe(false);
-    expect(result.shopConnection.error).toBe('Network error');
-  });
-
-  it('should handle non-Error exceptions', async () => {
-    vi.mocked(authenticate.admin).mockRejectedValue('String error');
-
-    const request = new Request('http://localhost/app');
-    const result = await dashboardLoader({ request } as any);
-
-    expect(result.shopConnection.connected).toBe(false);
-    expect(result.shopConnection.error).toBe('Unknown error');
-  });
-
-  it('should handle shop data with all fields populated', async () => {
-    const mockGraphQL = vi.fn().mockResolvedValue({
-      json: async () => ({
-        data: {
-          shop: {
-            name: 'Complete Store',
-            myshopifyDomain: 'complete.myshopify.com',
-            primaryDomain: {
-              host: 'complete.com',
-            },
-            plan: {
-              displayName: 'Shopify Plus',
-            },
-          },
-        },
-      }),
-    });
-
-    vi.mocked(authenticate.admin).mockResolvedValue({
-      admin: {
-        graphql: mockGraphQL,
-      },
-    } as any);
-
-    const request = new Request('http://localhost/app');
-    const result = await dashboardLoader({ request } as any);
-
-    expect(result.shopConnection).toEqual({
-      connected: true,
-      name: 'Complete Store',
-      myshopifyDomain: 'complete.myshopify.com',
-      primaryDomainHost: 'complete.com',
-      planName: 'Shopify Plus',
-      error: null,
-    });
-  });
-
-  it('should handle multiple GraphQL errors', async () => {
-    const mockGraphQL = vi.fn().mockResolvedValue({
-      json: async () => ({
-        data: null,
-        errors: [
-          { message: 'Error 1' },
-          { message: 'Error 2' },
-        ],
-      }),
-    });
-
-    vi.mocked(authenticate.admin).mockResolvedValue({
-      admin: {
-        graphql: mockGraphQL,
-      },
-    } as any);
-
-    const request = new Request('http://localhost/app');
-    const result = await dashboardLoader({ request } as any);
-
-    expect(result.shopConnection.connected).toBe(false);
-    expect(result.shopConnection.error).toBe('Error 1');
+    expect(result.shopConnection.error).toBe('No pudimos conectar con Shopify. Verifica tu conexión a internet.');
+    expect(result.alerts).toContain('No pudimos conectar con Shopify. Verifica tu conexión a internet.');
   });
 });
 
@@ -255,21 +180,34 @@ describe('App Loader', () => {
     // Reset environment variable
     process.env.SHOPIFY_API_KEY = 'test-api-key';
     delete process.env.SHOPIFY_APP_URL;
+    vi.mocked(authenticateAdminRequest).mockResolvedValue({
+      session: { shop: 'test-shop.myshopify.com' },
+      admin: {},
+    } as any);
+    vi.mocked(ensureShopForSession).mockResolvedValue(null as any);
+    vi.mocked(getMerchantAdminConfig).mockResolvedValue({
+      adminLanguage: 'en',
+      onboardingCompleted: true,
+      onboardingStep: 1,
+    } as any);
+    vi.mocked(AnalyticsService.getReport).mockResolvedValue({
+      conversations: { total: 0 },
+      revenue: { totalRevenue: 0 },
+      proactive: { sent: 0 },
+    } as any);
   });
 
   it('should return API key on successful authentication', async () => {
-    vi.mocked(authenticate.admin).mockResolvedValue({} as any);
-
     const request = new Request('http://localhost/app');
     const result = await appLoader({ request } as any);
 
     expect(result.apiKey).toBe('test-api-key');
-    expect(authenticate.admin).toHaveBeenCalledWith(request);
+    expect(authenticateAdminRequest).toHaveBeenCalledWith(request);
   });
 
   it('should throw error on authentication failure', async () => {
     const authError = new Response('Unauthorized', { status: 401 });
-    vi.mocked(authenticate.admin).mockRejectedValue(authError);
+    vi.mocked(authenticateAdminRequest).mockRejectedValue(authError);
 
     const request = new Request('http://localhost/app');
 
@@ -278,8 +216,6 @@ describe('App Loader', () => {
 
   it('should use empty string if SHOPIFY_API_KEY not set', async () => {
     delete process.env.SHOPIFY_API_KEY;
-    vi.mocked(authenticate.admin).mockResolvedValue({} as any);
-
     const request = new Request('http://localhost/app');
     const result = await appLoader({ request } as any);
 
@@ -288,8 +224,6 @@ describe('App Loader', () => {
 
   it('should handle authentication with custom API key', async () => {
     process.env.SHOPIFY_API_KEY = 'custom-key-123';
-    vi.mocked(authenticate.admin).mockResolvedValue({} as any);
-
     const request = new Request('http://localhost/app');
     const result = await appLoader({ request } as any);
 
@@ -298,7 +232,7 @@ describe('App Loader', () => {
 
   it('should not catch and handle Response errors', async () => {
     const authError = new Response('Forbidden', { status: 403 });
-    vi.mocked(authenticate.admin).mockRejectedValue(authError);
+    vi.mocked(authenticateAdminRequest).mockRejectedValue(authError);
 
     const request = new Request('http://localhost/app');
 
@@ -314,7 +248,7 @@ describe('App Loader', () => {
         'X-Shopify-Retry-Invalid-Session-Request': '1',
       },
     });
-    vi.mocked(authenticate.admin).mockRejectedValue(authError);
+    vi.mocked(authenticateAdminRequest).mockRejectedValue(authError);
 
     const request = new Request(
       'http://localhost/app?shop=test-shop.myshopify.com&host=encoded-host&embedded=1&id_token=stale-token',
@@ -352,7 +286,7 @@ describe('App Loader', () => {
 
   it('should handle other non-Response errors', async () => {
     const genericError = new Error('Something went wrong');
-    vi.mocked(authenticate.admin).mockRejectedValue(genericError);
+    vi.mocked(authenticateAdminRequest).mockRejectedValue(genericError);
 
     const request = new Request('http://localhost/app');
 

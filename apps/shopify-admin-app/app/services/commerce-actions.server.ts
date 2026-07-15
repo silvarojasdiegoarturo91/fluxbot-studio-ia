@@ -1,5 +1,6 @@
 import prisma from "../db.server";
 import type { Prisma } from "@prisma/client";
+import { SHOPIFY_API_VERSION } from "../config/shopify-api-version.server";
 
 export interface AddToCartRequest {
   shopDomain: string;
@@ -28,7 +29,6 @@ export interface AddToCartExecutionResult extends AddToCartResolution {
   lineItem?: Record<string, unknown>;
 }
 
-const ADMIN_API_VERSION = "2026-01";
 const MAX_QUANTITY = 20;
 
 function normalizeQuantity(quantity: number | undefined): number {
@@ -192,7 +192,7 @@ async function fetchFirstVariantFromAdmin(params: {
     }
   `;
 
-  const endpoint = `https://${shopDomain}/admin/api/${ADMIN_API_VERSION}/graphql.json`;
+  const endpoint = `https://${shopDomain}/admin/api/${SHOPIFY_API_VERSION}/graphql.json`;
 
   const runGraphql = async (query: string, variables: Record<string, unknown>) => {
     const response = await fetch(endpoint, {
@@ -418,49 +418,7 @@ export class CommerceActionsService {
   }
 
   static async commitAddToCart(request: AddToCartRequest): Promise<AddToCartExecutionResult> {
-    const prepared = await this.prepareAddToCart(request);
-
-    const response = await fetch(prepared.addEndpoint, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      body: JSON.stringify({
-        id: prepared.variantId,
-        quantity: prepared.quantity,
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`Cart API request failed with status ${response.status}`);
-    }
-
-    let lineItem: Record<string, unknown> | undefined;
-    try {
-      lineItem = (await response.json()) as Record<string, unknown>;
-    } catch {
-      lineItem = undefined;
-    }
-
-    await recordAuditLog({
-      shopId: prepared.shopId,
-      action: "CHAT_ADD_TO_CART_EXECUTED",
-      entityId: prepared.variantId,
-      details: {
-        source: request.source || "api",
-        conversationId: request.conversationId || null,
-        sessionId: request.sessionId || null,
-        variantId: prepared.variantId,
-        quantity: prepared.quantity,
-      },
-    });
-
-    return {
-      ...prepared,
-      committed: true,
-      lineItem,
-    };
+    throw new Error("Server-side cart commit is not supported. Use prepareAddToCart and commit in the shopper's browser.");
   }
 
   static async prepareAddToCartByShopId(params: {

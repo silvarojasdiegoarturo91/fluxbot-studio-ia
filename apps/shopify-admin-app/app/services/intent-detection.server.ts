@@ -50,11 +50,11 @@ export class IntentDetectionEngine {
   /**
    * Analyze session behavior and calculate intent scores
    */
-  static async analyzeSession(sessionId: string): Promise<IntentAnalysis> {
+  static async analyzeSession(shopId: string, sessionId: string): Promise<IntentAnalysis> {
     // Get session events and stats
-    const events = await EventTrackingService.getSessionEvents(sessionId, 100);
-    const stats = await EventTrackingService.getSessionStats(sessionId);
-    const patterns = await EventTrackingService.detectSessionPatterns(sessionId);
+    const events = await EventTrackingService.getSessionEvents(shopId, sessionId, 100);
+    const stats = await EventTrackingService.getSessionStats(shopId, sessionId);
+    const patterns = await EventTrackingService.detectSessionPatterns(shopId, sessionId);
 
     if (events.length === 0) {
       return this.createEmptyAnalysis(sessionId);
@@ -466,7 +466,7 @@ export class IntentDetectionEngine {
     analysis: IntentAnalysis;
     signal: IntentSignalRecord | null;
   }> {
-    const analysis = await this.analyzeSession(sessionId);
+    const analysis = await this.analyzeSession(shopId, sessionId);
 
     // Only record if there's a clear dominant intent with sufficient confidence
     let signal: IntentSignalRecord | null = null;
@@ -492,12 +492,12 @@ export class IntentDetectionEngine {
    * Batch analyze multiple sessions
    * Useful for background processing
    */
-  static async analyzeSessions(sessionIds: string[]): Promise<IntentAnalysis[]> {
+  static async analyzeSessions(shopId: string, sessionIds: string[]): Promise<IntentAnalysis[]> {
     const analyses: IntentAnalysis[] = [];
 
     for (const sessionId of sessionIds) {
       try {
-        const analysis = await this.analyzeSession(sessionId);
+        const analysis = await this.analyzeSession(shopId, sessionId);
         analyses.push(analysis);
       } catch (error) {
         console.error(`[Intent Detection] Failed to analyze session ${sessionId}:`, error);

@@ -475,10 +475,10 @@ describe("ProactiveMessagingService", () => {
         createStoredMessage({ status: "DELIVERED", deliveredAt: new Date() }) as any
       );
 
-      await ProactiveMessagingService.markAsDelivered("msg-1");
+      await ProactiveMessagingService.markAsDelivered("shop-1", "msg-1");
 
       expect(prisma.proactiveMessage.update).toHaveBeenCalledWith({
-        where: { id: "msg-1" },
+        where: { id: "msg-1", shopId: "shop-1" },
         data: {
           status: "DELIVERED",
           deliveredAt: expect.any(Date),
@@ -495,10 +495,14 @@ describe("ProactiveMessagingService", () => {
         createStoredMessage({ status: "CONVERTED", outcome: "ACCEPTED" }) as any
       );
 
-      await ProactiveMessagingService.recordInteraction("msg-1", "ACCEPTED");
+      await ProactiveMessagingService.recordInteraction(
+        "shop-1",
+        "msg-1",
+        "ACCEPTED"
+      );
 
       expect(prisma.proactiveMessage.update).toHaveBeenCalledWith({
-        where: { id: "msg-1" },
+        where: { id: "msg-1", shopId: "shop-1" },
         data: {
           status: "CONVERTED",
           outcome: "ACCEPTED",
@@ -514,10 +518,14 @@ describe("ProactiveMessagingService", () => {
         createStoredMessage({ status: "CONVERTED", outcome: "REJECTED" }) as any
       );
 
-      await ProactiveMessagingService.recordInteraction("msg-1", "REJECTED");
+      await ProactiveMessagingService.recordInteraction(
+        "shop-1",
+        "msg-1",
+        "REJECTED"
+      );
 
       expect(prisma.proactiveMessage.update).toHaveBeenCalledWith({
-        where: { id: "msg-1" },
+        where: { id: "msg-1", shopId: "shop-1" },
         data: {
           status: "CONVERTED",
           outcome: "REJECTED",
@@ -533,10 +541,14 @@ describe("ProactiveMessagingService", () => {
         createStoredMessage({ status: "FAILED", outcome: "EXPIRED" }) as any
       );
 
-      await ProactiveMessagingService.recordInteraction("msg-1", "EXPIRED");
+      await ProactiveMessagingService.recordInteraction(
+        "shop-1",
+        "msg-1",
+        "EXPIRED"
+      );
 
       expect(prisma.proactiveMessage.update).toHaveBeenCalledWith({
-        where: { id: "msg-1" },
+        where: { id: "msg-1", shopId: "shop-1" },
         data: expect.objectContaining({
           status: "FAILED",
           outcome: "EXPIRED",

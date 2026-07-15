@@ -77,8 +77,8 @@ export class TriggerEvaluationService {
     if (triggers.length === 0) return [];
 
     // Get session context
-    const stats = await EventTrackingService.getSessionStats(sessionId);
-    const patterns = await EventTrackingService.detectSessionPatterns(sessionId);
+    const stats = await EventTrackingService.getSessionStats(shopId, sessionId);
+    const patterns = await EventTrackingService.detectSessionPatterns(shopId, sessionId);
     const { analysis } = await IntentDetectionEngine.analyzeAndRecord(
       shopId,
       sessionId,

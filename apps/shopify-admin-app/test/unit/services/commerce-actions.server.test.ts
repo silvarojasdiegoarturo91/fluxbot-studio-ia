@@ -330,54 +330,37 @@ describe("CommerceActionsService.prepareAddToCartByShopId", () => {
 describe("CommerceActionsService.commitAddToCart", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    global.fetch = vi.fn();
     vi.mocked(prisma.auditLog.create).mockResolvedValue({} as any);
   });
 
-  it("commits the cart and returns committed: true with lineItem", async () => {
+  it("rejects server-side cart commit in favor of shopper browser commit", async () => {
     vi.mocked(prisma.shop.findUnique).mockResolvedValue({
       id: "shop-id",
       domain: "myshop.myshopify.com",
       accessToken: "shpat_valid",
     } as any);
 
-    // First fetch is from Shopify Admin API (falling through from the projection path)
-    // We skip projection by providing an explicit variantId → no extra fetch
-    const lineItemResponse = { id: 42, title: "Cool Shirt", quantity: 1 };
-
-    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-      ok: true,
-      json: async () => lineItemResponse,
-    });
-
-    const result = await CommerceActionsService.commitAddToCart({
+    await expect(CommerceActionsService.commitAddToCart({
       shopDomain: "myshop.myshopify.com",
       variantId: "42",
       quantity: 1,
-    });
-
-    expect(result.committed).toBe(true);
-    expect(result.lineItem).toEqual(lineItemResponse);
-    expect(result.variantId).toBe("42");
+    })).rejects.toThrow(
+      "Server-side cart commit is not supported. Use prepareAddToCart and commit in the shopper's browser."
+    );
   });
 
-  it("throws when the cart API returns a non-ok response", async () => {
+  it("rejects server-side cart commit before making cart API calls", async () => {
     vi.mocked(prisma.shop.findUnique).mockResolvedValue({
       id: "shop-id",
       domain: "myshop.myshopify.com",
       accessToken: "shpat_valid",
     } as any);
 
-    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-      ok: false,
-      status: 422,
-    });
-
-    await expect(
-      CommerceActionsService.commitAddToCart({
-        shopDomain: "myshop.myshopify.com",
-        variantId: "42",
-      }),
-    ).rejects.toThrow("Cart API request failed with status 422");
+    await expect(CommerceActionsService.commitAddToCart({
+      shopDomain: "myshop.myshopify.com",
+      variantId: "42",
+    })).rejects.toThrow(
+      "Server-side cart commit is not supported. Use prepareAddToCart and commit in the shopper's browser."
+    );
   });
 });

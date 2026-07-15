@@ -1,7 +1,7 @@
 import prisma from '../db.server';
 import { iaClient } from './ia-backend.server';
+import { SHOPIFY_API_VERSION } from '../config/shopify-api-version.server';
 
-const ADMIN_API_VERSION = '2026-01';
 const DEFAULT_BILLING_ERROR_MESSAGE =
   'No se pudo iniciar la suscripción en Shopify. Inténtalo nuevamente en unos segundos.';
 
@@ -189,7 +189,7 @@ async function runShopifyGraphql<T>(params: {
   query: string;
   variables?: Record<string, unknown>;
 }): Promise<T> {
-  const endpoint = `https://${params.shopDomain}/admin/api/${ADMIN_API_VERSION}/graphql.json`;
+  const endpoint = `https://${params.shopDomain}/admin/api/${SHOPIFY_API_VERSION}/graphql.json`;
   const response = await fetch(endpoint, {
     method: 'POST',
     headers: {

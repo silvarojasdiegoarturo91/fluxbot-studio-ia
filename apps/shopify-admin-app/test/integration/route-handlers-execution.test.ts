@@ -5,6 +5,9 @@ import { action as webhookAction } from '../../app/routes/api.webhooks';
 const { mockGatewayChat } = vi.hoisted(() => ({
   mockGatewayChat: vi.fn(),
 }));
+const { mockAuthenticateWebhook } = vi.hoisted(() => ({
+  mockAuthenticateWebhook: vi.fn(),
+}));
 
 /**
  * Route Handler Execution Tests
@@ -63,6 +66,12 @@ vi.mock('../../app/services/sync-service.server', () => ({
   },
 }));
 
+vi.mock('../../app/shopify.server', () => ({
+  authenticate: {
+    webhook: mockAuthenticateWebhook,
+  },
+}));
+
 // Mock cors utility
 vi.mock('remix-utils/cors', () => ({
   cors: vi.fn((request, response) => response),
@@ -74,6 +83,7 @@ import { WebhookHandlers } from '../../app/services/sync-service.server';
 describe('Route Handler Execution - Chat API', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockAuthenticateWebhook.mockReset();
     mockGatewayChat.mockReset();
     vi.mocked(prisma.conversation.findMany).mockResolvedValue([] as any);
   });
@@ -473,6 +483,11 @@ describe('Route Handler Execution - Webhook API', () => {
         title: 'Updated Product',
         vendor: 'Test Vendor',
       };
+      mockAuthenticateWebhook.mockResolvedValue({
+        topic: 'products/update',
+        shop: 'test-store.myshopify.com',
+        payload: webhookPayload,
+      });
 
       const request = new Request('http://localhost/api/webhooks', {
         method: 'POST',
@@ -510,6 +525,11 @@ describe('Route Handler Execution - Webhook API', () => {
       vi.mocked(prisma.webhookEvent.create).mockResolvedValue({} as any);
       vi.mocked(prisma.webhookEvent.updateMany).mockResolvedValue({ count: 1 } as any);
       vi.mocked(WebhookHandlers.handleProductDelete).mockResolvedValue(undefined);
+      mockAuthenticateWebhook.mockResolvedValue({
+        topic: 'products/delete',
+        shop: 'test-store.myshopify.com',
+        payload: { id: 'prod-delete-123' },
+      });
 
       const request = new Request('http://localhost/api/webhooks', {
         method: 'POST',
@@ -534,6 +554,11 @@ describe('Route Handler Execution - Webhook API', () => {
       vi.mocked(prisma.webhookEvent.create).mockResolvedValue({} as any);
       vi.mocked(prisma.webhookEvent.updateMany).mockResolvedValue({ count: 1 } as any);
       vi.mocked(WebhookHandlers.handleCollectionUpdate).mockResolvedValue(undefined);
+      mockAuthenticateWebhook.mockResolvedValue({
+        topic: 'collections/update',
+        shop: 'test-store.myshopify.com',
+        payload: { id: 'coll-123', title: 'Summer Collection' },
+      });
 
       const request = new Request('http://localhost/api/webhooks', {
         method: 'POST',
@@ -555,6 +580,11 @@ describe('Route Handler Execution - Webhook API', () => {
       vi.mocked(prisma.webhookEvent.create).mockResolvedValue({} as any);
       vi.mocked(prisma.webhookEvent.updateMany).mockResolvedValue({ count: 1 } as any);
       vi.mocked(WebhookHandlers.handlePageUpdate).mockResolvedValue(1);
+      mockAuthenticateWebhook.mockResolvedValue({
+        topic: 'pages/update',
+        shop: 'test-store.myshopify.com',
+        payload: { id: 'page-123', title: 'About Us' },
+      });
 
       const request = new Request('http://localhost/api/webhooks', {
         method: 'POST',
@@ -570,24 +600,27 @@ describe('Route Handler Execution - Webhook API', () => {
       expect(WebhookHandlers.handlePageUpdate).toHaveBeenCalled();
     });
 
-    it('should handle missing required headers', async () => {
+    it('should reject unsigned webhook requests', async () => {
+      mockAuthenticateWebhook.mockRejectedValue(new Response('Invalid signature', { status: 401 }));
+
       const request = new Request('http://localhost/api/webhooks', {
         method: 'POST',
-        headers: {
-          'X-Shopify-Hmac-Sha256': 'fake-signature',
-        },
         body: JSON.stringify({}),
       });
 
       const response = await webhookAction({ request, params: {}, context: {} } as any);
-      const data = await response.json();
 
-      expect(response.status).toBe(400);
-      expect(data.error).toBe('Missing required headers');
+      expect(response.status).toBe(401);
+      expect(prisma.shop.findUnique).not.toHaveBeenCalled();
     });
 
     it('should handle shop not found', async () => {
       vi.mocked(prisma.shop.findUnique).mockResolvedValue(null);
+      mockAuthenticateWebhook.mockResolvedValue({
+        topic: 'products/update',
+        shop: 'nonexistent.myshopify.com',
+        payload: {},
+      });
 
       const request = new Request('http://localhost/api/webhooks', {
         method: 'POST',
@@ -608,6 +641,11 @@ describe('Route Handler Execution - Webhook API', () => {
 
     it('should handle webhook processing errors', async () => {
       vi.mocked(prisma.shop.findUnique).mockRejectedValue(new Error('Database error'));
+      mockAuthenticateWebhook.mockResolvedValue({
+        topic: 'products/update',
+        shop: 'test-store.myshopify.com',
+        payload: {},
+      });
 
       const request = new Request('http://localhost/api/webhooks', {
         method: 'POST',

@@ -65,7 +65,10 @@ describe("DeliveryService", () => {
     expect(result.delivered).toBe(1);
     expect(result.failed).toBe(0);
     expect(ProactiveMessagingService.markAsSent).toHaveBeenCalledWith("msg-wa-1");
-    expect(ProactiveMessagingService.markAsDelivered).toHaveBeenCalledWith("msg-wa-1");
+    expect(ProactiveMessagingService.markAsDelivered).toHaveBeenCalledWith(
+      "shop-1",
+      "msg-wa-1"
+    );
     expect(dispatchOmnichannelMessage).toHaveBeenCalledWith(
       expect.objectContaining({
         channel: "WHATSAPP",
@@ -101,7 +104,10 @@ describe("DeliveryService", () => {
     expect(result.delivered).toBe(1);
     expect(result.failed).toBe(0);
     expect(ProactiveMessagingService.markAsSent).toHaveBeenCalledWith("msg-ig-1");
-    expect(ProactiveMessagingService.markAsDelivered).toHaveBeenCalledWith("msg-ig-1");
+    expect(ProactiveMessagingService.markAsDelivered).toHaveBeenCalledWith(
+      "shop-1",
+      "msg-ig-1"
+    );
     expect(dispatchOmnichannelMessage).toHaveBeenCalledWith(
       expect.objectContaining({
         channel: "INSTAGRAM",

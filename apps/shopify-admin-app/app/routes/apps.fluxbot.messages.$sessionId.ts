@@ -7,6 +7,7 @@
  */
 
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
+import prisma from "../db.server";
 import { ProactiveMessagingService } from "../services/proactive-messaging.server";
 import { verifyShopifyProxyRequest } from "../services/shopify-proxy-auth.server";
 
@@ -56,8 +57,25 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     return json({ success: false, error: "sessionId is required" }, { status: 400 });
   }
 
+  const shopDomain =
+    new URL(request.url).searchParams.get("shop") ||
+    request.headers.get("X-Shopify-Shop-Domain") ||
+    request.headers.get("X-Shop-Domain") ||
+    "";
+  if (!shopDomain) {
+    return json({ success: false, error: "shopDomain is required" }, { status: 400 });
+  }
+
+  const shop = await prisma.shop.findUnique({
+    where: { domain: shopDomain },
+    select: { id: true },
+  });
+  if (!shop) {
+    return json({ success: false, error: "Shop not found" }, { status: 404 });
+  }
+
   try {
-    const messages = await ProactiveMessagingService.getSessionMessages(sessionId);
+    const messages = await ProactiveMessagingService.getSessionMessages(shop.id, sessionId);
 
     // Filter to only WEB_CHAT channel messages that are queued (pending delivery)
     const pending = messages.filter(
@@ -89,6 +107,23 @@ export async function action({ request, params }: ActionFunctionArgs) {
     return json({ success: false, error: "sessionId is required" }, { status: 400 });
   }
 
+  const shopDomain =
+    new URL(request.url).searchParams.get("shop") ||
+    request.headers.get("X-Shopify-Shop-Domain") ||
+    request.headers.get("X-Shop-Domain") ||
+    "";
+  if (!shopDomain) {
+    return json({ success: false, error: "shopDomain is required" }, { status: 400 });
+  }
+
+  const shop = await prisma.shop.findUnique({
+    where: { domain: shopDomain },
+    select: { id: true },
+  });
+  if (!shop) {
+    return json({ success: false, error: "Shop not found" }, { status: 404 });
+  }
+
   try {
     const body = (await request.json()) as Record<string, unknown>;
     const messageId = typeof body.messageId === "string" ? body.messageId : "";
@@ -105,11 +140,12 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
     if (interaction && interaction !== "DELIVERED") {
       await ProactiveMessagingService.recordInteraction(
+        shop.id,
         messageId,
         interaction,
       );
     } else {
-      await ProactiveMessagingService.markAsDelivered(messageId);
+      await ProactiveMessagingService.markAsDelivered(shop.id, messageId);
     }
 
     return json({ success: true });
