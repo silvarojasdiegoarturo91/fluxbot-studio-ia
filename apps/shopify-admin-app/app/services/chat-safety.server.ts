@@ -18,8 +18,22 @@ const BLOCKED_LEGACY_REPLIES = new Set([
   "I apologize, but I encountered an issue processing your request. Please try again.",
 ]);
 
+const LOG_LIKE_PATTERNS = [
+  /^\[.*\]/,
+  /recib[ií] tu mensaje/i,
+  /current shopper message:/i,
+  /api target/i,
+  /traceid/i,
+  /requestid/i,
+  /console\.(log|info|warn|error)/i,
+];
+
 function normalize(message: string): string {
   return message.replace(/\s+/g, " ").trim();
+}
+
+function looksLikeLogOutput(message: string): boolean {
+  return LOG_LIKE_PATTERNS.some((pattern) => pattern.test(message));
 }
 
 export function detectBasicIntent(message: string): BasicIntent {
@@ -69,7 +83,7 @@ export function sanitizeAssistantMessage(message: string, intent: BasicIntent = 
   if (!normalized) {
     return safeClarificationMessage();
   }
-  if (BLOCKED_LEGACY_REPLIES.has(normalized)) {
+  if (BLOCKED_LEGACY_REPLIES.has(normalized) || looksLikeLogOutput(normalized)) {
     return safeClarificationMessage();
   }
   return normalized;
