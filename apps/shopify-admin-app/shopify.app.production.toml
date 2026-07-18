@@ -1,0 +1,38 @@
+# Shopify production app configuration for FluxBot Studio.
+
+client_id = "8c36112e98ce36be869eb0dc5efdd572"
+name = "fluxbot-studio"
+application_url = "https://app.fluxbotia.com"
+embedded = true
+handle = "fluxbot-studio"
+
+[build]
+automatically_update_urls_on_dev = false
+
+[webhooks]
+api_version = "2026-04"
+
+[[webhooks.subscriptions]]
+compliance_topics = ["customers/data_request", "customers/redact", "shop/redact"]
+uri = "/api/webhooks"
+
+[access_scopes]
+scopes = "read_products,write_products,read_orders,read_customers,read_content,read_locales,read_online_store_pages,read_themes"
+
+[app_proxy]
+url = "https://app.fluxbotia.com"
+subpath = "fluxbot"
+prefix = "apps"
+
+[auth]
+redirect_urls = [
+  "https://app.fluxbotia.com/auth/callback",
+  "https://app.fluxbotia.com/auth/shopify/callback",
+  "https://app.fluxbotia.com/api/auth/callback"
+]
+
+[pos]
+embedded = false
+
+[[extensions]]
+path = "extensions/chat-widget"

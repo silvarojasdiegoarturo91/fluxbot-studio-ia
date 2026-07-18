@@ -235,3 +235,14 @@ describe("shopify.web.toml — webhook routing", () => {
     expect(toml).toMatch(/webhooks_path\s*=\s*["']?\/api\/webhooks["']?/);
   });
 });
+
+describe("shopify.app.toml — privacy compliance webhooks", () => {
+  const toml = readFile("shopify.app.production.toml");
+
+  it("declares all Shopify mandatory compliance topics on the authenticated webhook route", () => {
+    expect(toml).toMatch(/compliance_topics\s*=\s*\[[\s\S]*customers\/data_request/);
+    expect(toml).toMatch(/compliance_topics\s*=\s*\[[\s\S]*customers\/redact/);
+    expect(toml).toMatch(/compliance_topics\s*=\s*\[[\s\S]*shop\/redact/);
+    expect(toml).toMatch(/uri\s*=\s*"\/api\/webhooks"/);
+  });
+});
