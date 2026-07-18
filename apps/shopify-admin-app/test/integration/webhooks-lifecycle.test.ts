@@ -174,6 +174,27 @@ describe("api.webhooks lifecycle behavior", () => {
     expect(mockInitiateDataExport).toHaveBeenCalledWith("shop-1");
   });
 
+  it("acknowledges a verified privacy webhook when Shopify has no local shop record", async () => {
+    mockAuthenticateWebhook.mockResolvedValue({
+      topic: "customers/redact",
+      shop: "review-shop.myshopify.com",
+      payload: { customer: { id: 123 } },
+    });
+    mockShopFindUnique.mockResolvedValue(null);
+
+    const { action } = await import("../../app/routes/api.webhooks");
+    const response = await action({
+      request: makeWebhookRequest("customers/redact", { customer: { id: 123 } }),
+      params: {},
+      context: {},
+    } as never);
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ success: true });
+    expect(mockInitiateDataDeletion).not.toHaveBeenCalled();
+    expect(mockExecuteDataDeletion).not.toHaveBeenCalled();
+  });
+
   it("redacts the requested customer's data", async () => {
     mockAuthenticateWebhook.mockResolvedValue({
       topic: "customers/redact",

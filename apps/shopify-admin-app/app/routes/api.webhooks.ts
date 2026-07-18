@@ -45,6 +45,15 @@ function extractCustomerId(payload: unknown): string | undefined {
     : undefined;
 }
 
+const COMPLIANCE_WEBHOOK_TOPICS = new Set([
+  "customers/data_request",
+  "customers/redact",
+  "shop/redact",
+  "CUSTOMERS_DATA_REQUEST",
+  "CUSTOMERS_REDACT",
+  "SHOP_REDACT",
+]);
+
 function resetAdminSetupOnUninstall(metadata: unknown): Prisma.InputJsonValue {
   const root = asRecord(metadata);
   const adminSetup = asRecord(root.adminSetup);
@@ -188,6 +197,17 @@ export async function action({ request }: ActionFunctionArgs) {
 
     const shop = await prisma.shop.findUnique({ where: { domain: shopDomain } });
     if (!shop) {
+      // Shopify can validate mandatory privacy webhooks with a shop that has no
+      // local record. A verified compliance request is idempotent: no record
+      // means there is no local customer or shop data left to process.
+      if (COMPLIANCE_WEBHOOK_TOPICS.has(topic)) {
+        console.info("[Webhooks] Compliance request received for unknown shop", {
+          topic,
+          shopDomain,
+        });
+        return json({ success: true });
+      }
+
       return json({ error: "Shop not found" }, { status: 404 });
     }
 
