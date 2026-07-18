@@ -13,7 +13,15 @@ automatically_update_urls_on_dev = false
 api_version = "2026-04"
 
 [[webhooks.subscriptions]]
-compliance_topics = ["customers/data_request", "customers/redact", "shop/redact"]
+compliance_topics = ["customers/data_request"]
+uri = "/api/webhooks"
+
+[[webhooks.subscriptions]]
+compliance_topics = ["customers/redact"]
+uri = "/api/webhooks"
+
+[[webhooks.subscriptions]]
+compliance_topics = ["shop/redact"]
 uri = "/api/webhooks"
 
 [access_scopes]
