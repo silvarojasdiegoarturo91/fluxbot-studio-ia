@@ -5,7 +5,7 @@
     "description": "OpenSpec local para requisitos de fluxbot-studio-ia-shopify. Los requisitos aquí son espejo de los requisitos root que afectan este repositorio.",
     "owner": "frontend_shopify",
     "status": "in-development",
-    "last_updated": "2026-07-13T03:08:48.565Z",
+    "last_updated": "2026-07-18T17:14:06.849Z",
     "source_of_truth": ".openspec.json",
     "mirror_root": "../.openspec.json"
   },
@@ -965,6 +965,31 @@
           "completion_rate": 0,
           "velocity": 1
         }
+      },
+      {
+        "id": "DOC-1558ed6-2026-07-18T17-14-06-849Z",
+        "title": "Review documentation update (1 files)",
+        "description": "Documentation changed in: AGENTS.md. Review and align agent instructions, references, and related docs.",
+        "priority": "medium",
+        "status": "planned",
+        "owner": "docs",
+        "components": [
+          "AGENTS.md"
+        ],
+        "source_files": [
+          "AGENTS.md"
+        ],
+        "acceptance_criteria": [
+          "Documentation references remain synchronized",
+          "Agent instructions stay aligned with the latest docs",
+          "Follow-up work is tracked in OpenSpec"
+        ],
+        "dependencies": [],
+        "metrics": {
+          "quality_score": 90,
+          "completion_rate": 0,
+          "velocity": 1
+        }
       }
     ],
     "conversation_continuity": [
@@ -976,9 +1001,19 @@
         "priority": "high",
         "status": "planned",
         "owner": "frontend_shopify",
-        "components": ["apps/shopify-admin-app/app/routes/app.onboarding.tsx", "apps/shopify-admin-app/app/routes/app.assistant-config.tsx"],
-        "acceptance_criteria": ["El merchant puede elegir un perfil accesible y localizado", "La selección viaja en contrato tipado", "La UI muestra modo de continuidad sin exponer detalles internos", "Playwright cubre selección y persistencia"],
-        "dependencies": ["REQ-ROOT-013"],
+        "components": [
+          "apps/shopify-admin-app/app/routes/app.onboarding.tsx",
+          "apps/shopify-admin-app/app/routes/app.assistant-config.tsx"
+        ],
+        "acceptance_criteria": [
+          "El merchant puede elegir un perfil accesible y localizado",
+          "La selección viaja en contrato tipado",
+          "La UI muestra modo de continuidad sin exponer detalles internos",
+          "Playwright cubre selección y persistencia"
+        ],
+        "dependencies": [
+          "REQ-ROOT-013"
+        ],
         "user_story": "Como merchant, quiero elegir el estilo de mi asistente durante onboarding para que represente a mi tienda incluso en modo de continuidad."
       }
     ]
