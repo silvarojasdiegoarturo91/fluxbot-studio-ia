@@ -16,6 +16,12 @@ import prisma from "../db.server";
 import { authenticate } from "../shopify.server";
 import { WebhookHandlers } from "../services/sync-service.server";
 import { AnalyticsService } from "../services/analytics.server";
+import {
+  completeDeletionJob,
+  executeDataDeletion,
+  initiateDataDeletion,
+  initiateDataExport,
+} from "../services/consent-management.server";
 
 function json(data: unknown, init?: ResponseInit) {
   return new Response(JSON.stringify(data), {
@@ -28,6 +34,15 @@ function asRecord(value: unknown): Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : {};
+}
+
+function extractCustomerId(payload: unknown): string | undefined {
+  const customer = asRecord(asRecord(payload).customer);
+  const customerId = customer.id;
+
+  return typeof customerId === "string" || typeof customerId === "number"
+    ? String(customerId)
+    : undefined;
 }
 
 function resetAdminSetupOnUninstall(metadata: unknown): Prisma.InputJsonValue {
@@ -142,6 +157,27 @@ async function handleAppSubscriptionUpdate(shopId: string, payload: unknown): Pr
   });
 }
 
+async function handleCustomerDataRequest(shopId: string): Promise<void> {
+  await initiateDataExport(shopId);
+}
+
+async function handleCustomerRedact(shopId: string, payload: unknown): Promise<void> {
+  const customerId = extractCustomerId(payload);
+  if (!customerId) {
+    throw new Error("Customer redact webhook is missing customer.id");
+  }
+
+  const job = await initiateDataDeletion(shopId, customerId);
+  const deletedCount = await executeDataDeletion(shopId, customerId);
+  await completeDeletionJob(job.id, deletedCount);
+}
+
+async function handleShopRedact(shopId: string): Promise<void> {
+  const job = await initiateDataDeletion(shopId);
+  const deletedCount = await executeDataDeletion(shopId);
+  await completeDeletionJob(job.id, deletedCount);
+}
+
 export async function action({ request }: ActionFunctionArgs) {
   try {
     const { topic, shop: shopDomain, payload } = await authenticate.webhook(request);
@@ -195,6 +231,18 @@ export async function action({ request }: ActionFunctionArgs) {
       case "APP_UNINSTALLED":
       case "app/uninstalled":
         await handleAppUninstalled(shop.id);
+        break;
+      case "customers/data_request":
+      case "CUSTOMERS_DATA_REQUEST":
+        await handleCustomerDataRequest(shop.id);
+        break;
+      case "customers/redact":
+      case "CUSTOMERS_REDACT":
+        await handleCustomerRedact(shop.id, payload);
+        break;
+      case "shop/redact":
+      case "SHOP_REDACT":
+        await handleShopRedact(shop.id);
         break;
       case "shop/update":
       case "SHOP_UPDATE":

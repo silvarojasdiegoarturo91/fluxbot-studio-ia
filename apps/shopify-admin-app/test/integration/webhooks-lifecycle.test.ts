@@ -9,6 +9,10 @@ const mockShopUpdate = vi.fn();
 const mockWebhookEventCreate = vi.fn();
 const mockWebhookEventUpdateMany = vi.fn();
 const mockOrderProjectionUpsert = vi.fn();
+const mockInitiateDataExport = vi.fn();
+const mockInitiateDataDeletion = vi.fn();
+const mockExecuteDataDeletion = vi.fn();
+const mockCompleteDeletionJob = vi.fn();
 
 vi.mock("../../app/db.server", () => ({
   default: {
@@ -41,6 +45,13 @@ vi.mock("../../app/services/analytics.server", () => ({
   },
 }));
 
+vi.mock("../../app/services/consent-management.server", () => ({
+  initiateDataExport: mockInitiateDataExport,
+  initiateDataDeletion: mockInitiateDataDeletion,
+  executeDataDeletion: mockExecuteDataDeletion,
+  completeDeletionJob: mockCompleteDeletionJob,
+}));
+
 vi.mock("../../app/shopify.server", () => ({
   authenticate: {
     webhook: mockAuthenticateWebhook,
@@ -67,6 +78,10 @@ describe("api.webhooks lifecycle behavior", () => {
     mockWebhookEventCreate.mockResolvedValue({});
     mockWebhookEventUpdateMany.mockResolvedValue({ count: 1 });
     mockOrderProjectionUpsert.mockResolvedValue({});
+    mockInitiateDataExport.mockResolvedValue({ id: "export-job-1" });
+    mockInitiateDataDeletion.mockResolvedValue({ id: "deletion-job-1" });
+    mockExecuteDataDeletion.mockResolvedValue(3);
+    mockCompleteDeletionJob.mockResolvedValue({});
   });
 
   it("resets onboarding metadata when app is uninstalled", async () => {
@@ -138,5 +153,66 @@ describe("api.webhooks lifecycle behavior", () => {
 
     expect(response.status).toBe(401);
     expect(mockShopFindUnique).not.toHaveBeenCalled();
+  });
+
+  it("queues customer data export requests from Shopify's mandatory webhook", async () => {
+    mockAuthenticateWebhook.mockResolvedValue({
+      topic: "customers/data_request",
+      shop: "store.myshopify.com",
+      payload: { customer: { id: 123 } },
+    });
+    mockShopFindUnique.mockResolvedValue({ id: "shop-1", domain: "store.myshopify.com" });
+
+    const { action } = await import("../../app/routes/api.webhooks");
+    const response = await action({
+      request: makeWebhookRequest("customers/data_request", { customer: { id: 123 } }),
+      params: {},
+      context: {},
+    } as never);
+
+    expect(response.status).toBe(200);
+    expect(mockInitiateDataExport).toHaveBeenCalledWith("shop-1");
+  });
+
+  it("redacts the requested customer's data", async () => {
+    mockAuthenticateWebhook.mockResolvedValue({
+      topic: "customers/redact",
+      shop: "store.myshopify.com",
+      payload: { customer: { id: 123 } },
+    });
+    mockShopFindUnique.mockResolvedValue({ id: "shop-1", domain: "store.myshopify.com" });
+
+    const { action } = await import("../../app/routes/api.webhooks");
+    const response = await action({
+      request: makeWebhookRequest("customers/redact", { customer: { id: 123 } }),
+      params: {},
+      context: {},
+    } as never);
+
+    expect(response.status).toBe(200);
+    expect(mockInitiateDataDeletion).toHaveBeenCalledWith("shop-1", "123");
+    expect(mockExecuteDataDeletion).toHaveBeenCalledWith("shop-1", "123");
+    expect(mockCompleteDeletionJob).toHaveBeenCalledWith("deletion-job-1", 3);
+  });
+
+  it("redacts shop data after Shopify requests shop redaction", async () => {
+    mockAuthenticateWebhook.mockResolvedValue({
+      topic: "shop/redact",
+      shop: "store.myshopify.com",
+      payload: { shop_id: 456 },
+    });
+    mockShopFindUnique.mockResolvedValue({ id: "shop-1", domain: "store.myshopify.com" });
+
+    const { action } = await import("../../app/routes/api.webhooks");
+    const response = await action({
+      request: makeWebhookRequest("shop/redact", { shop_id: 456 }),
+      params: {},
+      context: {},
+    } as never);
+
+    expect(response.status).toBe(200);
+    expect(mockInitiateDataDeletion).toHaveBeenCalledWith("shop-1");
+    expect(mockExecuteDataDeletion).toHaveBeenCalledWith("shop-1");
+    expect(mockCompleteDeletionJob).toHaveBeenCalledWith("deletion-job-1", 3);
   });
 });
