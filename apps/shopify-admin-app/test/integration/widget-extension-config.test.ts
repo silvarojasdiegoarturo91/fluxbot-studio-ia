@@ -248,4 +248,10 @@ describe("shopify.app.toml — privacy compliance webhooks", () => {
       expect.stringMatching(/compliance_topics\s*=\s*\["shop\/redact"\][\s\S]*uri\s*=\s*"\/api\/webhooks"/),
     ]));
   });
+
+  it("targets the production Shopify app, not the local development app", () => {
+    expect(toml).toMatch(/client_id\s*=\s*"3e33f15eca7b32e62ea7137311172df5"/);
+    expect(toml).toMatch(/name\s*=\s*"fluxbot-studio-ia"/);
+    expect(toml).toMatch(/handle\s*=\s*"fluxbot-studio-ia"/);
+  });
 });
