@@ -5,7 +5,7 @@
     "description": "OpenSpec local para requisitos de fluxbot-studio-ia-shopify. Los requisitos aquí son espejo de los requisitos root que afectan este repositorio.",
     "owner": "frontend_shopify",
     "status": "in-development",
-    "last_updated": "2026-07-18T17:14:06.849Z",
+    "last_updated": "2026-07-19T02:29:32.136Z",
     "source_of_truth": ".openspec.json",
     "mirror_root": "../.openspec.json"
   },
@@ -990,6 +990,33 @@
           "completion_rate": 0,
           "velocity": 1
         }
+      },
+      {
+        "id": "DOC-803919b-2026-07-19T02-29-32-135Z",
+        "title": "Review documentation update (2 files)",
+        "description": "Documentation changed in: apps/shopify-admin-app/README.md, specs/features/shopify-app-store-compliance/manual-evidence.md. Review and align agent instructions, references, and related docs.",
+        "priority": "medium",
+        "status": "planned",
+        "owner": "docs",
+        "components": [
+          "apps/shopify-admin-app/README.md",
+          "specs/features/shopify-app-store-compliance/manual-evidence.md"
+        ],
+        "source_files": [
+          "apps/shopify-admin-app/README.md",
+          "specs/features/shopify-app-store-compliance/manual-evidence.md"
+        ],
+        "acceptance_criteria": [
+          "Documentation references remain synchronized",
+          "Agent instructions stay aligned with the latest docs",
+          "Follow-up work is tracked in OpenSpec"
+        ],
+        "dependencies": [],
+        "metrics": {
+          "quality_score": 90,
+          "completion_rate": 0,
+          "velocity": 1
+        }
       }
     ],
     "privacy": [
@@ -1001,10 +1028,24 @@
         "priority": "critical",
         "status": "planned",
         "owner": "frontend_shopify",
-        "components": ["apps/shopify-admin-app/app/routes/api.webhooks.ts", "apps/shopify-admin-app/app/services"],
-        "acceptance_criteria": ["Cada webhook GDPR invoca el contrato de privacidad del backend", "Un fallo del backend queda trazado y permite reintento seguro", "La app mantiene la confirmación HTTP requerida por Shopify"],
-        "dependencies": ["REQ-CONTRACTS-PRIV-001", "REQ-BACK-PRIV-001"],
-        "metrics": {"quality_score": 90, "completion_rate": 0, "velocity": 1},
+        "components": [
+          "apps/shopify-admin-app/app/routes/api.webhooks.ts",
+          "apps/shopify-admin-app/app/services"
+        ],
+        "acceptance_criteria": [
+          "Cada webhook GDPR invoca el contrato de privacidad del backend",
+          "Un fallo del backend queda trazado y permite reintento seguro",
+          "La app mantiene la confirmación HTTP requerida por Shopify"
+        ],
+        "dependencies": [
+          "REQ-CONTRACTS-PRIV-001",
+          "REQ-BACK-PRIV-001"
+        ],
+        "metrics": {
+          "quality_score": 90,
+          "completion_rate": 0,
+          "velocity": 1
+        },
         "user_story": "Como app Shopify, quiero propagar los webhooks GDPR al backend central para que el borrado y exportación sean completos."
       }
     ],
