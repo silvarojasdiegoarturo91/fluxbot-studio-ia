@@ -18,7 +18,7 @@ if (!process.env.IA_BACKEND_API_KEY) {
 }
 // Force deterministic baseline scopes for tests.
 process.env.SCOPES =
-  "read_products,write_products,read_orders,read_customers,read_content,read_locales,read_online_store_pages";
+  "read_products,read_orders,read_content,read_online_store_pages,read_themes";
 if (!process.env.DATABASE_URL) {
   process.env.DATABASE_URL = "postgresql://test:test@localhost:5433/test_db";
 }

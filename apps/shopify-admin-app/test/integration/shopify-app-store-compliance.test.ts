@@ -33,7 +33,7 @@ describe("Shopify App Store compliance baseline", () => {
     expect(manifest).toContain('https://fluxbot-local-dev.invalid/auth/callback');
     expect(manifest).toContain('https://fluxbot-local-dev.invalid/auth/shopify/callback');
     expect(manifest).toContain('https://fluxbot-local-dev.invalid/api/auth/callback');
-    expect(manifest).toContain('scopes = "read_products,write_products,read_orders,read_customers,read_content,read_locales,read_online_store_pages,read_themes"');
+    expect(manifest).toContain('scopes = "read_products,read_orders,read_content,read_online_store_pages,read_themes"');
     expect(manifest).toContain('[[extensions]]');
     expect(manifest).toContain('path = "extensions/chat-widget"');
   });
@@ -150,7 +150,10 @@ describe("Shopify App Store compliance baseline", () => {
     expect(featureReadme).toContain("Shopify App Store Compliance");
     expect(requirements).toContain("Unsupported Shopify families");
     expect(testCases).toContain("theme app extension");
-    expect(manualEvidence).toContain("Support contact email");
+    expect(manualEvidence).toContain("Public support contact email");
+    expect(manualEvidence).toContain("Access-scope justification");
+    expect(manualEvidence).toContain("write_products`, `read_customers` and `read_locales` were removed");
+    expect(manualEvidence).toContain("GDPR processor and deletion evidence");
     expect(spec).toContain("Shopify App Store Compliance");
     expect(plan).toContain("payments/purchase-option/POS flows");
     expect(tasks).toContain("Phase 3: Repo-wide documentation alignment");

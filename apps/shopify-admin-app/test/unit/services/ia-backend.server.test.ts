@@ -110,4 +110,34 @@ describe("ia-backend.server", () => {
       }),
     );
   });
+
+  it("registers privacy requests without logging or exposing the customer identifier", async () => {
+    const mockFetch = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          data: { requestId: "privacy-1", operation: "CUSTOMER_REDACT", status: "ACCEPTED" },
+          requestId: "req-1",
+          timestamp: "2026-07-19T00:00:00.000Z",
+        }),
+        { status: 202, headers: { "content-type": "application/json" } },
+      ),
+    );
+    vi.stubGlobal("fetch", mockFetch);
+    const info = vi.spyOn(console, "info").mockImplementation(() => undefined);
+    const { iaClient } = await import("../../../app/services/ia-backend.server");
+
+    await iaClient.privacy.register(
+      { operation: "CUSTOMER_REDACT", customerId: "gid://shopify/Customer/123" },
+      "store.myshopify.com",
+    );
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      "http://localhost:3001/api/v1/privacy/requests",
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({ "X-Shop-Domain": "store.myshopify.com" }),
+      }),
+    );
+    expect(info.mock.calls.flat().join(" ")).not.toContain("gid://shopify/Customer/123");
+  });
 });

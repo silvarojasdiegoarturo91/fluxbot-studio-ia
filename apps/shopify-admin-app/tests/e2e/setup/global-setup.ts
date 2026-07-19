@@ -67,7 +67,7 @@ export default async function globalSetup(_config: FullConfig) {
       create: {
         domain: TEST_SHOP_DOMAIN,
         accessToken: 'e2e-test-access-token',
-        scope: 'read_products,write_products,read_orders,read_customers,read_content,read_locales,read_online_store_pages',
+        scope: 'read_products,read_orders,read_content,read_online_store_pages,read_themes',
         isOnline: false,
         status: 'ACTIVE',
         metadata: { adminSetup: COMPLETED_ADMIN_SETUP },

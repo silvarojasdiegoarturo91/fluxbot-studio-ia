@@ -236,11 +236,10 @@ npx prisma studio    # Open database GUI
 
 - **Version**: 2026-01 (January 2026)
 - **Scopes**: 
-  - Catalog: `read_products`, `write_products`
+  - Catalog: `read_products`
   - Orders: `read_orders`
-  - Customers: `read_customers`
-  - Content: `read_content`, `read_policies`, `read_online_store_pages`
-  - Locales: `read_locales`
+  - Content: `read_content`, `read_online_store_pages`
+  - Themes: `read_themes`
 
 ## Feature Status
 

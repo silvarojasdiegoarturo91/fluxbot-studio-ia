@@ -165,7 +165,7 @@ describe('Config Server - Environment Loading', () => {
       expect(config.ai.provider).toBe('openai'); // default
       // Note: SCOPES is set in test/setup.ts to the canonical Shopify scope baseline.
       expect(config.shopify.scopes).toBe(
-        'read_products,write_products,read_orders,read_customers,read_content,read_locales,read_online_store_pages',
+        'read_products,read_orders,read_content,read_online_store_pages,read_themes',
       ); // from setup.ts
       expect(config.redis.url).toBe('redis://localhost:6379'); // default
       // Note: NODE_ENV is 'test' when running under Vitest

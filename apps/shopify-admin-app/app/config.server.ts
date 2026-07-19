@@ -143,7 +143,7 @@ export function loadEnvironmentConfig(): EnvironmentConfig {
       appUrl: validateRequiredEnv('SHOPIFY_APP_URL', process.env.SHOPIFY_APP_URL),
       scopes: getOptionalEnv(
         'SCOPES',
-        'read_products,write_products,read_orders,read_customers,read_content,read_locales,read_online_store_pages',
+        'read_products,read_orders,read_content,read_online_store_pages,read_themes',
       ),
     },
     

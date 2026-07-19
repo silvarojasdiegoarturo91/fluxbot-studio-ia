@@ -13,6 +13,7 @@ const mockInitiateDataExport = vi.fn();
 const mockInitiateDataDeletion = vi.fn();
 const mockExecuteDataDeletion = vi.fn();
 const mockCompleteDeletionJob = vi.fn();
+const mockRegisterPrivacyRequest = vi.fn();
 
 vi.mock("../../app/db.server", () => ({
   default: {
@@ -52,6 +53,14 @@ vi.mock("../../app/services/consent-management.server", () => ({
   completeDeletionJob: mockCompleteDeletionJob,
 }));
 
+vi.mock("../../app/services/ia-backend.server", () => ({
+  iaClient: {
+    privacy: {
+      register: mockRegisterPrivacyRequest,
+    },
+  },
+}));
+
 vi.mock("../../app/shopify.server", () => ({
   authenticate: {
     webhook: mockAuthenticateWebhook,
@@ -82,6 +91,7 @@ describe("api.webhooks lifecycle behavior", () => {
     mockInitiateDataDeletion.mockResolvedValue({ id: "deletion-job-1" });
     mockExecuteDataDeletion.mockResolvedValue(3);
     mockCompleteDeletionJob.mockResolvedValue({});
+    mockRegisterPrivacyRequest.mockResolvedValue({ status: "ACCEPTED" });
   });
 
   it("resets onboarding metadata when app is uninstalled", async () => {
@@ -172,6 +182,10 @@ describe("api.webhooks lifecycle behavior", () => {
 
     expect(response.status).toBe(200);
     expect(mockInitiateDataExport).toHaveBeenCalledWith("shop-1");
+    expect(mockRegisterPrivacyRequest).toHaveBeenCalledWith(
+      { operation: "CUSTOMER_DATA_REQUEST", customerId: "123" },
+      "store.myshopify.com",
+    );
   });
 
   it("acknowledges a verified privacy webhook when Shopify has no local shop record", async () => {
@@ -193,6 +207,10 @@ describe("api.webhooks lifecycle behavior", () => {
     await expect(response.json()).resolves.toEqual({ success: true });
     expect(mockInitiateDataDeletion).not.toHaveBeenCalled();
     expect(mockExecuteDataDeletion).not.toHaveBeenCalled();
+    expect(mockRegisterPrivacyRequest).toHaveBeenCalledWith(
+      { operation: "CUSTOMER_REDACT", customerId: "123" },
+      "review-shop.myshopify.com",
+    );
   });
 
   it("redacts the requested customer's data", async () => {
@@ -214,6 +232,10 @@ describe("api.webhooks lifecycle behavior", () => {
     expect(mockInitiateDataDeletion).toHaveBeenCalledWith("shop-1", "123");
     expect(mockExecuteDataDeletion).toHaveBeenCalledWith("shop-1", "123");
     expect(mockCompleteDeletionJob).toHaveBeenCalledWith("deletion-job-1", 3);
+    expect(mockRegisterPrivacyRequest).toHaveBeenCalledWith(
+      { operation: "CUSTOMER_REDACT", customerId: "123" },
+      "store.myshopify.com",
+    );
   });
 
   it("redacts shop data after Shopify requests shop redaction", async () => {
@@ -235,5 +257,9 @@ describe("api.webhooks lifecycle behavior", () => {
     expect(mockInitiateDataDeletion).toHaveBeenCalledWith("shop-1");
     expect(mockExecuteDataDeletion).toHaveBeenCalledWith("shop-1");
     expect(mockCompleteDeletionJob).toHaveBeenCalledWith("deletion-job-1", 3);
+    expect(mockRegisterPrivacyRequest).toHaveBeenCalledWith(
+      { operation: "SHOP_REDACT" },
+      "store.myshopify.com",
+    );
   });
 });

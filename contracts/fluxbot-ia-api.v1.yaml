@@ -198,6 +198,48 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
+  /api/v1/privacy/requests:
+    post:
+      operationId: registerPrivacyRequest
+      summary: Register a Shopify GDPR privacy request for processing
+      description: |
+        Accepts an authenticated, idempotent GDPR request received from Shopify.
+        The shop is identified exclusively by the X-Shop-Domain header. Customer
+        requests require the opaque Shopify customer identifier; shop redaction
+        does not. The response acknowledges registration only and never returns
+        customer data.
+      parameters:
+        - in: header
+          name: X-Shop-Domain
+          required: true
+          schema:
+            type: string
+          description: The .myshopify.com domain of the shop that owns the data.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PrivacyRequest'
+      responses:
+        '202':
+          description: Privacy request registered for asynchronous processing
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PrivacyRequestEnvelope'
+        '400':
+          description: Invalid privacy request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Missing or invalid service authentication
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
 
 components:
   securitySchemes:
@@ -523,4 +565,51 @@ components:
                   items:
                     type: string
               required: [chunksIndexed, productsProcessed, durationMs, errors]
+          required: [data]
+    PrivacyOperation:
+      type: string
+      enum: [CUSTOMER_DATA_REQUEST, CUSTOMER_REDACT, SHOP_REDACT]
+    CustomerPrivacyRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        operation:
+          type: string
+          enum: [CUSTOMER_DATA_REQUEST, CUSTOMER_REDACT]
+        customerId:
+          type: string
+          minLength: 1
+          description: Opaque Shopify customer identifier; it must not be logged.
+      required: [operation, customerId]
+    ShopRedactPrivacyRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        operation:
+          type: string
+          enum: [SHOP_REDACT]
+      required: [operation]
+    PrivacyRequest:
+      oneOf:
+        - $ref: '#/components/schemas/CustomerPrivacyRequest'
+        - $ref: '#/components/schemas/ShopRedactPrivacyRequest'
+    PrivacyRequestData:
+      type: object
+      properties:
+        requestId:
+          type: string
+          description: Idempotency and audit reference; safe to retain as non-PII operational metadata.
+        operation:
+          $ref: '#/components/schemas/PrivacyOperation'
+        status:
+          type: string
+          enum: [ACCEPTED, ALREADY_ACCEPTED]
+      required: [requestId, operation, status]
+    PrivacyRequestEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/EnvelopeMeta'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/PrivacyRequestData'
           required: [data]

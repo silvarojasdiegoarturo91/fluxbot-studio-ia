@@ -89,12 +89,10 @@ describe("Phase 0: Environment Configuration", () => {
       const scopes = process.env.SCOPES || "";
       const requiredScopes = [
         "read_products",
-        "write_products",
         "read_orders",
-        "read_customers",
         "read_content",
-        "read_locales",
         "read_online_store_pages",
+        "read_themes",
       ];
       
       requiredScopes.forEach((scope) => {

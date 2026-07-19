@@ -499,6 +499,18 @@ export interface BillingSubscribeResponse {
   usageLineItemId?: string;
 }
 
+export type PrivacyOperation = 'CUSTOMER_DATA_REQUEST' | 'CUSTOMER_REDACT' | 'SHOP_REDACT';
+
+export type PrivacyRequest =
+  | { operation: 'CUSTOMER_DATA_REQUEST' | 'CUSTOMER_REDACT'; customerId: string }
+  | { operation: 'SHOP_REDACT' };
+
+export interface PrivacyRequestResponse {
+  requestId: string;
+  operation: PrivacyOperation;
+  status: 'ACCEPTED' | 'ALREADY_ACCEPTED';
+}
+
 export class IABackendError extends Error {
   constructor(
     message: string,
@@ -515,7 +527,8 @@ async function makeRequest<T>(
   method: 'GET' | 'POST' | 'PUT' | 'DELETE',
   body?: unknown,
   shopDomain?: string,
-  traceId?: string
+  traceId?: string,
+  redactRequestBody = false,
 ): Promise<T> {
   const config = getBackendConfig();
   const requestContext: BackendRequestContext = { endpoint, method };
@@ -543,7 +556,7 @@ async function makeRequest<T>(
     shopDomain,
     ...describeBackendTarget(config.baseUrl, endpoint),
     requestHeaders: redactBackendHeaders(headers),
-    requestBody: body ?? null,
+    requestBody: redactRequestBody ? '[redacted]' : body ?? null,
   });
 
   let response: Response;
@@ -764,5 +777,17 @@ export const iaClient = {
 
     subscribe: (request: BillingSubscribeRequest, shopDomain?: string) =>
       makeRequest<BillingSubscribeResponse>(`${API_V1}/billing/subscribe`, 'POST', request, shopDomain),
+  },
+
+  privacy: {
+    register: (request: PrivacyRequest, shopDomain: string) =>
+      makeRequest<PrivacyRequestResponse>(
+        `${API_V1}/privacy/requests`,
+        'POST',
+        request,
+        shopDomain,
+        undefined,
+        true,
+      ),
   },
 };

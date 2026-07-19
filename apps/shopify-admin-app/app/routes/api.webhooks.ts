@@ -16,6 +16,7 @@ import prisma from "../db.server";
 import { authenticate } from "../shopify.server";
 import { WebhookHandlers } from "../services/sync-service.server";
 import { AnalyticsService } from "../services/analytics.server";
+import { iaClient, type PrivacyOperation } from "../services/ia-backend.server";
 import {
   completeDeletionJob,
   executeDataDeletion,
@@ -166,22 +167,58 @@ async function handleAppSubscriptionUpdate(shopId: string, payload: unknown): Pr
   });
 }
 
-async function handleCustomerDataRequest(shopId: string): Promise<void> {
+function getPrivacyOperation(topic: string): PrivacyOperation | null {
+  switch (topic) {
+    case "customers/data_request":
+    case "CUSTOMERS_DATA_REQUEST":
+      return "CUSTOMER_DATA_REQUEST";
+    case "customers/redact":
+    case "CUSTOMERS_REDACT":
+      return "CUSTOMER_REDACT";
+    case "shop/redact":
+    case "SHOP_REDACT":
+      return "SHOP_REDACT";
+    default:
+      return null;
+  }
+}
+
+async function registerBackendPrivacyRequest(topic: string, shopDomain: string, payload: unknown): Promise<void> {
+  const operation = getPrivacyOperation(topic);
+  if (!operation) return;
+
+  if (operation === "SHOP_REDACT") {
+    await iaClient.privacy.register({ operation }, shopDomain);
+    return;
+  }
+
+  const customerId = extractCustomerId(payload);
+  if (!customerId) {
+    throw new Error(`${operation} webhook is missing customer.id`);
+  }
+
+  await iaClient.privacy.register({ operation, customerId }, shopDomain);
+}
+
+async function handleCustomerDataRequest(shopId: string, shopDomain: string, payload: unknown): Promise<void> {
+  await registerBackendPrivacyRequest("CUSTOMERS_DATA_REQUEST", shopDomain, payload);
   await initiateDataExport(shopId);
 }
 
-async function handleCustomerRedact(shopId: string, payload: unknown): Promise<void> {
+async function handleCustomerRedact(shopId: string, shopDomain: string, payload: unknown): Promise<void> {
   const customerId = extractCustomerId(payload);
   if (!customerId) {
     throw new Error("Customer redact webhook is missing customer.id");
   }
 
+  await registerBackendPrivacyRequest("CUSTOMERS_REDACT", shopDomain, payload);
   const job = await initiateDataDeletion(shopId, customerId);
   const deletedCount = await executeDataDeletion(shopId, customerId);
   await completeDeletionJob(job.id, deletedCount);
 }
 
-async function handleShopRedact(shopId: string): Promise<void> {
+async function handleShopRedact(shopId: string, shopDomain: string): Promise<void> {
+  await registerBackendPrivacyRequest("SHOP_REDACT", shopDomain, {});
   const job = await initiateDataDeletion(shopId);
   const deletedCount = await executeDataDeletion(shopId);
   await completeDeletionJob(job.id, deletedCount);
@@ -201,6 +238,7 @@ export async function action({ request }: ActionFunctionArgs) {
       // local record. A verified compliance request is idempotent: no record
       // means there is no local customer or shop data left to process.
       if (COMPLIANCE_WEBHOOK_TOPICS.has(topic)) {
+        await registerBackendPrivacyRequest(topic, shopDomain, payload);
         console.info("[Webhooks] Compliance request received for unknown shop", {
           topic,
           shopDomain,
@@ -254,15 +292,15 @@ export async function action({ request }: ActionFunctionArgs) {
         break;
       case "customers/data_request":
       case "CUSTOMERS_DATA_REQUEST":
-        await handleCustomerDataRequest(shop.id);
+        await handleCustomerDataRequest(shop.id, shopDomain, payload);
         break;
       case "customers/redact":
       case "CUSTOMERS_REDACT":
-        await handleCustomerRedact(shop.id, payload);
+        await handleCustomerRedact(shop.id, shopDomain, payload);
         break;
       case "shop/redact":
       case "SHOP_REDACT":
-        await handleShopRedact(shop.id);
+        await handleShopRedact(shop.id, shopDomain);
         break;
       case "shop/update":
       case "SHOP_UPDATE":
