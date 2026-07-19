@@ -992,6 +992,22 @@
         }
       }
     ],
+    "privacy": [
+      {
+        "id": "REQ-IA-SHOPIFY-PRIV-001",
+        "mirror_of": "REQ-ROOT-PRIV-001",
+        "title": "Propagación de webhooks GDPR al backend IA",
+        "description": "Los webhooks customers/data_request, customers/redact y shop/redact propagan de forma autenticada la operación de privacidad al backend central, conservando auditoría y sin duplicar lógica de negocio.",
+        "priority": "critical",
+        "status": "planned",
+        "owner": "frontend_shopify",
+        "components": ["apps/shopify-admin-app/app/routes/api.webhooks.ts", "apps/shopify-admin-app/app/services"],
+        "acceptance_criteria": ["Cada webhook GDPR invoca el contrato de privacidad del backend", "Un fallo del backend queda trazado y permite reintento seguro", "La app mantiene la confirmación HTTP requerida por Shopify"],
+        "dependencies": ["REQ-CONTRACTS-PRIV-001", "REQ-BACK-PRIV-001"],
+        "metrics": {"quality_score": 90, "completion_rate": 0, "velocity": 1},
+        "user_story": "Como app Shopify, quiero propagar los webhooks GDPR al backend central para que el borrado y exportación sean completos."
+      }
+    ],
     "conversation_continuity": [
       {
         "id": "REQ-IA-CONT-001",
