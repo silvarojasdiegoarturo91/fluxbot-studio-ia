@@ -108,7 +108,6 @@ async function fetchAllProducts(shopDomain: string, accessToken: string): Promis
             productType
             handle
             status
-            publishedOnCurrentPublication
             tags
             collections(first: 10) {
               nodes {
@@ -193,7 +192,6 @@ async function fetchAllProducts(shopDomain: string, accessToken: string): Promis
         vendor: String(node.vendor || ""),
         productType: String(node.productType || ""),
         status: String(node.status || ""),
-        published: typeof node.publishedOnCurrentPublication === "boolean" ? node.publishedOnCurrentPublication : undefined,
         handle: String(node.handle || ""),
         collections,
         tags,
@@ -487,7 +485,12 @@ async function syncProducts(jobId: string, shopId: string, shopDomain: string, a
       tags: product.tags,
     });
     updatedMetadata.status = product.status || null;
-    updatedMetadata.publishedOnCurrentPublication = product.published ?? null;
+    // `publishedOnCurrentPublication` requires Shopify's read_product_listings
+    // scope. It is not needed for catalog ingestion, so preserve any existing
+    // value instead of requesting the restricted field during a product sync.
+    if (typeof product.published === "boolean") {
+      updatedMetadata.publishedOnCurrentPublication = product.published;
+    }
 
     await prisma.productProjection.upsert({
       where: {

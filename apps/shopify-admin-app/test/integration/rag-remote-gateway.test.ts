@@ -271,4 +271,42 @@ describe("RAG Builder remote gateway migration", () => {
     expect(context.fallback).toBe(false);
     expect(context.qualityMetadata).toEqual(mockQuality);
   });
+
+  it("maps catalog, policy, and page sources into ordered catalog context", async () => {
+    vi.mocked(iaClient.rag.search).mockResolvedValue({
+      results: [
+        { chunkId: "page-1", content: "Sizing guide", score: 0.71, metadata: { title: "Sizing", sourceType: "PAGES" } },
+        { chunkId: "product-1", content: "Red boots", score: 0.95, metadata: { title: "Red Boots", sourceType: "CATALOG" } },
+        { chunkId: "policy-1", content: "Returns within 30 days", score: 0.82, metadata: { title: "Returns", sourceType: "POLICIES" } },
+      ],
+    } as any);
+
+    const context = await buildCatalogContext("red boots", {
+      shopId: "shop-1",
+      locale: "en",
+      limit: 5,
+    });
+
+    expect(context.fallback).toBe(false);
+    expect(context.products.map((item) => item.title)).toEqual(["Red Boots"]);
+    expect(context.policies.map((item) => item.title)).toEqual(["Returns"]);
+    expect(context.articles.map((item) => item.title)).toEqual(["Sizing"]);
+    expect(context.sources.map((source) => source.title)).toEqual(["Red Boots", "Returns", "Sizing"]);
+  });
+
+  it("falls back when retrieval only returns document types outside the catalog contract", async () => {
+    vi.mocked(iaClient.rag.search).mockResolvedValue({
+      results: [
+        { chunkId: "unknown-1", content: "Other data", score: 0.95, metadata: { title: "Other", documentType: "unknown" } },
+      ],
+    } as any);
+
+    const context = await buildCatalogContext("other", {
+      shopId: "shop-1",
+      locale: "en",
+    });
+
+    expect(context.fallback).toBe(false);
+    expect(context.articles.map((item) => item.title)).toEqual(["Other"]);
+  });
 });

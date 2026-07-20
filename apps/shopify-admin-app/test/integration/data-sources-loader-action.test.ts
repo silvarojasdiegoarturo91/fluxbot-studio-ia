@@ -274,6 +274,70 @@ describe("app.data-sources action — add_product_faq", () => {
   });
 });
 
+describe("app.data-sources action — data source management", () => {
+  it("creates a typed source scoped to the authenticated shop", async () => {
+    mockPrisma.knowledgeSource.create.mockResolvedValue({ id: "source-1" });
+    const { action } = await import("../../app/routes/app.data-sources");
+    const formData = new FormData();
+    formData.append("intent", "create_source");
+    formData.append("sourceType", "custom");
+    formData.append("name", "Centro de ayuda");
+    formData.append("endpoint", "https://help.example.com");
+
+    const result = await action({
+      request: new Request("http://localhost/app/data-sources", { method: "POST", body: formData }),
+      params: {}, context: {},
+    } as never);
+
+    expect(result.ok).toBe(true);
+    expect(mockPrisma.knowledgeSource.create).toHaveBeenCalledWith({
+      data: {
+        shopId: SHOP.id,
+        sourceType: "CUSTOM",
+        name: "Centro de ayuda",
+        isActive: true,
+        metadata: { endpoint: "https://help.example.com" },
+      },
+    });
+  });
+
+  it("rejects an invalid source type before persisting it", async () => {
+    const { action } = await import("../../app/routes/app.data-sources");
+    const formData = new FormData();
+    formData.append("intent", "create_source");
+    formData.append("sourceType", "UNTRUSTED");
+    formData.append("name", "Fuente");
+
+    const result = await action({
+      request: new Request("http://localhost/app/data-sources", { method: "POST", body: formData }),
+      params: {}, context: {},
+    } as never);
+
+    expect(result).toMatchObject({ ok: false, error: "Tipo de fuente invalido" });
+    expect(mockPrisma.knowledgeSource.create).not.toHaveBeenCalled();
+  });
+
+  it("toggles only a source owned by the authenticated shop", async () => {
+    mockPrisma.knowledgeSource.updateMany.mockResolvedValue({ count: 1 });
+    const { action } = await import("../../app/routes/app.data-sources");
+    const formData = new FormData();
+    formData.append("intent", "toggle_source");
+    formData.append("sourceId", "source-1");
+    formData.append("nextState", "false");
+
+    const result = await action({
+      request: new Request("http://localhost/app/data-sources", { method: "POST", body: formData }),
+      params: {}, context: {},
+    } as never);
+
+    expect(result.ok).toBe(true);
+    expect(mockPrisma.knowledgeSource.updateMany).toHaveBeenCalledWith({
+      where: { id: "source-1", shopId: SHOP.id },
+      data: { isActive: false },
+    });
+  });
+});
+
 describe("app.data-sources action — disable_product", () => {
   it("llama a setProductDisabled con los parámetros correctos", async () => {
     mockSetProductDisabled.mockResolvedValue(undefined);
