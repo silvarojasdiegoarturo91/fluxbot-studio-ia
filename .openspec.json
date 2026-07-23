@@ -276,6 +276,36 @@
           "REQ-IA-AI-001"
         ],
         "user_story": "Como merchant, quiero que el chatbot de Shopify responda como una persona de servicio al cliente usando la pregunta actual y todo el contexto disponible, para no ver respuestas robotizadas ni listados de catálogo fuera de lugar."
+      },
+      {
+        "id": "REQ-IA-CHAT-001",
+        "title": "Aplicación real de la personalización Cerebro en el chatbot Shopify",
+        "description": "El Admin Shopify debe guardar las selecciones Cerebro del onboarding y sincronizarlas con el contrato de runtime para que el chatbot y su preview adopten exactamente la misión, el tono y las capacidades elegidos.",
+        "user_story": "Como merchant, quiero configurar el Cerebro en el onboarding Shopify y ver un preview fiel para publicar un chatbot que se comporte según mis elecciones.",
+        "priority": "critical",
+        "status": "planned",
+        "mirror_of": "REQ-ROOT-014",
+        "owner": "frontend_shopify",
+        "affected_apps": [
+          "fluxbot-studio-ia-shopify"
+        ],
+        "components": [
+          "apps/shopify-admin-app/app/routes/app.onboarding.tsx",
+          "apps/shopify-admin-app/app/services/admin-config.server.ts",
+          "apps/shopify-admin-app/app/routes/apps.fluxbot.widget-config.ts",
+          "apps/shopify-admin-app/app/services/ia-backend.server.ts",
+          "apps/shopify-admin-app/test/components/app.onboarding.test.tsx",
+          "apps/shopify-admin-app/tests/e2e"
+        ],
+        "acceptance_criteria": [
+          "El paso Cerebro contiene las opciones de misión SALES, SUPPORT y SALES_SUPPORT, los tonos professional, friendly, concise y sales, y los cinco superpoderes documentados en REQ-ROOT-014.",
+          "Cada guardado mantiene los valores tras recargar y los envía al backend por el contrato versionado; los errores muestran estado recuperable y no marcan la sincronización como correcta.",
+          "El preview presenta ejemplos que cambian por misión, tono y capacidades activas y no afirma capacidades que estén desactivadas.",
+          "Las pruebas de componente y Playwright cubren selección, guardado, recarga, preview y sincronización de la configuración Cerebro."
+        ],
+        "dependencies": [
+          "REQ-ROOT-014"
+        ]
       }
     ],
     "documentation": [
