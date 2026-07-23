@@ -55,23 +55,6 @@ const COMPLIANCE_WEBHOOK_TOPICS = new Set([
   "SHOP_REDACT",
 ]);
 
-function resetAdminSetupOnUninstall(metadata: unknown): Prisma.InputJsonValue {
-  const root = asRecord(metadata);
-  const adminSetup = asRecord(root.adminSetup);
-
-  const nextAdminSetup = {
-    ...adminSetup,
-    onboardingCompleted: false,
-    onboardingStep: 1,
-    updatedAt: new Date().toISOString(),
-  };
-
-  return {
-    ...root,
-    adminSetup: nextAdminSetup,
-  } as Prisma.InputJsonValue;
-}
-
 async function handleOrderPaid(shopId: string, payload: any): Promise<void> {
   const orderId = String(payload.id ?? "");
   const totalPrice = parseFloat(payload.total_price ?? "0");
@@ -121,21 +104,20 @@ async function handleOrderPaid(shopId: string, payload: any): Promise<void> {
   });
 }
 
-async function handleAppUninstalled(shopId: string): Promise<void> {
-  const shop = await prisma.shop.findUnique({
-    where: { id: shopId },
-    select: { metadata: true },
-  });
+async function handleAppUninstalled(shopId: string, shopDomain: string): Promise<void> {
+  // An uninstall starts a fresh tenant lifecycle. Redact the IA backend first so
+  // a retry remains safe if local deletion is interrupted; SHOP_REDACT is
+  // idempotent when the backend shop has already been removed.
+  await iaClient.privacy.register({ operation: "SHOP_REDACT" }, shopDomain);
 
-  await prisma.shop.update({
-    where: { id: shopId },
-    data: {
-      status: "CANCELLED",
-      onboardingCompletedAt: null,
-      metadata: resetAdminSetupOnUninstall(shop?.metadata),
-    },
-  });
-  console.log("[Webhooks] Shop " + shopId + " uninstalled — marked CANCELLED and onboarding reset");
+  // All tenant-owned records have cascade constraints from Shop. Sessions are
+  // keyed by domain rather than shopId, so they must be explicitly removed.
+  await prisma.$transaction([
+    prisma.session.deleteMany({ where: { shop: shopDomain } }),
+    prisma.shop.delete({ where: { id: shopId } }),
+  ]);
+
+  console.log("[Webhooks] Shop " + shopId + " uninstalled — all tenant data redacted");
 }
 
 async function handleAppSubscriptionUpdate(shopId: string, payload: unknown): Promise<void> {
@@ -288,7 +270,7 @@ export async function action({ request }: ActionFunctionArgs) {
         break;
       case "APP_UNINSTALLED":
       case "app/uninstalled":
-        await handleAppUninstalled(shop.id);
+        await handleAppUninstalled(shop.id, shopDomain);
         break;
       case "customers/data_request":
       case "CUSTOMERS_DATA_REQUEST":

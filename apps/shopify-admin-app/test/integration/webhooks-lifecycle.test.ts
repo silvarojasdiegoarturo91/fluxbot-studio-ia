@@ -5,7 +5,9 @@ const { mockAuthenticateWebhook } = vi.hoisted(() => ({
 }));
 
 const mockShopFindUnique = vi.fn();
-const mockShopUpdate = vi.fn();
+const mockShopDelete = vi.fn();
+const mockSessionDeleteMany = vi.fn();
+const mockTransaction = vi.fn();
 const mockWebhookEventCreate = vi.fn();
 const mockWebhookEventUpdateMany = vi.fn();
 const mockOrderProjectionUpsert = vi.fn();
@@ -19,8 +21,10 @@ vi.mock("../../app/db.server", () => ({
   default: {
     shop: {
       findUnique: mockShopFindUnique,
-      update: mockShopUpdate,
+      delete: mockShopDelete,
     },
+    session: { deleteMany: mockSessionDeleteMany },
+    $transaction: mockTransaction,
     webhookEvent: {
       create: mockWebhookEventCreate,
       updateMany: mockWebhookEventUpdateMany,
@@ -94,28 +98,16 @@ describe("api.webhooks lifecycle behavior", () => {
     mockRegisterPrivacyRequest.mockResolvedValue({ status: "ACCEPTED" });
   });
 
-  it("resets onboarding metadata when app is uninstalled", async () => {
+  it("redacts all tenant data when the app is uninstalled", async () => {
     mockAuthenticateWebhook.mockResolvedValue({
       topic: "app/uninstalled",
       shop: "store.myshopify.com",
       payload: { id: "evt-1" },
     });
-    mockShopFindUnique
-      .mockResolvedValueOnce({
-        id: "shop-1",
-        domain: "store.myshopify.com",
-      })
-      .mockResolvedValueOnce({
-        metadata: {
-          adminSetup: {
-            onboardingCompleted: true,
-            onboardingStep: 7,
-            botName: "Flux Advisor",
-          },
-          widgetPublishedAt: "2026-05-10T10:00:00.000Z",
-        },
-      });
-    mockShopUpdate.mockResolvedValue({});
+    mockShopFindUnique.mockResolvedValue({ id: "shop-1", domain: "store.myshopify.com" });
+    mockSessionDeleteMany.mockResolvedValue({ count: 1 });
+    mockShopDelete.mockResolvedValue({ id: "shop-1" });
+    mockTransaction.mockResolvedValue([{ count: 1 }, { id: "shop-1" }]);
 
     const { action } = await import("../../app/routes/api.webhooks");
     const response = await action({
@@ -127,21 +119,13 @@ describe("api.webhooks lifecycle behavior", () => {
     const body = await response.json();
     expect(response.status).toBe(200);
     expect(body).toEqual({ success: true });
-    expect(mockShopUpdate).toHaveBeenCalledWith({
-      where: { id: "shop-1" },
-      data: expect.objectContaining({
-        status: "CANCELLED",
-        onboardingCompletedAt: null,
-        metadata: expect.objectContaining({
-          adminSetup: expect.objectContaining({
-            onboardingCompleted: false,
-            onboardingStep: 1,
-            botName: "Flux Advisor",
-          }),
-          widgetPublishedAt: "2026-05-10T10:00:00.000Z",
-        }),
-      }),
-    });
+    expect(mockRegisterPrivacyRequest).toHaveBeenCalledWith(
+      { operation: "SHOP_REDACT" },
+      "store.myshopify.com",
+    );
+    expect(mockSessionDeleteMany).toHaveBeenCalledWith({ where: { shop: "store.myshopify.com" } });
+    expect(mockShopDelete).toHaveBeenCalledWith({ where: { id: "shop-1" } });
+    expect(mockTransaction).toHaveBeenCalledTimes(1);
   });
 
   it("rejects unsigned webhook requests", async () => {
