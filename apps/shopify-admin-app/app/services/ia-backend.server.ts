@@ -77,6 +77,127 @@ function buildTransportFailureMessage(context: BackendRequestContext, url: strin
     'Check IA_BACKEND_URL, backend service availability, and network routing.';
 }
 
+const DEFAULT_TIMEOUT_MS = 15_000;
+const DEFAULT_MAX_RETRIES = 1;
+const DEFAULT_RETRY_BACKOFF_MS = 250;
+const RETRYABLE_HTTP_STATUSES = new Set([500, 502, 503, 504]);
+
+function getTimeoutMs(): number {
+  const configured = Number(process.env.IA_BACKEND_TIMEOUT_MS ?? DEFAULT_TIMEOUT_MS);
+  return Number.isFinite(configured) && configured > 0 ? configured : DEFAULT_TIMEOUT_MS;
+}
+
+function getMaxAttempts(): number {
+  const configured = Number(process.env.IA_BACKEND_MAX_RETRIES ?? DEFAULT_MAX_RETRIES);
+  const retries = Number.isFinite(configured) && configured >= 0 ? Math.min(3, Math.floor(configured)) : DEFAULT_MAX_RETRIES;
+  return retries + 1;
+}
+
+function getRetryBackoffMs(): number {
+  const configured = Number(process.env.IA_BACKEND_RETRY_BACKOFF_MS ?? DEFAULT_RETRY_BACKOFF_MS);
+  return Number.isFinite(configured) && configured >= 0 ? configured : DEFAULT_RETRY_BACKOFF_MS;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function shouldRetryRequest(
+  method: BackendRequestContext['method'],
+  failure: { networkError?: boolean; status?: number },
+): boolean {
+  // Network errors before a response are ambiguous for non-idempotent writes:
+  // the backend may or may not have processed the request. Only retry those on GET.
+  if (failure.networkError) {
+    return method === 'GET';
+  }
+  // A 5xx means the backend explicitly failed; retrying is safe and bounded.
+  return failure.status !== undefined && RETRYABLE_HTTP_STATUSES.has(failure.status);
+}
+
+async function fetchWithTimeout(url: string, init: RequestInit): Promise<Response> {
+  const timeoutMs = getTimeoutMs();
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } catch (error) {
+    if (controller.signal.aborted) {
+      throw new Error(`IA backend request timed out after ${timeoutMs}ms`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function requestWithRetry(
+  context: BackendRequestContext,
+  url: string,
+  init: RequestInit,
+): Promise<Response> {
+  const maxAttempts = getMaxAttempts();
+  const backoffMs = getRetryBackoffMs();
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const attemptStartedAt = Date.now();
+
+    try {
+      const response = await fetchWithTimeout(url, init);
+
+      if (shouldRetryRequest(context.method, { status: response.status }) && attempt < maxAttempts) {
+        console.warn(
+          JSON.stringify({
+            timestamp: new Date().toISOString(),
+            event: 'ia_backend_retry',
+            method: context.method,
+            endpoint: context.endpoint,
+            attempt,
+            maxAttempts,
+            reason: `status_${response.status}`,
+            status: response.status,
+            latencyMs: Date.now() - attemptStartedAt,
+          }),
+        );
+        await sleep(backoffMs);
+        continue;
+      }
+
+      return response;
+    } catch (error) {
+      if (error instanceof IABackendError) {
+        throw error;
+      }
+
+      if (shouldRetryRequest(context.method, { networkError: true }) && attempt < maxAttempts) {
+        console.warn(
+          JSON.stringify({
+            timestamp: new Date().toISOString(),
+            event: 'ia_backend_retry',
+            method: context.method,
+            endpoint: context.endpoint,
+            attempt,
+            maxAttempts,
+            reason: 'network_error',
+            message: describeNetworkError(error),
+            latencyMs: Date.now() - attemptStartedAt,
+          }),
+        );
+        await sleep(backoffMs);
+        continue;
+      }
+
+      throw new IABackendError(buildTransportFailureMessage(context, url, error), 503);
+    }
+  }
+
+  throw new IABackendError(
+    buildTransportFailureMessage(context, url, new Error('Request failed after exhausting retries')),
+    503,
+  );
+}
+
 async function parseErrorBody(response: Response): Promise<string> {
   const contentType = response.headers.get('content-type') || '';
 
@@ -561,7 +682,7 @@ async function makeRequest<T>(
 
   let response: Response;
   try {
-    response = await fetch(url, {
+    response = await requestWithRetry(requestContext, url, {
       method,
       headers,
       body: requestBody,
@@ -632,7 +753,7 @@ async function makeTextRequest(
 
   let response: Response;
   try {
-    response = await fetch(url, {
+    response = await requestWithRetry(requestContext, url, {
       method,
       headers,
       body: body ? JSON.stringify(body) : undefined,
