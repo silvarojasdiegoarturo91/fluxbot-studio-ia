@@ -251,4 +251,150 @@ describe("app.billing route", () => {
     expect(builtUrl.length).toBeLessThanOrEqual(255);
     expect(builtUrl).toContain("shop=shop.example.myshopify.com");
   });
+
+  it("throws a 404 when the shop has no local record", async () => {
+    mockEnsureShopForSession.mockResolvedValueOnce(null);
+
+    const { loader } = await import("../../app/routes/app.billing");
+    await expect(
+      loader({ request: new Request("http://localhost/app/billing") } as any),
+    ).rejects.toMatchObject({ status: 404 });
+    expect(mockBillingService.getStatus).not.toHaveBeenCalled();
+  });
+});
+
+describe("app.billing route — plan resolution helpers", () => {
+  const plans = [
+    { id: "free", name: "Free", amountUsd: 0, includedMessages: 75, extraBlockSize: 0, extraBlockPrice: 0, cappedAmountUsd: 0 },
+    { id: "starter", name: "FluxBot Starter", amountUsd: 19, includedMessages: 500, extraBlockSize: 500, extraBlockPrice: 10, cappedAmountUsd: 100 },
+    { id: "growth", name: "FluxBot Growth", amountUsd: 49, includedMessages: 2000, extraBlockSize: 2000, extraBlockPrice: 10, cappedAmountUsd: 200 },
+    { id: "pro", name: "FluxBot Pro", amountUsd: 99, includedMessages: 10000, extraBlockSize: 5000, extraBlockPrice: 10, cappedAmountUsd: 500 },
+    { id: "scale", name: "FluxBot Scale", amountUsd: 199, includedMessages: 50000, extraBlockSize: 10000, extraBlockPrice: 10, cappedAmountUsd: 1000 },
+  ] as any;
+
+  it("resolves the active plan from a live subscription name", async () => {
+    const { resolveActivePlanId } = await import("../../app/routes/app.billing");
+
+    expect(
+      resolveActivePlanId({
+        plans,
+        subscriptions: [{ name: "FluxBot Growth", status: "ACTIVE" }],
+      }),
+    ).toBe("growth");
+    expect(
+      resolveActivePlanId({
+        plans,
+        subscriptions: [{ name: "Growth", status: "ACCEPTED" }],
+      }),
+    ).toBe("growth");
+  });
+
+  it("token-matches multi-word subscription names", async () => {
+    const { resolveActivePlanId } = await import("../../app/routes/app.billing");
+
+    expect(
+      resolveActivePlanId({
+        plans,
+        subscriptions: [{ name: "FluxBot Pro Plan", status: "PENDING" }],
+      }),
+    ).toBe("pro");
+    expect(
+      resolveActivePlanId({
+        plans,
+        subscriptions: [{ name: "Enterprise Scale Deal", status: "FROZEN" }],
+      }),
+    ).toBe("scale");
+  });
+
+  it("skips non-live subscriptions and falls back to the active plan code", async () => {
+    const { resolveActivePlanId } = await import("../../app/routes/app.billing");
+
+    expect(
+      resolveActivePlanId({
+        plans,
+        subscriptions: [{ name: "FluxBot Pro", status: "CANCELLED" }],
+        activePlanCode: "starter",
+      }),
+    ).toBe("starter");
+    expect(
+      resolveActivePlanId({
+        plans,
+        subscriptions: [{ name: "FluxBot Pro", status: "EXPIRED" }],
+        activePlanCode: "fluxbot-starter",
+      }),
+    ).toBe("starter");
+  });
+
+  it("returns null when no subscription or plan code matches", async () => {
+    const { resolveActivePlanId } = await import("../../app/routes/app.billing");
+
+    expect(
+      resolveActivePlanId({
+        plans,
+        subscriptions: [],
+        activePlanCode: undefined,
+      }),
+    ).toBeNull();
+    expect(
+      resolveActivePlanId({
+        plans,
+        subscriptions: [{ name: "Custom Deal", status: "ACTIVE" }],
+        activePlanCode: "unknown-tier",
+      }),
+    ).toBeNull();
+  });
+
+  it("builds plan cards with upgrade/downgrade directions and a recommended plan", async () => {
+    const { buildBillingPlanCards } = await import("../../app/routes/app.billing");
+
+    const cards = buildBillingPlanCards({
+      plans,
+      activePlanId: "starter",
+      hasUnknownActivePlan: false,
+      isEs: false,
+    });
+
+    expect(cards.map((card) => [card.plan.id, card.direction])).toEqual([
+      ["free", "downgrade"],
+      ["growth", "upgrade"],
+      ["pro", "upgrade"],
+      ["scale", "upgrade"],
+    ]);
+    const recommended = cards.filter((card) => card.isRecommended);
+    expect(recommended).toHaveLength(1);
+    expect(recommended[0].plan.id).toBe("growth");
+    expect(cards[0].ctaLabel).toBe("Downgrade to Free");
+    expect(cards[1].ctaLabel).toBe("Upgrade to FluxBot Growth");
+  });
+
+  it("builds initial-direction cards with Spanish labels when there is no active plan", async () => {
+    const { buildBillingPlanCards } = await import("../../app/routes/app.billing");
+
+    const cards = buildBillingPlanCards({
+      plans,
+      activePlanId: null,
+      hasUnknownActivePlan: false,
+      isEs: true,
+    });
+
+    expect(cards).toHaveLength(5);
+    expect(cards.every((card) => card.direction === "initial")).toBe(true);
+    expect(cards[0].ctaLabel).toBe("Elegir Free");
+    expect(cards[0].featureBullets).toContain("75 conversaciones/mes");
+  });
+
+  it("marks every card as an upgrade when the active plan is unknown", async () => {
+    const { buildBillingPlanCards } = await import("../../app/routes/app.billing");
+
+    const cards = buildBillingPlanCards({
+      plans,
+      activePlanId: null,
+      hasUnknownActivePlan: true,
+      isEs: false,
+    });
+
+    expect(cards.every((card) => card.direction === "upgrade")).toBe(true);
+    expect(cards[0].iconLabel).toBe("F");
+    expect(cards[2].iconLabel).toBe("G");
+  });
 });
