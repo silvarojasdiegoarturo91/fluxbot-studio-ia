@@ -35,6 +35,20 @@ vi.mock("../../app/jobs/sync-worker.server", () => ({
   processPendingSyncJobsForShop: mockProcessPendingSyncJobsForShop,
 }));
 
+const mockQueueSyncJob = vi.fn();
+const mockRequeueSyncJob = vi.fn();
+const mockRequeueStaleRunningJobs = vi.fn();
+const mockRequeueRecentTerminalJobs = vi.fn();
+
+vi.mock("../../app/services/sync-service.server", () => ({
+  SyncService: {
+    queueSyncJob: mockQueueSyncJob,
+    requeueSyncJob: mockRequeueSyncJob,
+    requeueStaleRunningJobs: mockRequeueStaleRunningJobs,
+    requeueRecentTerminalJobs: mockRequeueRecentTerminalJobs,
+  },
+}));
+
 // ── Mock Prisma — simula la BD sin necesitar conexión real ────────────────────
 
 const mockPrisma = {
@@ -88,6 +102,10 @@ beforeEach(() => {
   mockEnsureShopForSession.mockResolvedValue(SHOP);
   mockGetMerchantAdminConfig.mockResolvedValue({ adminLanguage: "es" });
   mockProcessPendingSyncJobsForShop.mockResolvedValue({ processed: 0, failed: 0, jobs: [] });
+  mockQueueSyncJob.mockResolvedValue({ id: "job-queue-1" });
+  mockRequeueSyncJob.mockResolvedValue(true);
+  mockRequeueStaleRunningJobs.mockResolvedValue(0);
+  mockRequeueRecentTerminalJobs.mockResolvedValue(0);
 
   // Prisma defaults vacíos
   mockPrisma.knowledgeSource.findMany.mockResolvedValue([]);
@@ -336,6 +354,189 @@ describe("app.data-sources action — data source management", () => {
       data: { isActive: false },
     });
   });
+
+  it("rejects toggle_source when the source id is missing", async () => {
+    const { action } = await import("../../app/routes/app.data-sources");
+    const formData = new FormData();
+    formData.append("intent", "toggle_source");
+
+    const result = await action({
+      request: new Request("http://localhost/app/data-sources", { method: "POST", body: formData }),
+      params: {}, context: {},
+    } as never);
+
+    expect(result).toMatchObject({ ok: false, error: "sourceId es obligatorio" });
+    expect(mockPrisma.knowledgeSource.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("reports when toggle_source cannot find the source", async () => {
+    mockPrisma.knowledgeSource.updateMany.mockResolvedValue({ count: 0 });
+    const { action } = await import("../../app/routes/app.data-sources");
+    const formData = new FormData();
+    formData.append("intent", "toggle_source");
+    formData.append("sourceId", "missing");
+
+    const result = await action({
+      request: new Request("http://localhost/app/data-sources", { method: "POST", body: formData }),
+      params: {}, context: {},
+    } as never);
+
+    expect(result).toMatchObject({ ok: false, error: "Fuente no encontrada" });
+  });
+
+  it("rejects create_source when the name is missing", async () => {
+    const { action } = await import("../../app/routes/app.data-sources");
+    const formData = new FormData();
+    formData.append("intent", "create_source");
+    formData.append("sourceType", "CUSTOM");
+
+    const result = await action({
+      request: new Request("http://localhost/app/data-sources", { method: "POST", body: formData }),
+      params: {}, context: {},
+    } as never);
+
+    expect(result).toMatchObject({ ok: false, error: "El nombre de la fuente es obligatorio" });
+    expect(mockPrisma.knowledgeSource.create).not.toHaveBeenCalled();
+  });
+
+  it("creates a source without an endpoint metadata", async () => {
+    mockPrisma.knowledgeSource.create.mockResolvedValue({ id: "source-2" });
+    const { action } = await import("../../app/routes/app.data-sources");
+    const formData = new FormData();
+    formData.append("intent", "create_source");
+    formData.append("sourceType", "PAGES");
+    formData.append("name", "Blog");
+
+    const result = await action({
+      request: new Request("http://localhost/app/data-sources", { method: "POST", body: formData }),
+      params: {}, context: {},
+    } as never);
+
+    expect(result.ok).toBe(true);
+    expect(mockPrisma.knowledgeSource.create).toHaveBeenCalledWith({
+      data: {
+        shopId: SHOP.id,
+        sourceType: "PAGES",
+        name: "Blog",
+        isActive: true,
+        metadata: undefined,
+      },
+    });
+  });
+});
+
+describe("app.data-sources action — queue_sync", () => {
+  it("queues a valid sync job and dispatches it immediately", async () => {
+    const { action } = await import("../../app/routes/app.data-sources");
+    const formData = new FormData();
+    formData.append("intent", "queue_sync");
+    formData.append("jobType", "delta:products");
+
+    const result = await action({
+      request: new Request("http://localhost/app/data-sources", { method: "POST", body: formData }),
+      params: {}, context: {},
+    } as never);
+
+    expect(result.ok).toBe(true);
+    expect(result.message).toContain("delta:products");
+    expect(mockQueueSyncJob).toHaveBeenCalledWith(SHOP.id, "delta:products", 0);
+    expect(mockProcessPendingSyncJobsForShop).toHaveBeenCalledWith(SHOP.id, 1, "dispatcher");
+  });
+
+  it("rejects an invalid sync job type", async () => {
+    const { action } = await import("../../app/routes/app.data-sources");
+    const formData = new FormData();
+    formData.append("intent", "queue_sync");
+    formData.append("jobType", "custom:full");
+
+    const result = await action({
+      request: new Request("http://localhost/app/data-sources", { method: "POST", body: formData }),
+      params: {}, context: {},
+    } as never);
+
+    expect(result).toMatchObject({ ok: false, error: "Tipo de job de sync invalido" });
+    expect(mockQueueSyncJob).not.toHaveBeenCalled();
+  });
+
+  it("reports when reprocessing a non-eligible sync job", async () => {
+    mockRequeueSyncJob.mockResolvedValue(false);
+    const { action } = await import("../../app/routes/app.data-sources");
+    const formData = new FormData();
+    formData.append("intent", "reprocess_sync_job");
+    formData.append("jobId", "sync-stuck");
+
+    const result = await action({
+      request: new Request("http://localhost/app/data-sources", { method: "POST", body: formData }),
+      params: {}, context: {},
+    } as never);
+
+    expect(result.ok).toBe(false);
+    expect(result.error).toContain("estado no elegible");
+    expect(mockProcessPendingSyncJobsForShop).not.toHaveBeenCalled();
+  });
+});
+
+describe("app.data-sources action — guards", () => {
+  it("rejects non-POST requests", async () => {
+    const { action } = await import("../../app/routes/app.data-sources");
+
+    const result = await action({
+      request: new Request("http://localhost/app/data-sources", { method: "GET" }),
+      params: {}, context: {},
+    } as never);
+
+    expect(result).toEqual({ ok: false, error: "Method not allowed" });
+  });
+
+  it("returns a controlled error when the shop is missing", async () => {
+    mockEnsureShopForSession.mockResolvedValue(null);
+    const { action } = await import("../../app/routes/app.data-sources");
+
+    const result = await action({
+      request: new Request("http://localhost/app/data-sources", { method: "POST", body: new FormData() }),
+      params: {}, context: {},
+    } as never);
+
+    expect(result).toEqual({ ok: false, error: "Shop not found" });
+  });
+
+  it("rejects an unsupported action intent", async () => {
+    const { action } = await import("../../app/routes/app.data-sources");
+    const formData = new FormData();
+    formData.append("intent", "unsupported");
+
+    const result = await action({
+      request: new Request("http://localhost/app/data-sources", { method: "POST", body: formData }),
+      params: {}, context: {},
+    } as never);
+
+    expect(result).toMatchObject({ ok: false, error: "Acción no soportada" });
+  });
+});
+
+describe("app.data-sources loader — entry recovery", () => {
+  it("runs the entry recovery routine and requeues stale jobs", async () => {
+    mockRequeueStaleRunningJobs.mockResolvedValue(2);
+    mockRequeueRecentTerminalJobs.mockResolvedValue(1);
+    mockPrisma.syncJob.count.mockResolvedValueOnce(0);
+    mockPrisma.syncJob.count.mockResolvedValue(0);
+
+    const { loader } = await import("../../app/routes/app.data-sources");
+    const request = new Request("http://localhost/app/data-sources");
+    const result = await loader({ request, params: {}, context: {} } as never);
+
+    expect(mockRequeueStaleRunningJobs).toHaveBeenCalledWith({
+      shopId: SHOP.id,
+      maxAgeMs: expect.any(Number),
+      limit: expect.any(Number),
+      triggerSource: "entry-routine",
+    });
+    expect(mockRequeueRecentTerminalJobs).toHaveBeenCalledWith(
+      SHOP.id,
+      expect.objectContaining({ triggerSource: "entry-routine" }),
+    );
+    expect(result.runningSyncJobs).toBe(0);
+  });
 });
 
 describe("app.data-sources action — disable_product", () => {
@@ -365,7 +566,7 @@ describe("app.data-sources action — disable_product", () => {
 
   describe("app.data-sources action — reprocess_sync_job", () => {
     it("reencola el sync job cuando está en un estado elegible", async () => {
-      mockPrisma.syncJob.updateMany.mockResolvedValue({ count: 1 });
+      mockRequeueSyncJob.mockResolvedValue(true);
       const { action } = await import("../../app/routes/app.data-sources");
 
       const formData = new FormData();
@@ -380,21 +581,8 @@ describe("app.data-sources action — disable_product", () => {
       const result = await action({ request, params: {}, context: {} } as never);
 
       expect(result.ok).toBe(true);
-      expect(mockPrisma.syncJob.updateMany).toHaveBeenCalledWith({
-        where: {
-          id: "sync-123",
-          shopId: SHOP.id,
-          status: { in: ["FAILED", "CANCELLED", "RUNNING", "COMPLETED", "PENDING"] },
-        },
-        data: {
-          status: "PENDING",
-          progress: 0,
-          processedItems: 0,
-          errorMessage: null,
-          startedAt: null,
-          completedAt: null,
-        },
-      });
+      expect(mockRequeueSyncJob).toHaveBeenCalledWith(SHOP.id, "sync-123");
+      expect(mockProcessPendingSyncJobsForShop).toHaveBeenCalledWith(SHOP.id, 1, "manual-reprocess");
     });
 
     it("devuelve error cuando falta jobId", async () => {

@@ -11,25 +11,29 @@
  * con datos de prueba fijos y afirmando que el DOM contiene lo esperado.
  */
 import "@testing-library/jest-dom";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // ── Mocks de dependencias externas ──────────────────────────────────────────
 
 const mockLoaderData = { current: null as unknown };
+let mockActionData: any = null;
+let mockNavigation: { state: "idle" | "submitting" | "loading" } = { state: "idle" };
+let mockAdminLanguage: string = "es";
+let mockSubmit: any;
 
 vi.mock("react-router", () => ({
   Form: ({ children }: { children: React.ReactNode }) =>
     React.createElement("form", {}, children),
-  useActionData: () => null,
+  useActionData: () => mockActionData,
   useLoaderData: () => mockLoaderData.current ?? loaderData,
   useLocation: () => ({ search: "" }),
   useNavigate: () => vi.fn(),
-  useNavigation: () => ({ state: "idle" }),
-  useSubmit: () => vi.fn(),
+  useNavigation: () => mockNavigation,
+  useSubmit: () => mockSubmit ?? vi.fn(),
   // useMatches es usado por useAdminLanguage — busca data.adminLanguage directamente
-  useMatches: () => [{ id: "root", data: { adminLanguage: "es" } }],
+  useMatches: () => [{ id: "root", data: { adminLanguage: mockAdminLanguage } }],
 }));
 
 vi.mock("@shopify/app-bridge-react", () => ({
@@ -91,7 +95,7 @@ vi.mock("@shopify/polaris", () => {
         children,
       ),
     Badge: wrap("span"),
-    Banner: wrap("div"),
+    Banner: ({ title }: { title?: string }) => React.createElement("div", null, title),
     FormLayout: wrap("div"),
     TextField: ({ label }: { label: string }) =>
       React.createElement("label", {}, label),
@@ -101,12 +105,16 @@ vi.mock("@shopify/polaris", () => {
       React.createElement("input", { type: "checkbox", "aria-label": label, onChange }),
     Popover: ({ activator, children, active }: { activator: React.ReactNode; children: React.ReactNode; active: boolean }) =>
       React.createElement("div", {}, activator, active ? children : null),
-    ActionList: ({ items }: { items: Array<{ content: string; onAction: () => void }> }) =>
+    ActionList: ({ items }: { items: Array<{ content: string; onAction: () => void; disabled?: boolean }> }) =>
       React.createElement(
         "ul",
         {},
         (items || []).map((item) =>
-          React.createElement("li", { key: item.content }, item.content),
+          React.createElement(
+            "li",
+            { key: item.content },
+            React.createElement("button", { onClick: item.onAction, disabled: item.disabled }, item.content),
+          ),
         ),
       ),
     Modal: Object.assign(
@@ -114,16 +122,28 @@ vi.mock("@shopify/polaris", () => {
         children,
         open,
         title,
+        primaryAction,
       }: {
         children: React.ReactNode;
         open: boolean;
         title: string;
         onClose?: () => void;
-        primaryAction?: unknown;
+        primaryAction?: { content: string; onAction: () => void; disabled?: boolean; loading?: boolean };
         secondaryActions?: unknown;
       }) =>
         open
-          ? React.createElement("div", { role: "dialog", "aria-label": title }, children)
+          ? React.createElement(
+              "div",
+              { role: "dialog", "aria-label": title },
+              children,
+              primaryAction
+                ? React.createElement(
+                    "button",
+                    { onClick: primaryAction.onAction, disabled: primaryAction.disabled },
+                    primaryAction.content,
+                  )
+                : null,
+            )
           : null,
       { Section: wrap("div") },
     ),
@@ -175,15 +195,15 @@ vi.mock("@shopify/polaris", () => {
 vi.mock("../../app/components/admin-ui", () => {
   const React = require("react");
   return {
-    AdminPageHeader: ({ title }: { title: string }) =>
-      React.createElement("h1", {}, title),
+    AdminPageHeader: ({ title, badge }: { title: string; badge?: React.ReactNode }) =>
+      React.createElement("header", null, React.createElement("h1", null, title), badge),
     AdminSectionCard: ({
       title,
       children,
     }: {
       title: string;
       children: React.ReactNode;
-    }) => React.createElement("section", { "data-title": title }, React.createElement("h2", {}, title), children),
+    }) => React.createElement("section", { "data-title": title }, React.createElement("h2", null, title), children),
     AdminStatCard: ({ label, value }: { label: string; value: unknown }) =>
       React.createElement(
         "div",
@@ -197,53 +217,106 @@ vi.mock("../../app/components/admin-ui", () => {
 
 // ── Datos de prueba que simulan lo que devuelve el loader ─────────────────────
 
-const loaderData = {
-  shop: { id: "shop-1", name: "Test Shop" },
-  sources: [
-    {
-      id: "src-1",
-      name: "Catálogo principal",
-      sourceType: "catalog",
-      isActive: true,
-      url: null,
-      lastSyncedAt: null,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      _count: { documents: 42 },
+function baseLoaderData(overrides: Record<string, unknown> = {}) {
+  return {
+    shop: { id: "shop-1", name: "Test Shop" },
+    sources: [
+      {
+        id: "src-1",
+        name: "Catálogo principal",
+        sourceType: "catalog",
+        isActive: true,
+        url: null,
+        lastSyncedAt: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        _count: { documents: 42 },
+      },
+      {
+        id: "src-2",
+        name: "Políticas",
+        sourceType: "policies",
+        isActive: false,
+        url: null,
+        lastSyncedAt: new Date("2026-01-01T00:00:00.000Z").toISOString(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        _count: { documents: 5 },
+      },
+    ],
+    syncJobs: [
+      {
+        id: "job-1",
+        jobType: "initial:catalog",
+        status: "COMPLETED",
+        progress: 1,
+        processedItems: 100,
+        totalItems: 100,
+        errorMessage: null,
+        createdAt: new Date("2026-01-01T00:00:00.000Z").toISOString(),
+        startedAt: new Date("2026-01-01T00:00:00.000Z").toISOString(),
+        completedAt: new Date("2026-01-01T00:00:00.000Z").toISOString(),
+      },
+      {
+        id: "job-2",
+        jobType: "delta:products",
+        status: "FAILED",
+        progress: 0.5,
+        processedItems: 3,
+        totalItems: 10,
+        errorMessage: "GraphQL error",
+        createdAt: new Date("2026-01-02T00:00:00.000Z").toISOString(),
+        startedAt: null,
+        completedAt: null,
+      },
+      {
+        id: "job-3",
+        jobType: "delta:policies",
+        status: "RUNNING",
+        progress: 0.25,
+        processedItems: 2,
+        totalItems: 8,
+        errorMessage: null,
+        createdAt: new Date("2026-01-03T00:00:00.000Z").toISOString(),
+        startedAt: null,
+        completedAt: null,
+      },
+    ],
+    runningSyncJobs: 1,
+    failedSyncJobs: 1,
+    projections: {
+      productsProjected: 5,
+      policiesProjected: 1,
+      ordersProjected: 0,
     },
-  ],
-  syncJobs: [],
-  runningSyncJobs: 0,
-  failedSyncJobs: 0,
-  projections: {
-    productsProjected: 5,
-    policiesProjected: 1,
-    ordersProjected: 0,
-  },
-  // ← Lo más crítico: la sección de gestión de productos
-  productRows: [
-    {
-      id: "prod-proj-1",
-      productId: "gid://shopify/Product/111",
-      title: "Camiseta Azul",
-      handle: "camiseta-azul",
-      collections: ["Ropa", "Verano"],
-      tags: ["algodón"],
-      disabled: false,
-      faqCount: 1,
-    },
-    {
-      id: "prod-proj-2",
-      productId: "gid://shopify/Product/222",
-      title: "Pantalón Negro",
-      handle: "pantalon-negro",
-      collections: [],
-      tags: [],
-      disabled: true,
-      faqCount: 0,
-    },
-  ],
-};
+    // ← Lo más crítico: la sección de gestión de productos
+    productRows: [
+      {
+        id: "prod-proj-1",
+        productId: "gid://shopify/Product/111",
+        title: "Camiseta Azul",
+        handle: "camiseta-azul",
+        collections: ["Ropa", "Verano"],
+        tags: ["algodón"],
+        disabled: false,
+        faqCount: 1,
+      },
+      {
+        id: "prod-proj-2",
+        productId: "gid://shopify/Product/222",
+        title: "Pantalón Negro",
+        handle: "pantalon-negro",
+        collections: [],
+        tags: [],
+        disabled: true,
+        faqCount: 0,
+      },
+    ],
+    ...overrides,
+  };
+}
+
+const loaderData = baseLoaderData();
 
 // ── Importar componente bajo test ─────────────────────────────────────────────
 
@@ -252,6 +325,10 @@ let DataSourcesPage: React.ComponentType<any>;
 
 beforeEach(async () => {
   vi.clearAllMocks();
+  mockActionData = null;
+  mockNavigation = { state: "idle" };
+  mockAdminLanguage = "es";
+  mockLoaderData.current = null;
   const mod = await import("../../app/routes/app.data-sources");
   DataSourcesPage = mod.default;
 });
@@ -273,9 +350,7 @@ describe("DataSources — renderizado de componente", () => {
 
   it("la tabla de productos tiene las columnas correctas", () => {
     render(React.createElement(DataSourcesPage));
-    // "Preguntas frecuentes" solo existe en la tabla de productos — selector único
     expect(screen.getByRole("columnheader", { name: /preguntas frecuentes/i })).toBeInTheDocument();
-    // "Producto" puede aparecer en esa misma tabla
     const productHeaders = screen.getAllByRole("columnheader", { name: /^producto$/i });
     expect(productHeaders.length).toBeGreaterThanOrEqual(1);
   });
@@ -288,8 +363,6 @@ describe("DataSources — renderizado de componente", () => {
 
   it("muestra el contador de FAQs por producto", () => {
     render(React.createElement(DataSourcesPage));
-    // Camiseta Azul tiene faqCount: 1 → la tabla muestra "1"
-    // Buscamos en las celdas de la tabla
     const cells = screen.getAllByRole("cell");
     const faqCells = cells.filter((cell) => cell.textContent === "1");
     expect(faqCells.length).toBeGreaterThanOrEqual(1);
@@ -297,11 +370,10 @@ describe("DataSources — renderizado de componente", () => {
 
   it("muestra los botones de acción (3 dots) para cada producto", () => {
     render(React.createElement(DataSourcesPage));
-    // accessibilityLabel del botón Popover activator
     const actionButtons = screen.getAllByRole("button", {
       name: /abrir acciones del producto|open product actions/i,
     });
-    expect(actionButtons.length).toBeGreaterThanOrEqual(2); // uno por producto
+    expect(actionButtons.length).toBeGreaterThanOrEqual(2);
   });
 
   it("muestra las estadísticas de la sección superior", () => {
@@ -313,8 +385,95 @@ describe("DataSources — renderizado de componente", () => {
   it("no renderiza la tabla cuando no hay productos", () => {
     mockLoaderData.current = { ...loaderData, productRows: [] };
     render(React.createElement(DataSourcesPage));
-    // Sin productos no debe haber tabla de productos
     expect(screen.queryByRole("columnheader", { name: /producto/i })).not.toBeInTheDocument();
     mockLoaderData.current = null;
+  });
+
+  it("muestra el estado de sync fallido en la cabecera y en las estadísticas", () => {
+    render(React.createElement(DataSourcesPage));
+    expect(screen.getByText("1 fallos")).toBeInTheDocument();
+    expect(screen.getByText(/sync jobs fallidos/i)).toBeInTheDocument();
+  });
+
+  it("renderiza las fuentes configuradas con sus estados", () => {
+    render(React.createElement(DataSourcesPage));
+    expect(screen.getByText("Catálogo principal")).toBeInTheDocument();
+    expect(screen.getByText("Políticas")).toBeInTheDocument();
+    expect(screen.getByText("Activa")).toBeInTheDocument();
+    expect(screen.getByText("Pausada")).toBeInTheDocument();
+    expect(screen.getByText("42")).toBeInTheDocument();
+  });
+
+  it("renderiza la tabla de sync jobs con estados y reproceso", () => {
+    render(React.createElement(DataSourcesPage));
+    expect(screen.getByText("initial:catalog")).toBeInTheDocument();
+    expect(screen.getByText("COMPLETED")).toBeInTheDocument();
+    expect(screen.getByText("FAILED")).toBeInTheDocument();
+    expect(screen.getByText("RUNNING")).toBeInTheDocument();
+    expect(screen.getByText("GraphQL error")).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Reprocesar" }).length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("muestra empty states cuando no hay fuentes ni sync jobs", () => {
+    mockLoaderData.current = { ...loaderData, sources: [], syncJobs: [] };
+    render(React.createElement(DataSourcesPage));
+    expect(screen.getByText("No hay fuentes configuradas")).toBeInTheDocument();
+    expect(screen.getByText("Aún no hay sync jobs")).toBeInTheDocument();
+    mockLoaderData.current = null;
+  });
+
+  it("muestra el banner de éxito del action", () => {
+    mockActionData = { ok: true, message: "Fuente de datos creada." };
+    render(React.createElement(DataSourcesPage));
+    expect(screen.getByText("Fuente de datos creada.")).toBeInTheDocument();
+  });
+
+  it("muestra el banner de error del action", () => {
+    mockActionData = { ok: false, error: "Tipo de fuente invalido" };
+    render(React.createElement(DataSourcesPage));
+    expect(screen.getByText("Tipo de fuente invalido")).toBeInTheDocument();
+  });
+
+  it("abre el modal de FAQ al pulsar la acción del producto", () => {
+    render(React.createElement(DataSourcesPage));
+    fireEvent.click(screen.getAllByRole("button", { name: /abrir acciones del producto/i })[0]);
+    fireEvent.click(screen.getByText("Agregar preguntas frecuentes"));
+    expect(screen.getByRole("dialog", { name: /Agregar preguntas frecuentes del producto/i })).toBeInTheDocument();
+    expect(screen.getAllByText("Camiseta Azul").length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("abre el modal de deshabilitar producto al pulsar la acción", () => {
+    render(React.createElement(DataSourcesPage));
+    fireEvent.click(screen.getAllByRole("button", { name: /abrir acciones del producto/i })[0]);
+    fireEvent.click(screen.getAllByText("Disable")[0]);
+    expect(screen.getByRole("dialog", { name: /Deshabilitar producto aprendido/i })).toBeInTheDocument();
+    expect(screen.getByText(/¿Seguro que quieres deshabilitar/)).toBeInTheDocument();
+  });
+
+  it("renderiza en inglés cuando el idioma del admin es en", () => {
+    mockAdminLanguage = "en";
+    render(React.createElement(DataSourcesPage));
+    expect(screen.getByText("Data sources")).toBeInTheDocument();
+    expect(screen.getByText("Learned products")).toBeInTheDocument();
+    expect(screen.getByText("1 failures")).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Reprocess" }).length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("muestra botones de habilitar/deshabilitar por fuente", () => {
+    render(React.createElement(DataSourcesPage));
+    expect(screen.getByRole("button", { name: "Desactivar" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Activar" })).toBeInTheDocument();
+  });
+
+  it("deshabilita el modal de producto cuando se confirma", () => {
+    mockSubmit = vi.fn();
+    render(React.createElement(DataSourcesPage));
+    fireEvent.click(screen.getAllByRole("button", { name: /abrir acciones del producto/i })[0]);
+    fireEvent.click(screen.getAllByText("Disable")[0]);
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar" }));
+    expect(mockSubmit).toHaveBeenCalledWith(
+      expect.any(FormData),
+      expect.objectContaining({ method: "POST" }),
+    );
   });
 });
