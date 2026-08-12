@@ -898,6 +898,9 @@ export const iaClient = {
 
     subscribe: (request: BillingSubscribeRequest, shopDomain?: string) =>
       makeRequest<BillingSubscribeResponse>(`${API_V1}/billing/subscribe`, 'POST', request, shopDomain),
+
+    webhook: (payload: unknown, shopDomain?: string) =>
+      makeRequest<{ status: string }>(`${API_V1}/billing/webhooks/shopify`, 'POST', payload, shopDomain),
   },
 
   privacy: {

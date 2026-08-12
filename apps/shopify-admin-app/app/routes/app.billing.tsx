@@ -268,6 +268,11 @@ export async function loader({ request }: LoaderFunctionArgs) {
     throw new Response("Shop not found", { status: 404 });
   }
 
+  // Best-effort plan/price sync with the IA backend. Non-blocking: the page
+  // must never wait on backend plan drift detection, and a sync failure must
+  // never break the billing page (runs outside the try/catch below).
+  void BillingService.syncPlansWithBackend(shop.id).catch(() => {});
+
   try {
     const [status, plans, usageStatus] = await Promise.all([
       BillingService.getStatus(shop.id),

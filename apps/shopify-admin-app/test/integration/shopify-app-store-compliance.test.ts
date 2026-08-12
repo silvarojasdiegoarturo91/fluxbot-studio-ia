@@ -53,6 +53,7 @@ describe("Shopify App Store compliance baseline", () => {
 
     expect(server).toContain("PrismaSessionStorage");
     expect(server).toContain("APP_UNINSTALLED");
+    expect(server).toContain("APP_SUBSCRIPTIONS_APPROACHING_CAPPED_AMOUNT");
     expect(server).toContain('callbackUrl: "/api/webhooks"');
     expect(server).toContain("afterAuth");
     expect(server).toContain("registerWebhooks({ session })");

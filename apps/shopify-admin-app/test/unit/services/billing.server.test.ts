@@ -18,6 +18,7 @@ vi.mock("../../../app/services/ia-backend.server", () => ({
       plans: vi.fn(),
       status: vi.fn(),
       subscribe: vi.fn(),
+      webhook: vi.fn(),
     },
   },
 }));
@@ -487,5 +488,82 @@ describe("BillingService.getUsageStatus", () => {
     const status = await BillingService.getUsageStatus("shop-1");
     expect(status.currentUsage).toBe(0);
     expect(mockBilling.status).toHaveBeenCalledWith("shop.example.myshopify.com");
+  });
+});
+
+describe("BillingService.syncPlansWithBackend", () => {
+  function backendPlan(code: string, name: string, basePrice: number, includedMessages: number, cappedAmount: number | null) {
+    return {
+      code,
+      name,
+      billingMode: "shopify_app_pricing",
+      currency: "USD",
+      basePrice,
+      includedMessages,
+      includedPeriodType: "monthly",
+      extraBlockSize: 500,
+      extraBlockPrice: 10,
+      cappedAmount,
+    } as any;
+  }
+
+  const FULL_PLAN_SET = [
+    backendPlan("free", "Free", 0, 75, 0),
+    backendPlan("starter", "Starter", 19, 500, 100),
+    backendPlan("growth", "Growth", 49, 2000, 100),
+    backendPlan("pro", "Pro", 99, 10000, 100),
+    backendPlan("scale", "Scale", 149, 30000, 100),
+  ];
+
+  it("reports inSync when backend plans match the local catalog", async () => {
+    mockPrisma.shop.findUnique.mockResolvedValue({ domain: "shop.example.myshopify.com" } as any);
+    mockBilling.plans.mockResolvedValue(FULL_PLAN_SET);
+
+    const report = await BillingService.syncPlansWithBackend("shop-1");
+
+    expect(report.inSync).toBe(true);
+    expect(report.remoteCount).toBe(5);
+    expect(report.drift).toEqual([]);
+    expect(mockBilling.plans).toHaveBeenCalledWith("shop.example.myshopify.com");
+  });
+
+  it("detects price and included-messages drift against the backend", async () => {
+    mockPrisma.shop.findUnique.mockResolvedValue({ domain: "shop.example.myshopify.com" } as any);
+    const drifted = FULL_PLAN_SET.map((plan, index) =>
+      index === 1 ? { ...plan, basePrice: 29, includedMessages: 300 } : plan,
+    );
+    mockBilling.plans.mockResolvedValue(drifted);
+
+    const report = await BillingService.syncPlansWithBackend("shop-1");
+
+    expect(report.inSync).toBe(false);
+    expect(report.drift).toEqual([
+      { code: "starter", reason: "values differ: basePrice, includedMessages" },
+    ]);
+  });
+
+  it("flags local plans missing from the backend catalog", async () => {
+    mockPrisma.shop.findUnique.mockResolvedValue({ domain: "shop.example.myshopify.com" } as any);
+    mockBilling.plans.mockResolvedValue([backendPlan("growth", "Growth", 49, 2000, 100)]);
+
+    const report = await BillingService.syncPlansWithBackend("shop-1");
+
+    expect(report.inSync).toBe(false);
+    const missing = report.drift.filter((entry) => entry.reason === "plan missing in backend");
+    expect(missing.map((entry) => entry.code)).toEqual(
+      expect.arrayContaining(["free", "starter", "pro", "scale"]),
+    );
+    expect(missing).toHaveLength(4);
+  });
+
+  it("does not throw when the backend is unreachable", async () => {
+    mockPrisma.shop.findUnique.mockResolvedValue({ domain: "shop.example.myshopify.com" } as any);
+    mockBilling.plans.mockRejectedValue(new Error("backend unreachable"));
+
+    const report = await BillingService.syncPlansWithBackend("shop-1");
+
+    expect(report.inSync).toBe(false);
+    expect(report.remoteCount).toBe(0);
+    expect(report.drift).toEqual([]);
   });
 });

@@ -17,6 +17,7 @@ import { authenticate } from "../shopify.server";
 import { WebhookHandlers } from "../services/sync-service.server";
 import { AnalyticsService } from "../services/analytics.server";
 import { iaClient, type PrivacyOperation } from "../services/ia-backend.server";
+import { normalizePlanId } from "../services/billing.server";
 import {
   completeDeletionJob,
   executeDataDeletion,
@@ -120,7 +121,36 @@ async function handleAppUninstalled(shopId: string, shopDomain: string): Promise
   console.log("[Webhooks] Shop " + shopId + " uninstalled — all tenant data redacted");
 }
 
-async function handleAppSubscriptionUpdate(shopId: string, payload: unknown): Promise<void> {
+async function notifyBackendBillingWebhook(shopDomain: string, payload: unknown): Promise<void> {
+  try {
+    const payloadRecord = asRecord(payload);
+    const backendPayload = payloadRecord.app_subscription ? payload : { app_subscription: payload };
+    await iaClient.billing.webhook(backendPayload, shopDomain);
+  } catch (error) {
+    console.error("[Webhooks] Failed to propagate billing webhook to IA backend", {
+      shopDomain,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
+
+async function handleAppSubscriptionUpdate(
+  shopId: string,
+  shopDomain: string,
+  payload: unknown,
+): Promise<void> {
+  // Shopify nests the subscription under payload.app_subscription (with `name`
+  // inside). Older/raw deliveries may also carry the name at the top level, so
+  // read both shapes defensively.
+  const payloadRecord = asRecord(payload);
+  const subscription = asRecord(payloadRecord.app_subscription);
+  const subscriptionName =
+    typeof subscription.name === "string"
+      ? subscription.name
+      : typeof payloadRecord.name === "string"
+        ? payloadRecord.name
+        : undefined;
+
   const shopRecord = await prisma.shop.findUnique({
     where: { id: shopId },
     select: { metadata: true, plan: true },
@@ -135,18 +165,45 @@ async function handleAppSubscriptionUpdate(shopId: string, payload: unknown): Pr
       updatedAt: new Date().toISOString(),
     },
   };
-  const payloadRecord = asRecord(payload);
-  const nextPlan = typeof payloadRecord.name === "string"
-    ? payloadRecord.name
-    : shopRecord?.plan;
 
+  const normalizedPlanId = normalizePlanId(subscriptionName);
   await prisma.shop.update({
     where: { id: shopId },
     data: {
-      plan: typeof nextPlan === "string" ? nextPlan : shopRecord?.plan,
+      plan: normalizedPlanId ?? shopRecord?.plan,
       metadata: nextMetadata as Prisma.InputJsonValue,
     },
   });
+
+  await notifyBackendBillingWebhook(shopDomain, payload);
+}
+
+async function handleAppSubscriptionsApproachingCappedAmount(
+  shopId: string,
+  shopDomain: string,
+  payload: unknown,
+): Promise<void> {
+  const shopRecord = await prisma.shop.findUnique({
+    where: { id: shopId },
+    select: { metadata: true },
+  });
+
+  const existingMetadata = asRecord(shopRecord?.metadata);
+  const nextMetadata = {
+    ...existingMetadata,
+    billing: {
+      ...(asRecord(existingMetadata.billing) || {}),
+      cappedWarning: payload,
+      updatedAt: new Date().toISOString(),
+    },
+  };
+
+  await prisma.shop.update({
+    where: { id: shopId },
+    data: { metadata: nextMetadata as Prisma.InputJsonValue },
+  });
+
+  await notifyBackendBillingWebhook(shopDomain, payload);
 }
 
 function getPrivacyOperation(topic: string): PrivacyOperation | null {
@@ -266,7 +323,11 @@ export async function action({ request }: ActionFunctionArgs) {
         break;
       case "app_subscriptions/update":
       case "APP_SUBSCRIPTIONS_UPDATE":
-        await handleAppSubscriptionUpdate(shop.id, payload);
+        await handleAppSubscriptionUpdate(shop.id, shopDomain, payload);
+        break;
+      case "app_subscriptions/approaching_capped_amount":
+      case "APP_SUBSCRIPTIONS_APPROACHING_CAPPED_AMOUNT":
+        await handleAppSubscriptionsApproachingCappedAmount(shop.id, shopDomain, payload);
         break;
       case "APP_UNINSTALLED":
       case "app/uninstalled":

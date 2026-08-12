@@ -16,6 +16,7 @@ vi.mock("../../app/services/billing.server", () => ({
     getPlan: vi.fn(),
     createSubscription: vi.fn(),
     resolveCurrentPlan: vi.fn(),
+    syncPlansWithBackend: vi.fn(),
   },
 }));
 
@@ -87,6 +88,11 @@ describe("app.billing route", () => {
       planId: "starter",
       source: "shopify",
       hasActiveSubscription: true,
+    } as any);
+    mockBillingService.syncPlansWithBackend.mockResolvedValue({
+      inSync: true,
+      remoteCount: 5,
+      drift: [],
     } as any);
     mockBillingService.getPlan.mockReturnValue({
       id: "starter",

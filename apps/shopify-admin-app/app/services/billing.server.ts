@@ -1,5 +1,5 @@
 import prisma from '../db.server';
-import { iaClient } from './ia-backend.server';
+import { iaClient, type BillingPlanResponse } from './ia-backend.server';
 import { SHOPIFY_API_VERSION } from '../config/shopify-api-version.server';
 
 const DEFAULT_BILLING_ERROR_MESSAGE =
@@ -317,6 +317,57 @@ export interface ResolvedCurrentPlan {
   planId: BillingPlanId | null;
   source: 'shopify' | 'local' | 'default';
   hasActiveSubscription: boolean;
+}
+
+export interface BackendPlanDrift {
+  code: string;
+  reason: string;
+}
+
+export interface BackendPlansSyncReport {
+  inSync: boolean;
+  remoteCount: number;
+  drift: BackendPlanDrift[];
+}
+
+function describePlanDrift(
+  remotePlans: BillingPlanResponse[],
+  localPlans: readonly BillingPlan[],
+): BackendPlanDrift[] {
+  const drift: BackendPlanDrift[] = [];
+  const localById = new Map(localPlans.map((plan) => [plan.id, plan]));
+  const remoteByCode = new Map<BillingPlanId, BillingPlanResponse>();
+
+  for (const remote of remotePlans) {
+    const planId = normalizePlanId(remote.code);
+    if (planId) {
+      remoteByCode.set(planId, remote);
+    }
+  }
+
+  for (const [planId, localPlan] of localById) {
+    const remotePlan = remoteByCode.get(planId);
+    if (!remotePlan) {
+      drift.push({ code: planId, reason: 'plan missing in backend' });
+      continue;
+    }
+
+    const mismatches: string[] = [];
+    if (remotePlan.basePrice !== undefined && Number(remotePlan.basePrice) !== localPlan.amountUsd) {
+      mismatches.push('basePrice');
+    }
+    if (remotePlan.includedMessages !== undefined && Number(remotePlan.includedMessages) !== localPlan.includedMessages) {
+      mismatches.push('includedMessages');
+    }
+    if (remotePlan.cappedAmount != null && Number(remotePlan.cappedAmount) !== localPlan.cappedAmountUsd) {
+      mismatches.push('cappedAmount');
+    }
+    if (mismatches.length > 0) {
+      drift.push({ code: planId, reason: `values differ: ${mismatches.join(', ')}` });
+    }
+  }
+
+  return drift;
 }
 
 export class BillingService {
@@ -726,5 +777,30 @@ export class BillingService {
   static async getUsageStatus(shopId: string): Promise<UsageStatus> {
     const shopDomain = await getShopDomain(shopId);
     return iaClient.billing.status(shopDomain) as unknown as UsageStatus;
+  }
+
+  static async syncPlansWithBackend(shopId: string): Promise<BackendPlansSyncReport> {
+    try {
+      const shopDomain = await getShopDomain(shopId);
+      const remotePlans = await iaClient.billing.plans(shopDomain);
+      const drift = describePlanDrift(remotePlans, BILLING_PLANS);
+
+      if (drift.length > 0) {
+        console.warn('[billing] Backend plan catalog drift detected', {
+          shopId,
+          shopDomain,
+          remoteCount: remotePlans.length,
+          drift,
+        });
+      }
+
+      return { inSync: drift.length === 0, remoteCount: remotePlans.length, drift };
+    } catch (error) {
+      console.error('[billing] Failed to sync plans with backend', {
+        shopId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return { inSync: false, remoteCount: 0, drift: [] };
+    }
   }
 }

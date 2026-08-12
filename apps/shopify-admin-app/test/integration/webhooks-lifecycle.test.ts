@@ -5,6 +5,7 @@ const { mockAuthenticateWebhook } = vi.hoisted(() => ({
 }));
 
 const mockShopFindUnique = vi.fn();
+const mockShopUpdate = vi.fn();
 const mockShopDelete = vi.fn();
 const mockSessionDeleteMany = vi.fn();
 const mockTransaction = vi.fn();
@@ -16,11 +17,13 @@ const mockInitiateDataDeletion = vi.fn();
 const mockExecuteDataDeletion = vi.fn();
 const mockCompleteDeletionJob = vi.fn();
 const mockRegisterPrivacyRequest = vi.fn();
+const mockBillingWebhook = vi.fn();
 
 vi.mock("../../app/db.server", () => ({
   default: {
     shop: {
       findUnique: mockShopFindUnique,
+      update: mockShopUpdate,
       delete: mockShopDelete,
     },
     session: { deleteMany: mockSessionDeleteMany },
@@ -62,6 +65,9 @@ vi.mock("../../app/services/ia-backend.server", () => ({
     privacy: {
       register: mockRegisterPrivacyRequest,
     },
+    billing: {
+      webhook: mockBillingWebhook,
+    },
   },
 }));
 
@@ -96,6 +102,8 @@ describe("api.webhooks lifecycle behavior", () => {
     mockExecuteDataDeletion.mockResolvedValue(3);
     mockCompleteDeletionJob.mockResolvedValue({});
     mockRegisterPrivacyRequest.mockResolvedValue({ status: "ACCEPTED" });
+    mockShopUpdate.mockResolvedValue({ id: "shop-1" });
+    mockBillingWebhook.mockResolvedValue({ status: "ok" });
   });
 
   it("redacts all tenant data when the app is uninstalled", async () => {
@@ -245,5 +253,150 @@ describe("api.webhooks lifecycle behavior", () => {
       { operation: "SHOP_REDACT" },
       "store.myshopify.com",
     );
+  });
+
+  it("maps the nested app_subscription name to the normalized plan and notifies the backend", async () => {
+    const subscriptionPayload = {
+      app_subscription: {
+        id: "gid://shopify/AppSubscription/123",
+        name: "FluxBot Starter",
+        status: "ACTIVE",
+        test: true,
+        currentPeriodEnd: "2026-09-12T00:00:00Z",
+      },
+    };
+    mockAuthenticateWebhook.mockResolvedValue({
+      topic: "app_subscriptions/update",
+      shop: "store.myshopify.com",
+      payload: subscriptionPayload,
+    });
+    mockShopFindUnique
+      .mockResolvedValueOnce({ id: "shop-1", domain: "store.myshopify.com" })
+      .mockResolvedValueOnce({ metadata: { billing: { previous: true } }, plan: "growth" });
+
+    const { action } = await import("../../app/routes/api.webhooks");
+    const response = await action({
+      request: makeWebhookRequest("app_subscriptions/update", subscriptionPayload),
+      params: {},
+      context: {},
+    } as never);
+
+    const body = await response.json();
+    expect(response.status).toBe(200);
+    expect(body).toEqual({ success: true });
+
+    const updateArgs = mockShopUpdate.mock.calls[0][0];
+    expect(updateArgs.where).toEqual({ id: "shop-1" });
+    expect(updateArgs.data.plan).toBe("starter");
+    const nextMetadata = updateArgs.data.metadata;
+    expect(nextMetadata.billing.subscription).toEqual(subscriptionPayload);
+    expect(nextMetadata.billing.previous).toBe(true);
+    expect(mockBillingWebhook).toHaveBeenCalledWith(
+      subscriptionPayload,
+      "store.myshopify.com",
+    );
+  });
+
+  it("keeps the existing plan when the subscription name is not a known plan", async () => {
+    const subscriptionPayload = {
+      app_subscription: {
+        id: "gid://shopify/AppSubscription/456",
+        name: "Custom Enterprise Deal",
+        status: "ACTIVE",
+      },
+    };
+    mockAuthenticateWebhook.mockResolvedValue({
+      topic: "APP_SUBSCRIPTIONS_UPDATE",
+      shop: "store.myshopify.com",
+      payload: subscriptionPayload,
+    });
+    mockShopFindUnique
+      .mockResolvedValueOnce({ id: "shop-1", domain: "store.myshopify.com" })
+      .mockResolvedValueOnce({ metadata: {}, plan: "pro" });
+
+    const { action } = await import("../../app/routes/api.webhooks");
+    const response = await action({
+      request: makeWebhookRequest("APP_SUBSCRIPTIONS_UPDATE", subscriptionPayload),
+      params: {},
+      context: {},
+    } as never);
+
+    expect(response.status).toBe(200);
+    expect(mockShopUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ plan: "pro" }),
+      }),
+    );
+  });
+
+  it("handles a flat legacy app_subscriptions/update payload without the nested shape", async () => {
+    const flatPayload = { id: "sub-flat", name: "FluxBot Growth", status: "ACTIVE" };
+    mockAuthenticateWebhook.mockResolvedValue({
+      topic: "app_subscriptions/update",
+      shop: "store.myshopify.com",
+      payload: flatPayload,
+    });
+    mockShopFindUnique
+      .mockResolvedValueOnce({ id: "shop-1", domain: "store.myshopify.com" })
+      .mockResolvedValueOnce({ metadata: {}, plan: "starter" });
+
+    const { action } = await import("../../app/routes/api.webhooks");
+    const response = await action({
+      request: makeWebhookRequest("app_subscriptions/update", flatPayload),
+      params: {},
+      context: {},
+    } as never);
+
+    expect(response.status).toBe(200);
+    expect(mockShopUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ plan: "growth" }),
+      }),
+    );
+    // Flat payloads are normalized into the nested envelope before forwarding.
+    expect(mockBillingWebhook).toHaveBeenCalledWith(
+      { app_subscription: flatPayload },
+      "store.myshopify.com",
+    );
+  });
+
+  it("stores capped-amount warnings and notifies the backend without throwing", async () => {
+    const cappedPayload = {
+      app_subscription: {
+        id: "gid://shopify/AppSubscription/789",
+        name: "FluxBot Starter",
+        balance_used: 95,
+        capped_amount: 100,
+      },
+    };
+    mockAuthenticateWebhook.mockResolvedValue({
+      topic: "APP_SUBSCRIPTIONS_APPROACHING_CAPPED_AMOUNT",
+      shop: "store.myshopify.com",
+      payload: cappedPayload,
+    });
+    mockShopFindUnique
+      .mockResolvedValueOnce({ id: "shop-1", domain: "store.myshopify.com" })
+      .mockResolvedValueOnce({ metadata: {} });
+
+    const { action } = await import("../../app/routes/api.webhooks");
+    const response = await action({
+      request: makeWebhookRequest("APP_SUBSCRIPTIONS_APPROACHING_CAPPED_AMOUNT", cappedPayload),
+      params: {},
+      context: {},
+    } as never);
+
+    const body = await response.json();
+    expect(response.status).toBe(200);
+    expect(body).toEqual({ success: true });
+    expect(mockShopUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          metadata: expect.objectContaining({
+            billing: expect.objectContaining({ cappedWarning: cappedPayload }),
+          }),
+        }),
+      }),
+    );
+    expect(mockBillingWebhook).toHaveBeenCalledWith(cappedPayload, "store.myshopify.com");
   });
 });
