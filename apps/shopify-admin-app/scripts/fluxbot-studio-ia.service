@@ -1,0 +1,36 @@
+# ================================================================
+# FluxBot Studio IA (Shopify Admin App) - Production systemd unit
+# ================================================================
+# Versioned documentation of the REAL production unit running on
+# Contabo as `fluxbot-studio-ia.service`.
+#
+# Install:
+#   sudo cp scripts/fluxbot-studio-ia.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now fluxbot-studio-ia.service
+#
+# Env file: /etc/fluxbot-studio-ia.env (root-only, chmod 600).
+# App identity: fluxbot-studio-ia (client 3e33f15eca7b32e62ea7137311172df5).
+# No secrets live in this file. See .env.production.example.
+# ================================================================
+
+[Unit]
+Description=FluxBot Studio IA (Shopify Admin App)
+After=network.target postgresql.service
+Requires=postgresql.service
+
+[Service]
+Type=simple
+User=diego
+WorkingDirectory=/home/diego/fluxbot-studio-ia/apps/shopify-admin-app
+EnvironmentFile=/etc/fluxbot-studio-ia.env
+Environment=NODE_ENV=production
+Environment=PORT=3000
+ExecStart=/usr/bin/npm run start
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
