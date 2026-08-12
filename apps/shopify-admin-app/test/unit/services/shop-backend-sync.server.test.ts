@@ -67,7 +67,14 @@ describe("shop-backend-sync.server", () => {
 
     expect(synced).toBe(true);
     expect(mockShopSync).toHaveBeenCalledWith(
-      { shop: { id: "shop-1", domain: "store.myshopify.com", accessToken: "shpat_test_token" } },
+      {
+        shop: {
+          id: "shop-1",
+          domain: "store.myshopify.com",
+          name: "store.myshopify.com",
+          accessToken: "shpat_test_token",
+        },
+      },
       "store.myshopify.com",
     );
   });
@@ -116,7 +123,14 @@ describe("shop-backend-sync.server", () => {
     expect(second).toBe(true);
     expect(mockShopSync).toHaveBeenCalledTimes(2);
     expect(mockShopSync).toHaveBeenLastCalledWith(
-      { shop: { id: "shop-1", domain: "store.myshopify.com", accessToken: "shpat_new_token" } },
+      {
+        shop: {
+          id: "shop-1",
+          domain: "store.myshopify.com",
+          name: "store.myshopify.com",
+          accessToken: "shpat_new_token",
+        },
+      },
       "store.myshopify.com",
     );
   });

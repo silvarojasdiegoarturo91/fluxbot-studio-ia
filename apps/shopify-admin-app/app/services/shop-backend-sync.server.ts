@@ -35,7 +35,10 @@ function normalizeShopReference(shop: ShopReference): ShopReference | null {
   return {
     id: shop.id,
     domain,
-    ...(normalizedName ? { name: normalizedName } : {}),
+    // Always send a name so the backend never stores NULL (the public store
+    // profile would fall back to "nuestra tienda"). Falls back to the domain
+    // until callers pass the real shop.name from the Admin API.
+    name: normalizedName || domain,
     ...(normalizedAccessToken ? { accessToken: normalizedAccessToken } : {}),
   };
 }
