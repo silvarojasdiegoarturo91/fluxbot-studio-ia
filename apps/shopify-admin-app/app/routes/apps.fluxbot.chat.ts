@@ -708,6 +708,12 @@ export async function action({ request }: ActionFunctionArgs) {
       });
     }
 
+    // Keep the list's "last activity" column and ordering accurate.
+    await prisma.conversation.update({
+      where: { id: conversation.id },
+      data: { lastMessageAt: new Date() },
+    });
+
     return json({
       success: true,
       conversationId: conversation.id,

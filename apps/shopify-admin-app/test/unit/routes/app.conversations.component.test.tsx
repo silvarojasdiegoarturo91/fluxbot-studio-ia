@@ -62,8 +62,10 @@ vi.mock("@shopify/polaris", () => {
     InlineGrid: wrap("div"),
     InlineStack: wrap("div"),
     Badge: wrap("span"),
-    Button: ({ children, ...props }: any) =>
-      React.createElement("button", { type: "button", ...props }, children),
+    Button: ({ children, url, ...props }: any) =>
+      url
+        ? React.createElement("a", { href: url, ...props }, children)
+        : React.createElement("button", { type: "button", ...props }, children),
     Banner: ({ title, tone, children }: { title?: string; tone?: string; children?: React.ReactNode }) =>
       React.createElement("div", { "data-banner": tone || "" }, title, children),
     Text: ({ as = "span", children }: { as?: keyof JSX.IntrinsicElements; children?: React.ReactNode }) =>
@@ -222,6 +224,17 @@ describe("app.conversations component", () => {
     expect(screen.getAllByText("Resolve").length).toBeGreaterThan(0);
   });
 
+  it("renders a View link per conversation row with the correct href", () => {
+    renderPage();
+
+    const viewLinks = screen
+      .getAllByRole("link")
+      .filter((el) => el.getAttribute("href")?.startsWith("/app/conversations/"));
+    expect(viewLinks).toHaveLength(2);
+    expect(viewLinks[0]).toHaveAttribute("href", "/app/conversations/conv-1");
+    expect(viewLinks[1]).toHaveAttribute("href", "/app/conversations/conv-2");
+  });
+
   it("renders Spanish copy when the admin language is Spanish", () => {
     mockUseIsSpanish.mockReturnValue(true);
     loaderData = baseLoaderData();
@@ -239,6 +252,20 @@ describe("app.conversations component", () => {
     expect(screen.getAllByText("Escaladas").length).toBeGreaterThan(0);
     expect(screen.getByText("Sin asignar")).toBeInTheDocument();
     expect(screen.getByText("Resolver")).toBeInTheDocument();
+  });
+
+  it("renders a Ver link per conversation row when the language is Spanish", () => {
+    mockUseIsSpanish.mockReturnValue(true);
+    loaderData = baseLoaderData();
+
+    renderPage();
+
+    const viewLinks = screen
+      .getAllByRole("link")
+      .filter((el) => el.getAttribute("href")?.startsWith("/app/conversations/"));
+    expect(viewLinks).toHaveLength(2);
+    expect(viewLinks[0]).toHaveAttribute("href", "/app/conversations/conv-1");
+    expect(viewLinks[1]).toHaveAttribute("href", "/app/conversations/conv-2");
   });
 
   it("shows empty states when there is no data", () => {

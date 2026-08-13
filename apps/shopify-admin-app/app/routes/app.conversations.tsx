@@ -246,6 +246,9 @@ export default function ConversationsPage() {
     conversation._count.handoffRequests > 0
       ? <Badge key={`handoff-${conversation.id}`} tone="warning">{`${conversation._count.handoffRequests} ${isEs ? "handoff" : "handoff"}`}</Badge>
       : <Badge key={`handoff-${conversation.id}`} tone="success">{isEs ? "Sin handoff" : "No handoff"}</Badge>,
+    <Button key={`view-${conversation.id}`} url={`/app/conversations/${conversation.id}`} variant="plain">
+      {isEs ? "Ver" : "View"}
+    </Button>,
   ]);
 
   const handoffRows = pendingHandoffs.map((handoff) => [
@@ -333,10 +336,10 @@ export default function ConversationsPage() {
                 </EmptyState>
               ) : (
                 <DataTable
-                  columnContentTypes={["text", "text", "text", "text", "numeric", "text", "text", "text"]}
+                  columnContentTypes={["text", "text", "text", "text", "numeric", "text", "text", "text", "text"]}
                   headings={isEs
-                    ? ["Inicio", "Estado", "Canal", "Idioma", "Mensajes", "Último mensaje", "Última actividad", "Handoff"]
-                    : ["Started", "Status", "Channel", "Locale", "Messages", "Last message", "Last activity", "Handoff"]}
+                    ? ["Inicio", "Estado", "Canal", "Idioma", "Mensajes", "Último mensaje", "Última actividad", "Handoff", "Ver"]
+                    : ["Started", "Status", "Channel", "Locale", "Messages", "Last message", "Last activity", "Handoff", "View"]}
                   rows={conversationRows}
                 />
               )}

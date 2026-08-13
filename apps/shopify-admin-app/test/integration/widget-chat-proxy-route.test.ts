@@ -258,7 +258,10 @@ describe("apps.fluxbot.chat proxy route", () => {
     const data = await response.json();
     expect(data.conversationId).toBe("conv-existing");
     expect(mockConversationCreate).not.toHaveBeenCalled();
-    expect(mockConversationUpdate).not.toHaveBeenCalled();
+    expect(mockConversationUpdate).toHaveBeenCalledWith({
+      where: { id: "conv-existing" },
+      data: { lastMessageAt: expect.any(Date) },
+    });
     expect(mockConversationFindUnique).toHaveBeenCalledWith({
       where: { id: "conv-existing" },
       include: { messages: { orderBy: { createdAt: "asc" } } },
