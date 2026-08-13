@@ -29,6 +29,7 @@ import {
   BillingService,
   normalizePlanId,
   resolveBillingEnvironmentMode,
+  findActivePlanIdBySubscriptionName,
 } from "../../../app/services/billing.server";
 
 const mockPrisma = vi.mocked(prisma);
@@ -565,5 +566,273 @@ describe("BillingService.syncPlansWithBackend", () => {
     expect(report.inSync).toBe(false);
     expect(report.remoteCount).toBe(0);
     expect(report.drift).toEqual([]);
+  });
+});
+
+describe("findActivePlanIdBySubscriptionName", () => {
+  it("matches known plan names via normalizePlanText", () => {
+    expect(findActivePlanIdBySubscriptionName("FluxBot Scale")).toBe("scale");
+    expect(findActivePlanIdBySubscriptionName("Fluxbot Growth")).toBe("growth");
+    expect(findActivePlanIdBySubscriptionName("free")).toBe("free");
+  });
+
+  it("returns null for unknown subscription names", () => {
+    expect(findActivePlanIdBySubscriptionName("Mystery Plan")).toBeNull();
+  });
+});
+
+describe("BillingService.createSubscription error paths", () => {
+  const originalEnv = process.env;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    process.env = { ...originalEnv };
+    mockPrisma.shop.findUnique.mockResolvedValue({
+      domain: "shop.example.myshopify.com",
+      accessToken: "shpat_valid_token",
+    } as any);
+  });
+
+  afterEach(() => {
+    process.env = originalEnv;
+  });
+
+  it("throws a friendly error when the Shopify network call fails", async () => {
+    global.fetch = vi.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ data: { currentAppInstallation: { activeSubscriptions: [] } } }),
+      } as any)
+      .mockRejectedValueOnce(new Error("ECONNRESET"));
+
+    await expect(
+      BillingService.createSubscription({
+        shopId: "shop-1",
+        planId: "starter",
+        returnUrl: "https://app.example.com/app/billing",
+      }),
+    ).rejects.toThrow("No se pudo iniciar la suscripción");
+  });
+
+  it("throws when the appSubscriptionCreate payload is missing", async () => {
+    global.fetch = vi.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ data: { currentAppInstallation: { activeSubscriptions: [] } } }),
+      } as any)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ data: {} }),
+      } as any);
+
+    await expect(
+      BillingService.createSubscription({
+        shopId: "shop-1",
+        planId: "starter",
+        returnUrl: "https://app.example.com/app/billing",
+      }),
+    ).rejects.toThrow("No se pudo iniciar la suscripción");
+  });
+
+  it("throws the Shopify userError message when userErrors are present", async () => {
+    global.fetch = vi.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ data: { currentAppInstallation: { activeSubscriptions: [] } } }),
+      } as any)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          data: {
+            appSubscriptionCreate: {
+              confirmationUrl: "https://shopify.example/confirm",
+              userErrors: [{ field: ["name"], message: "Name is required" }],
+            },
+          },
+        }),
+      } as any);
+
+    await expect(
+      BillingService.createSubscription({
+        shopId: "shop-1",
+        planId: "starter",
+        returnUrl: "https://app.example.com/app/billing",
+      }),
+    ).rejects.toThrow("Name is required");
+  });
+
+  it("throws when confirmationUrl is missing", async () => {
+    global.fetch = vi.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ data: { currentAppInstallation: { activeSubscriptions: [] } } }),
+      } as any)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          data: {
+            appSubscriptionCreate: {
+              userErrors: [],
+              appSubscription: { id: "gid://shopify/AppSubscription/1" },
+            },
+          },
+        }),
+      } as any);
+
+    await expect(
+      BillingService.createSubscription({
+        shopId: "shop-1",
+        planId: "starter",
+        returnUrl: "https://app.example.com/app/billing",
+      }),
+    ).rejects.toThrow("No se pudo iniciar la suscripción");
+  });
+
+  it("accepts direct session credentials without a DB lookup", async () => {
+    process.env.NODE_ENV = "development";
+
+    global.fetch = vi.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ data: { currentAppInstallation: { activeSubscriptions: [] } } }),
+      } as any)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          data: {
+            appSubscriptionCreate: {
+              confirmationUrl: "https://shopify.example/confirm",
+              appSubscription: { id: "gid://shopify/AppSubscription/7", lineItems: [] },
+              userErrors: [],
+            },
+          },
+        }),
+      } as any);
+
+    const result = await BillingService.createSubscription({
+      shopId: "shop-1",
+      planId: "starter",
+      returnUrl: "https://app.example.com/app/billing",
+      shopDomain: "session-shop.myshopify.com",
+      accessToken: "session-token",
+    });
+
+    expect(result.confirmationUrl).toBe("https://shopify.example/confirm");
+    expect(mockPrisma.shop.findUnique).not.toHaveBeenCalled();
+    const [, options] = vi.mocked(global.fetch).mock.calls[1] as [string, RequestInit];
+    const payload = JSON.parse(String(options.body)) as { variables: { test: boolean } };
+    expect(payload.variables.test).toBe(true);
+  });
+
+  it("throws for an invalid plan id", async () => {
+    await expect(
+      BillingService.createSubscription({
+        shopId: "shop-1",
+        planId: "nope" as never,
+        returnUrl: "https://app.example.com/app/billing",
+      }),
+    ).rejects.toThrow("Invalid billing plan");
+  });
+});
+
+describe("BillingService.getStatus parsing edge cases", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("handles subscriptions without lineItems and with AppUsagePricing details", async () => {
+    mockPrisma.shop.findUnique.mockResolvedValue({
+      domain: "shop.example.myshopify.com",
+      accessToken: "shpat_valid_token",
+    } as any);
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        data: {
+          currentAppInstallation: {
+            activeSubscriptions: [
+              { id: "s1", name: "FluxBot Pro", status: "ACTIVE", test: true },
+              {
+                id: "s2",
+                name: "FluxBot Scale",
+                status: "EXPIRED",
+                lineItems: [
+                  {
+                    plan: {
+                      pricingDetails: {
+                        __typename: "AppUsagePricing",
+                        price: { amount: 0 },
+                      },
+                    },
+                  },
+                ],
+              },
+            ],
+          },
+        },
+      }),
+    }) as any;
+
+    const status = await BillingService.getStatus("shop-1");
+
+    expect(status.hasActiveSubscription).toBe(true);
+    expect(status.subscriptions).toHaveLength(2);
+    expect(status.subscriptions[1].priceAmount).toBe("");
+    expect(status.subscriptions[1].interval).toBe("");
+  });
+
+  it("handles missing or non-array subscriptions", async () => {
+    mockPrisma.shop.findUnique.mockResolvedValue({
+      domain: "shop.example.myshopify.com",
+      accessToken: "shpat_valid_token",
+    } as any);
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ data: { currentAppInstallation: {} } }),
+    }) as any;
+
+    const status = await BillingService.getStatus("shop-1");
+
+    expect(status.hasActiveSubscription).toBe(false);
+    expect(status.subscriptions).toEqual([]);
+  });
+});
+
+describe("BillingService.resolveCurrentPlan edge cases", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockPrisma.shop.update.mockResolvedValue({ id: "shop-1" } as any);
+    mockPrisma.shopInstallation.updateMany.mockResolvedValue({ count: 1 } as any);
+  });
+
+  it("returns null planId when live subscriptions do not map to a known plan", async () => {
+    const status = {
+      hasActiveSubscription: true,
+      subscriptions: [
+        { id: "s1", name: "Legacy Custom Plan", status: "ACTIVE", test: false },
+      ],
+    };
+
+    const resolved = await BillingService.resolveCurrentPlan("shop-1", status as any);
+
+    expect(resolved.planId).toBeNull();
+    expect(resolved.source).toBe("shopify");
+    expect(resolved.hasActiveSubscription).toBe(true);
+    expect(mockPrisma.shop.update).not.toHaveBeenCalled();
+  });
+
+  it("falls back to the installation billing plan when the shop plan is missing", async () => {
+    const status = { hasActiveSubscription: false, subscriptions: [] };
+    mockPrisma.shop.findUnique.mockResolvedValue({
+      plan: null,
+      installations: [
+        { uninstalledAt: null, installedAt: new Date(), billingPlan: "FluxBot Pro" },
+      ],
+    } as any);
+
+    const resolved = await BillingService.resolveCurrentPlan("shop-1", status as any);
+
+    expect(resolved.planId).toBe("pro");
+    expect(resolved.source).toBe("local");
   });
 });
