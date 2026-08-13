@@ -16,7 +16,8 @@ import { verifyShopifyProxyRequest } from "../services/shopify-proxy-auth.server
 
 // Helper to create JSON responses
 function json(data: any, init?: ResponseInit) {
-  return new Response(JSON.stringify(data), {
+  const body = init?.status === 204 ? null : JSON.stringify(data);
+  return new Response(body, {
     ...init,
     headers: {
       "Content-Type": "application/json",
