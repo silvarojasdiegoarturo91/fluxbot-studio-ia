@@ -137,6 +137,9 @@ vi.mock("../../../app/db.server", () => ({ default: {} }));
 vi.mock("../../../app/utils/authenticate-admin.server", () => ({ authenticateAdminRequest: vi.fn() }));
 vi.mock("../../../app/services/shop-context.server", () => ({ ensureShopForSession: vi.fn() }));
 vi.mock("../../../app/services/admin-config.server", () => ({ getMerchantAdminConfig: vi.fn() }));
+vi.mock("../../../app/services/ia-backend.server", () => ({
+  iaClient: { widgetAdmin: { conversationRecent: vi.fn(), conversationDetail: vi.fn() } },
+}));
 
 function baseLoaderData(): any {
   return {
@@ -172,6 +175,21 @@ function baseLoaderData(): any {
         lastMessageAt: null,
         messages: [],
         _count: { messages: 0, handoffRequests: 1 },
+      },
+    ],
+    externalConversations: [
+      {
+        id: "ext-1",
+        source: "external",
+        channel: "EXTERNAL_WIDGET",
+        status: "EXTERNAL",
+        locale: null,
+        sessionId: "visitor-9",
+        startedAt: new Date("2026-07-02T08:00:00Z"),
+        lastMessageAt: null,
+        lastMessagePreview: null,
+        messageCount: 4,
+        handoffCount: 0,
       },
     ],
     pendingHandoffs: [
@@ -230,9 +248,18 @@ describe("app.conversations component", () => {
     const viewLinks = screen
       .getAllByRole("link")
       .filter((el) => el.getAttribute("href")?.startsWith("/app/conversations/"));
-    expect(viewLinks).toHaveLength(2);
+    expect(viewLinks).toHaveLength(3);
     expect(viewLinks[0]).toHaveAttribute("href", "/app/conversations/conv-1");
     expect(viewLinks[1]).toHaveAttribute("href", "/app/conversations/conv-2");
+    expect(viewLinks[2]).toHaveAttribute("href", "/app/conversations/ext-1?source=external");
+  });
+
+  it("marks external-widget conversations with a source badge", () => {
+    renderPage();
+
+    expect(screen.getByText("EXTERNAL_WIDGET")).toBeInTheDocument();
+    expect(screen.getAllByText("External").length).toBeGreaterThan(0);
+    expect(screen.getByText("Source")).toBeInTheDocument();
   });
 
   it("renders Spanish copy when the admin language is Spanish", () => {
@@ -263,15 +290,26 @@ describe("app.conversations component", () => {
     const viewLinks = screen
       .getAllByRole("link")
       .filter((el) => el.getAttribute("href")?.startsWith("/app/conversations/"));
-    expect(viewLinks).toHaveLength(2);
+    expect(viewLinks).toHaveLength(3);
     expect(viewLinks[0]).toHaveAttribute("href", "/app/conversations/conv-1");
     expect(viewLinks[1]).toHaveAttribute("href", "/app/conversations/conv-2");
+    expect(viewLinks[2]).toHaveAttribute("href", "/app/conversations/ext-1?source=external");
+  });
+
+  it("renders the external source badge in Spanish", () => {
+    mockUseIsSpanish.mockReturnValue(true);
+    loaderData = baseLoaderData();
+
+    renderPage();
+
+    expect(screen.getByText("Widget externo")).toBeInTheDocument();
   });
 
   it("shows empty states when there is no data", () => {
     loaderData = {
       ...baseLoaderData(),
       conversations: [],
+      externalConversations: [],
       pendingHandoffs: [],
       summary: { activeNow: 0, escalated7d: 0, resolved7d: 0, total7d: 0, openHandoffs: 0 },
     };

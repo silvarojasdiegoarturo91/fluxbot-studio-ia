@@ -17,6 +17,7 @@ const mockConversationFindMany = vi.fn();
 const mockConversationCount = vi.fn();
 const mockHandoffFindMany = vi.fn();
 const mockHandoffUpdateMany = vi.fn();
+const mockConversationRecent = vi.fn();
 
 vi.mock("../../../app/db.server", () => ({
   default: {
@@ -41,6 +42,14 @@ vi.mock("../../../app/services/shop-context.server", () => ({
 
 vi.mock("../../../app/services/admin-config.server", () => ({
   getMerchantAdminConfig: mockGetMerchantAdminConfig,
+}));
+
+vi.mock("../../../app/services/ia-backend.server", () => ({
+  iaClient: {
+    widgetAdmin: {
+      conversationRecent: mockConversationRecent,
+    },
+  },
 }));
 
 const SESSION = { shop: "shop.example.myshopify.com", accessToken: "mock-access-token" };
@@ -102,6 +111,12 @@ describe("app.conversations loader", () => {
       .mockResolvedValueOnce(3)
       .mockResolvedValueOnce(4);
     mockHandoffFindMany.mockResolvedValue(PENDING_HANDOFFS);
+    mockConversationRecent.mockResolvedValue({
+      conversations: [
+        { id: "ext-1", sessionId: "visitor-9", createdAt: "2026-07-02T08:00:00Z" },
+        { id: "ext-2", sessionId: null, createdAt: "2026-07-02T07:00:00Z" },
+      ],
+    });
   });
 
   it("loads conversations with summary counts and pending handoffs", async () => {
@@ -129,6 +144,38 @@ describe("app.conversations loader", () => {
         take: 10,
       }),
     );
+  });
+
+  it("loads external-widget conversations from the backend and marks their source", async () => {
+    const { loader } = await import("../../../app/routes/app.conversations");
+
+    const data = await loader({
+      request: new Request("http://localhost/app/conversations"),
+    } as any);
+
+    expect(mockConversationRecent).toHaveBeenCalledWith("shop-1", "shop.example.myshopify.com");
+    expect(data.externalConversations).toHaveLength(2);
+    expect(data.externalConversations[0]).toMatchObject({
+      id: "ext-1",
+      source: "external",
+      channel: "EXTERNAL_WIDGET",
+      status: "EXTERNAL",
+      sessionId: "visitor-9",
+      handoffCount: 0,
+    });
+    expect(data.externalConversations[1].sessionId).toBeNull();
+  });
+
+  it("tolerates a backend failure while fetching external conversations", async () => {
+    mockConversationRecent.mockRejectedValue(new Error("backend down"));
+
+    const { loader } = await import("../../../app/routes/app.conversations");
+
+    const data = await loader({
+      request: new Request("http://localhost/app/conversations"),
+    } as any);
+
+    expect(data.externalConversations).toEqual([]);
   });
 
   it("defaults to ALL status and clamps the limit to 25", async () => {
@@ -223,6 +270,21 @@ describe("app.conversations action", () => {
     } as any);
 
     expect(result).toEqual({ ok: false, error: "handoffId is required" });
+    expect(mockHandoffUpdateMany).not.toHaveBeenCalled();
+  });
+
+  it("rejects resolving handoffs for external-widget conversations", async () => {
+    const { action } = await import("../../../app/routes/app.conversations");
+
+    const result = await action({
+      request: makePostRequest({
+        intent: "resolve_handoff",
+        handoffId: "h-1",
+        conversationSource: "external",
+      }),
+    } as any);
+
+    expect(result).toEqual({ ok: false, error: "Handoffs only apply to Shopify conversations." });
     expect(mockHandoffUpdateMany).not.toHaveBeenCalled();
   });
 

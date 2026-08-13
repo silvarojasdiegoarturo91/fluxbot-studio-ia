@@ -5,6 +5,7 @@ import { useLoaderData } from "react-router";
 import prisma from "../db.server";
 import { ensureShopForSession } from "../services/shop-context.server";
 import { authenticateAdminRequest } from "../utils/authenticate-admin.server";
+import { iaClient } from "../services/ia-backend.server";
 import { useIsSpanish } from "../hooks/use-admin-language";
 import { AdminPageHeader, AdminSectionCard, AdminStatCard, AdminStatusBadge } from "../components/admin-ui";
 
@@ -14,6 +15,46 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 
   if (!shop) {
     throw new Response("Shop not found", { status: 404 });
+  }
+
+  const url = new URL(request.url);
+  const source = url.searchParams.get("source");
+
+  if (source === "external") {
+    const detail = await iaClient.widgetAdmin
+      .conversationDetail(params.id ?? "", shop.domain)
+      .then((result) => result?.conversation ?? null)
+      .catch(() => null);
+
+    if (!detail) {
+      throw new Response("Not found", { status: 404 });
+    }
+
+    return {
+      source: "external" as const,
+      conversation: {
+        id: detail.id,
+        channel: "EXTERNAL_WIDGET",
+        status: "EXTERNAL",
+        locale: null,
+        visitorId: detail.visitorId,
+        sessionId: detail.sessionId,
+        customerId: null,
+        startedAt: new Date(detail.createdAt),
+        lastMessageAt: null,
+      },
+      messages: detail.messages.map((message) => ({
+        id: `ext-${message.role}-${message.createdAt}`,
+        role: message.role.toUpperCase(),
+        content: message.content,
+        confidence: null,
+        tokensUsed: null,
+        metadata: null,
+        createdAt: message.createdAt,
+        toolInvocations: [],
+      })),
+      handoffs: [],
+    };
   }
 
   const conversation = await prisma.conversation.findFirst({
@@ -32,19 +73,21 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   }
 
   return {
+    source: "shopify" as const,
     conversation,
     messages: conversation.messages,
     handoffs: conversation.handoffRequests,
   };
 }
 
-const STATUS_TONES: Record<string, "success" | "warning" | "critical" | "attention"> = {
+const STATUS_TONES: Record<string, "success" | "warning" | "critical" | "attention" | "info"> = {
   ACTIVE: "success",
   RESOLVED: "attention",
   ESCALATED: "warning",
+  EXTERNAL: "info",
 };
 
-function statusTone(status: string): "success" | "warning" | "critical" | "attention" {
+function statusTone(status: string): "success" | "warning" | "critical" | "attention" | "info" {
   return STATUS_TONES[status] ?? "critical";
 }
 
@@ -54,6 +97,7 @@ function statusLabel(status: string, isEs: boolean): string {
     RESOLVED: { es: "Resuelta", en: "Resolved" },
     ESCALATED: { es: "Escalada", en: "Escalated" },
     ABANDONED: { es: "Abandonada", en: "Abandoned" },
+    EXTERNAL: { es: "Widget externo", en: "External" },
   };
   return labels[status]?.[isEs ? "es" : "en"] ?? status;
 }
@@ -321,7 +365,7 @@ function HandoffCard({ handoff, isEs }: { handoff: HandoffView; isEs: boolean })
 
 export default function ConversationDetailPage() {
   const isEs = useIsSpanish();
-  const { conversation, messages, handoffs } = useLoaderData<typeof loader>();
+  const { source, conversation, messages, handoffs } = useLoaderData<typeof loader>();
 
   const normalizedMessages = messages.map(normalizeMessage);
 
@@ -333,6 +377,9 @@ export default function ConversationDetailPage() {
         description={isEs ? "Revisa el transcript completo y el contexto de la sesión." : "Review the full transcript and session context."}
         backUrl="/app/conversations"
         backLabel={isEs ? "Conversaciones" : "Conversations"}
+        badge={source === "external" ? (
+          <AdminStatusBadge tone="info">{isEs ? "Widget externo" : "External widget"}</AdminStatusBadge>
+        ) : undefined}
       />
       <Layout>
         <Layout.Section>
@@ -343,7 +390,7 @@ export default function ConversationDetailPage() {
           >
             <InlineGrid columns={{ xs: 1, sm: 2, md: 4 }} gap="400">
               <AdminStatCard label={isEs ? "Canal" : "Channel"} value={conversation.channel} />
-              <AdminStatCard label={isEs ? "Idioma" : "Locale"} value={conversation.locale} />
+              <AdminStatCard label={isEs ? "Idioma" : "Locale"} value={conversation.locale ?? "-"} />
               <AdminStatCard label={isEs ? "Inicio" : "Started"} value={formatDate(conversation.startedAt)} />
               <AdminStatCard label={isEs ? "Mensajes" : "Messages"} value={normalizedMessages.length} />
             </InlineGrid>

@@ -12,6 +12,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mockAuthenticateAdminRequest = vi.fn();
 const mockEnsureShopForSession = vi.fn();
 const mockConversationFindFirst = vi.fn();
+const mockConversationDetail = vi.fn();
 
 vi.mock("../../../app/db.server", () => ({
   default: {
@@ -27,6 +28,14 @@ vi.mock("../../../app/utils/authenticate-admin.server", () => ({
 
 vi.mock("../../../app/services/shop-context.server", () => ({
   ensureShopForSession: mockEnsureShopForSession,
+}));
+
+vi.mock("../../../app/services/ia-backend.server", () => ({
+  iaClient: {
+    widgetAdmin: {
+      conversationDetail: mockConversationDetail,
+    },
+  },
 }));
 
 const SESSION = { shop: "shop.example.myshopify.com", accessToken: "mock-access-token" };
@@ -112,6 +121,75 @@ describe("app.conversations.$id loader", () => {
       loader({
         request: new Request("http://localhost/app/conversations/conv-1"),
         params: { id: "conv-1" },
+      } as any),
+    ).rejects.toMatchObject({ status: 404 });
+  });
+});
+
+describe("app.conversations.$id loader external source", () => {
+  const EXTERNAL_DETAIL = {
+    id: "ext-1",
+    sessionId: "visitor-9",
+    visitorId: "visitor-9",
+    createdAt: "2026-07-02T08:00:00Z",
+    messages: [
+      { role: "user", content: "Hola", createdAt: "2026-07-02T08:00:01Z", provider: null, model: null },
+      { role: "assistant", content: "¿En qué puedo ayudarte?", createdAt: "2026-07-02T08:00:02Z", provider: "openai", model: "gpt-4o" },
+    ],
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockAuthenticateAdminRequest.mockResolvedValue({ session: SESSION } as any);
+    mockEnsureShopForSession.mockResolvedValue(SHOP);
+    mockConversationDetail.mockResolvedValue({ conversation: EXTERNAL_DETAIL });
+  });
+
+  it("loads an external-widget conversation transcript from the backend", async () => {
+    const { loader } = await import("../../../app/routes/app.conversations.$id");
+
+    const data = await loader({
+      request: new Request("http://localhost/app/conversations/ext-1?source=external"),
+      params: { id: "ext-1" },
+    } as any);
+
+    expect(data.source).toBe("external");
+    expect(mockConversationDetail).toHaveBeenCalledWith("ext-1", "shop.example.myshopify.com");
+    expect(mockConversationFindFirst).not.toHaveBeenCalled();
+    expect(data.conversation).toMatchObject({
+      id: "ext-1",
+      channel: "EXTERNAL_WIDGET",
+      status: "EXTERNAL",
+      sessionId: "visitor-9",
+    });
+    expect(data.messages).toHaveLength(2);
+    expect(data.messages[0]).toMatchObject({ role: "USER", content: "Hola" });
+    expect(data.messages[1]).toMatchObject({ role: "ASSISTANT", content: "¿En qué puedo ayudarte?" });
+    expect(data.handoffs).toEqual([]);
+  });
+
+  it("throws a 404 when the external conversation does not exist", async () => {
+    mockConversationDetail.mockResolvedValue(null);
+
+    const { loader } = await import("../../../app/routes/app.conversations.$id");
+
+    await expect(
+      loader({
+        request: new Request("http://localhost/app/conversations/ext-missing?source=external"),
+        params: { id: "ext-missing" },
+      } as any),
+    ).rejects.toMatchObject({ status: 404 });
+  });
+
+  it("throws a 404 when the backend detail request fails", async () => {
+    mockConversationDetail.mockRejectedValue(new Error("backend down"));
+
+    const { loader } = await import("../../../app/routes/app.conversations.$id");
+
+    await expect(
+      loader({
+        request: new Request("http://localhost/app/conversations/ext-1?source=external"),
+        params: { id: "ext-1" },
       } as any),
     ).rejects.toMatchObject({ status: 404 });
   });

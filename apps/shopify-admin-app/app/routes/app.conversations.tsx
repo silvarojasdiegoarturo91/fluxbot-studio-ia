@@ -16,6 +16,7 @@ import prisma from "../db.server";
 import { ensureShopForSession } from "../services/shop-context.server";
 import { authenticateAdminRequest } from "../utils/authenticate-admin.server";
 import { getMerchantAdminConfig } from "../services/admin-config.server";
+import { iaClient } from "../services/ia-backend.server";
 import { useIsSpanish } from "../hooks/use-admin-language";
 import { AdminPageHeader, AdminSectionCard, AdminStatCard, AdminStatusBadge } from "../components/admin-ui";
 
@@ -34,6 +35,7 @@ const STATUS_LABELS: Record<string, { en: string; es: string }> = {
   ESCALATED: { en: "Escalated", es: "Escaladas" },
   RESOLVED: { en: "Resolved", es: "Resueltas" },
   ABANDONED: { en: "Abandoned", es: "Abandonadas" },
+  EXTERNAL: { en: "External", es: "Externa" },
 };
 
 function shorten(text: string, max = 90): string {
@@ -41,7 +43,7 @@ function shorten(text: string, max = 90): string {
   return `${text.slice(0, max - 1)}...`;
 }
 
-function statusTone(status: string): "success" | "warning" | "critical" | "attention" {
+function statusTone(status: string): "success" | "warning" | "critical" | "attention" | "info" {
   switch (status) {
     case "ACTIVE":
       return "success";
@@ -49,6 +51,8 @@ function statusTone(status: string): "success" | "warning" | "critical" | "atten
       return "attention";
     case "ESCALATED":
       return "warning";
+    case "EXTERNAL":
+      return "info";
     default:
       return "critical";
   }
@@ -56,6 +60,80 @@ function statusTone(status: string): "success" | "warning" | "critical" | "atten
 
 function statusLabel(status: string, isEs: boolean): string {
   return STATUS_LABELS[status]?.[isEs ? "es" : "en"] ?? status;
+}
+
+interface ConversationRow {
+  id: string;
+  source: "shopify" | "external";
+  channel: string;
+  status: string;
+  locale: string | null;
+  sessionId: string | null;
+  startedAt: string | Date;
+  lastMessageAt: string | Date | null;
+  lastMessagePreview: string | null;
+  messageCount: number;
+  handoffCount: number;
+}
+
+interface ExternalConversationRow {
+  id: string;
+  source: "external";
+  channel: string;
+  status: string;
+  locale: null;
+  sessionId: string | null;
+  startedAt: string | Date;
+  lastMessageAt: null;
+  lastMessagePreview: null;
+  messageCount: number;
+  handoffCount: number;
+}
+
+function normalizeShopifyConversation(conversation: {
+  id: string;
+  channel: string;
+  status: string;
+  locale: string | null;
+  sessionId: string | null;
+  startedAt: string | Date;
+  lastMessageAt: string | Date | null;
+  messages?: Array<{ content: string }>;
+  _count?: { messages?: number; handoffRequests?: number };
+}): ConversationRow {
+  return {
+    id: conversation.id,
+    source: "shopify",
+    channel: conversation.channel,
+    status: conversation.status,
+    locale: conversation.locale,
+    sessionId: conversation.sessionId,
+    startedAt: conversation.startedAt,
+    lastMessageAt: conversation.lastMessageAt,
+    lastMessagePreview: conversation.messages?.[0]?.content ?? null,
+    messageCount: conversation._count?.messages ?? 0,
+    handoffCount: conversation._count?.handoffRequests ?? 0,
+  };
+}
+
+function normalizeExternalConversation(conversation: {
+  id: string;
+  sessionId: string | null;
+  createdAt: string;
+}): ExternalConversationRow {
+  return {
+    id: conversation.id,
+    source: "external",
+    channel: "EXTERNAL_WIDGET",
+    status: "EXTERNAL",
+    locale: null,
+    sessionId: conversation.sessionId,
+    startedAt: conversation.createdAt,
+    lastMessageAt: null,
+    lastMessagePreview: null,
+    messageCount: 0,
+    handoffCount: 0,
+  };
 }
 
 export async function loader({ request }: LoaderFunctionArgs) {
@@ -83,7 +161,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
-  const [conversations, activeNow, escalated7d, resolved7d, total7d, pendingHandoffs] = await Promise.all([
+  const [conversations, activeNow, escalated7d, resolved7d, total7d, pendingHandoffs, externalConversations] = await Promise.all([
     prisma.conversation.findMany({
       where: whereConversation,
       orderBy: { startedAt: "desc" },
@@ -149,7 +227,16 @@ export async function loader({ request }: LoaderFunctionArgs) {
         conversationId: true,
       },
     }),
+    iaClient.widgetAdmin
+      .conversationRecent(shop.id, shop.domain)
+      .then((result) => result?.conversations ?? [])
+      .catch((error) => {
+        console.warn("[Conversations] Failed to fetch external-widget conversations", error);
+        return [];
+      }),
   ]);
+
+  const externalRows: ExternalConversationRow[] = externalConversations.map(normalizeExternalConversation);
 
   return {
     shop,
@@ -163,6 +250,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
       openHandoffs: pendingHandoffs.length,
     },
     conversations,
+    externalConversations: externalRows,
     pendingHandoffs,
   };
 }
@@ -186,6 +274,16 @@ export async function action({ request }: ActionFunctionArgs): Promise<Conversat
   const intent = String(formData.get("intent") || "");
 
   if (intent === "resolve_handoff") {
+    const conversationSource = String(formData.get("conversationSource") || "");
+    if (conversationSource === "external") {
+      return {
+        ok: false,
+        error: isEs
+          ? "Los handoffs solo aplican a conversaciones de Shopify."
+          : "Handoffs only apply to Shopify conversations.",
+      };
+    }
+
     const handoffId = String(formData.get("handoffId") || "").trim();
     if (!handoffId) {
       return { ok: false, error: isEs ? "handoffId es obligatorio" : "handoffId is required" };
@@ -218,7 +316,7 @@ export default function ConversationsPage() {
   const isEs = useIsSpanish();
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
-  const { statusFilter, summary, conversations, pendingHandoffs } = useLoaderData<typeof loader>();
+  const { statusFilter, summary, conversations, externalConversations, pendingHandoffs } = useLoaderData<typeof loader>();
   const backToDashboardUrl = `/app${location.search || ""}`;
 
   const withStatusFilter = (nextFilter: StatusFilter) => {
@@ -235,18 +333,26 @@ export default function ConversationsPage() {
 
   const isSubmitting = navigation.state === "submitting";
 
-  const conversationRows = conversations.map((conversation) => [
+  const rows: ConversationRow[] = [
+    ...conversations.map(normalizeShopifyConversation),
+    ...(externalConversations ?? []),
+  ];
+
+  const conversationRows = rows.map((conversation) => [
     new Date(conversation.startedAt).toLocaleString(),
     <Badge key={`status-${conversation.id}`} tone={statusTone(conversation.status)}>{statusLabel(conversation.status, isEs)}</Badge>,
+    conversation.source === "external"
+      ? <Badge key={`source-${conversation.id}`} tone="info">{isEs ? "Widget externo" : "External"}</Badge>
+      : <Badge key={`source-${conversation.id}`} tone="success">{isEs ? "Shopify" : "Shopify"}</Badge>,
     conversation.channel,
-    conversation.locale,
-    String(conversation._count.messages),
-    conversation.messages[0]?.content ? shorten(conversation.messages[0].content) : isEs ? "Sin mensajes" : "No messages",
+    conversation.locale ?? "-",
+    String(conversation.messageCount),
+    conversation.lastMessagePreview ? shorten(conversation.lastMessagePreview) : (isEs ? "Sin mensajes" : "No messages"),
     conversation.lastMessageAt ? new Date(conversation.lastMessageAt).toLocaleString() : "-",
-    conversation._count.handoffRequests > 0
-      ? <Badge key={`handoff-${conversation.id}`} tone="warning">{`${conversation._count.handoffRequests} ${isEs ? "handoff" : "handoff"}`}</Badge>
+    conversation.handoffCount > 0
+      ? <Badge key={`handoff-${conversation.id}`} tone="warning">{`${conversation.handoffCount} ${isEs ? "handoff" : "handoff"}`}</Badge>
       : <Badge key={`handoff-${conversation.id}`} tone="success">{isEs ? "Sin handoff" : "No handoff"}</Badge>,
-    <Button key={`view-${conversation.id}`} url={`/app/conversations/${conversation.id}`} variant="plain">
+    <Button key={`view-${conversation.id}`} url={`/app/conversations/${conversation.id}${conversation.source === "external" ? "?source=external" : ""}`} variant="plain">
       {isEs ? "Ver" : "View"}
     </Button>,
   ]);
@@ -336,10 +442,10 @@ export default function ConversationsPage() {
                 </EmptyState>
               ) : (
                 <DataTable
-                  columnContentTypes={["text", "text", "text", "text", "numeric", "text", "text", "text", "text"]}
+                  columnContentTypes={["text", "text", "text", "text", "text", "numeric", "text", "text", "text", "text"]}
                   headings={isEs
-                    ? ["Inicio", "Estado", "Canal", "Idioma", "Mensajes", "Último mensaje", "Última actividad", "Handoff", "Ver"]
-                    : ["Started", "Status", "Channel", "Locale", "Messages", "Last message", "Last activity", "Handoff", "View"]}
+                    ? ["Inicio", "Estado", "Origen", "Canal", "Idioma", "Mensajes", "Último mensaje", "Última actividad", "Handoff", "Ver"]
+                    : ["Started", "Status", "Source", "Channel", "Locale", "Messages", "Last message", "Last activity", "Handoff", "View"]}
                   rows={conversationRows}
                 />
               )}

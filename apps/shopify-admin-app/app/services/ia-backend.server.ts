@@ -632,6 +632,28 @@ export interface PrivacyRequestResponse {
   status: 'ACCEPTED' | 'ALREADY_ACCEPTED';
 }
 
+export interface WidgetAdminConversationSummary {
+  id: string;
+  sessionId: string | null;
+  createdAt: string;
+}
+
+export interface WidgetAdminConversationMessage {
+  role: "user" | "assistant" | "system";
+  content: string;
+  createdAt: string;
+  provider?: string | null;
+  model?: string | null;
+}
+
+export interface WidgetAdminConversationDetail {
+  id: string;
+  sessionId: string | null;
+  visitorId: string | null;
+  createdAt: string;
+  messages: WidgetAdminConversationMessage[];
+}
+
 export class IABackendError extends Error {
   constructor(
     message: string,
@@ -912,6 +934,24 @@ export const iaClient = {
         shopDomain,
         undefined,
         true,
+      ),
+  },
+
+  widgetAdmin: {
+    conversationRecent: (tenantId: string, shopDomain?: string) =>
+      makeRequest<{ conversations: WidgetAdminConversationSummary[] }>(
+        `${API_V1}/widget-admin/conversation/recent?tenantId=${encodeURIComponent(tenantId)}&limit=50`,
+        'GET',
+        undefined,
+        shopDomain,
+      ),
+
+    conversationDetail: (id: string, shopDomain?: string) =>
+      makeRequest<{ conversation: WidgetAdminConversationDetail }>(
+        `${API_V1}/widget-admin/conversation/${encodeURIComponent(id)}`,
+        'GET',
+        undefined,
+        shopDomain,
       ),
   },
 };

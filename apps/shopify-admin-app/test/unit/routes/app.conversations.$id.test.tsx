@@ -125,6 +125,9 @@ vi.mock("../../../app/components/admin-ui", () => {
 vi.mock("../../../app/db.server", () => ({ default: {} }));
 vi.mock("../../../app/utils/authenticate-admin.server", () => ({ authenticateAdminRequest: vi.fn() }));
 vi.mock("../../../app/services/shop-context.server", () => ({ ensureShopForSession: vi.fn() }));
+vi.mock("../../../app/services/ia-backend.server", () => ({
+  iaClient: { widgetAdmin: { conversationRecent: vi.fn(), conversationDetail: vi.fn() } },
+}));
 
 function baseLoaderData(): any {
   return {
@@ -269,6 +272,60 @@ describe("app.conversations.$id component", () => {
 
     renderPage();
 
+    expect(screen.getByText("Sin mensajes")).toBeInTheDocument();
+  });
+
+  it("renders an external-widget conversation transcript with the external badge", () => {
+    loaderData = {
+      source: "external",
+      conversation: {
+        id: "ext-1",
+        channel: "EXTERNAL_WIDGET",
+        status: "EXTERNAL",
+        locale: null,
+        visitorId: "v9",
+        sessionId: "s9",
+        startedAt: new Date("2026-07-02T08:00:00Z"),
+        lastMessageAt: null,
+      },
+      messages: [
+        { id: "ext-user-1", role: "USER", content: "Hola desde el widget", confidence: null, tokensUsed: null, metadata: null, createdAt: "2026-07-02T08:00:01Z", toolInvocations: [] },
+        { id: "ext-assistant-1", role: "ASSISTANT", content: "Hola, ¿en qué te ayudo?", confidence: null, tokensUsed: null, metadata: null, createdAt: "2026-07-02T08:00:02Z", toolInvocations: [] },
+      ],
+      handoffs: [],
+    };
+
+    renderPage();
+
+    expect(screen.getByText("External widget")).toBeInTheDocument();
+    expect(screen.getByText("EXTERNAL_WIDGET")).toBeInTheDocument();
+    expect(screen.getByText("Hola desde el widget")).toBeInTheDocument();
+    expect(screen.getByText("Hola, ¿en qué te ayudo?")).toBeInTheDocument();
+    expect(screen.getByText("Customer")).toBeInTheDocument();
+    expect(screen.getByText("Assistant")).toBeInTheDocument();
+  });
+
+  it("renders the external source badge in Spanish", () => {
+    mockUseIsSpanish.mockReturnValue(true);
+    loaderData = {
+      source: "external",
+      conversation: {
+        id: "ext-1",
+        channel: "EXTERNAL_WIDGET",
+        status: "EXTERNAL",
+        locale: null,
+        visitorId: "v9",
+        sessionId: "s9",
+        startedAt: new Date("2026-07-02T08:00:00Z"),
+        lastMessageAt: null,
+      },
+      messages: [],
+      handoffs: [],
+    };
+
+    renderPage();
+
+    expect(screen.getAllByText("Widget externo").length).toBeGreaterThan(0);
     expect(screen.getByText("Sin mensajes")).toBeInTheDocument();
   });
 });
