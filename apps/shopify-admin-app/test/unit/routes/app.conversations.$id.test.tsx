@@ -83,6 +83,7 @@ vi.mock("@shopify/polaris", () => {
 vi.mock("react-router", () => ({
   useLoaderData: () => loaderData,
   useMatches: () => [],
+  useLocation: () => ({ search: "", pathname: "/app/conversations/test-conv", key: "k", hash: "", state: null }),
 }));
 
 vi.mock("../../../app/hooks/use-admin-language", () => ({

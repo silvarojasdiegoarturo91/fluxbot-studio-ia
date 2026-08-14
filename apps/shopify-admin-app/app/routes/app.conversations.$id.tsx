@@ -1,7 +1,7 @@
 import type { CSSProperties } from "react";
 import { Badge, BlockStack, Card, EmptyState, InlineGrid, InlineStack, Layout, Page, Text } from "@shopify/polaris";
 import type { LoaderFunctionArgs } from "react-router";
-import { useLoaderData } from "react-router";
+import { useLoaderData, useLocation } from "react-router";
 import prisma from "../db.server";
 import { ensureShopForSession } from "../services/shop-context.server";
 import { authenticateAdminRequest } from "../utils/authenticate-admin.server";
@@ -368,6 +368,8 @@ export default function ConversationDetailPage() {
   const { source, conversation, messages, handoffs } = useLoaderData<typeof loader>();
 
   const normalizedMessages = messages.map(normalizeMessage);
+  const location = useLocation();
+  const backUrl = `/app/conversations${location.search || ""}`;
 
   return (
     <Page fullWidth>
@@ -375,7 +377,7 @@ export default function ConversationDetailPage() {
         eyebrow={isEs ? "Soporte" : "Support"}
         title={isEs ? "Conversación" : "Conversation"}
         description={isEs ? "Revisa el transcript completo y el contexto de la sesión." : "Review the full transcript and session context."}
-        backUrl="/app/conversations"
+        backUrl={backUrl}
         backLabel={isEs ? "Conversaciones" : "Conversations"}
         badge={source === "external" ? (
           <AdminStatusBadge tone="info">{isEs ? "Widget externo" : "External widget"}</AdminStatusBadge>

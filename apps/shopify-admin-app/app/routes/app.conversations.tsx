@@ -318,6 +318,10 @@ export default function ConversationsPage() {
   const navigation = useNavigation();
   const { statusFilter, summary, conversations, externalConversations, pendingHandoffs } = useLoaderData<typeof loader>();
   const backToDashboardUrl = `/app${location.search || ""}`;
+  // Preserve Shopify embedded-session query params (shop, host, embedded) so
+  // Polaris Button url navigation does not drop the authenticated context and
+  // bounce to the auth login page.
+  const withEmbeddedQuery = (path: string) => `${path}${location.search || ""}`;
 
   const withStatusFilter = (nextFilter: StatusFilter) => {
     const params = new URLSearchParams(location.search);
@@ -352,7 +356,11 @@ export default function ConversationsPage() {
     conversation.handoffCount > 0
       ? <Badge key={`handoff-${conversation.id}`} tone="warning">{`${conversation.handoffCount} ${isEs ? "handoff" : "handoff"}`}</Badge>
       : <Badge key={`handoff-${conversation.id}`} tone="success">{isEs ? "Sin handoff" : "No handoff"}</Badge>,
-    <Button key={`view-${conversation.id}`} url={`/app/conversations/${conversation.id}${conversation.source === "external" ? "?source=external" : ""}`} variant="plain">
+    <Button
+      key={`view-${conversation.id}`}
+      url={withEmbeddedQuery(`/app/conversations/${conversation.id}${conversation.source === "external" ? "?source=external" : ""}`)}
+      variant="plain"
+    >
       {isEs ? "Ver" : "View"}
     </Button>,
   ]);
