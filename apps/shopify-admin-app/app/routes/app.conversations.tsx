@@ -369,11 +369,15 @@ export default function ConversationsPage() {
       : <Badge key={`handoff-${conversation.id}`} tone="success">{isEs ? "Sin handoff" : "No handoff"}</Badge>,
     <Button
       key={`view-${conversation.id}`}
-      onClick={() =>
-        navigate(
-          withEmbeddedQuery(`/app/conversations/${conversation.id}${conversation.source === "external" ? "?source=external" : ""}`)
-        )
-      }
+      onClick={() => {
+        const pathname = `/app/conversations/${conversation.id}`;
+        const params = new URLSearchParams(location.search);
+        if (conversation.source === "external") params.set("source", "external");
+        // Use the { pathname, search } object form so React Router performs a
+        // client-side SPA navigation — a string URL containing Shopify's
+        // embedded session params (host/id_token) triggers a full reload.
+        navigate({ pathname, search: params.toString() ? `?${params.toString()}` : "" });
+      }}
       variant="plain"
     >
       {isEs ? "Ver" : "View"}

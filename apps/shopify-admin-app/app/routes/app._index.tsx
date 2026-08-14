@@ -279,8 +279,18 @@ export default function DashboardIndex() {
         ? "Aún no se ha ejecutado una sincronización completa de catálogo/políticas."
         : "No catalog/policy synchronization has been completed yet.");
 
+  // Build a client-side SPA navigation target. Using the { pathname, search }
+  // object form (instead of a raw string with embedded session params) keeps
+  // React Router navigation in the iframe instead of triggering a full reload.
   const withEmbeddedQuery = (path: string) => {
-    return `${path}${location.search || ""}`;
+    const [basePath, existingQuery = ""] = path.split("?");
+    const params = new URLSearchParams(existingQuery);
+    const locationParams = new URLSearchParams(location.search);
+    for (const [key, value] of locationParams.entries()) {
+      params.set(key, value);
+    }
+    const qs = params.toString();
+    return { pathname: basePath, search: qs ? `?${qs}` : "" };
   };
 
   const formatCurrency = (value: number) => `$${value.toFixed(2)}`;

@@ -283,9 +283,12 @@ describe("app.conversations component", () => {
       .filter((el) => el.tagName === "BUTTON" || el.closest("button"));
     expect(viewButtons).toHaveLength(3);
     fireEvent.click(viewButtons[0]);
-    expect(mockNavigate).toHaveBeenCalledWith("/app/conversations/conv-1");
+    expect(mockNavigate).toHaveBeenCalledWith({ pathname: "/app/conversations/conv-1", search: "" });
     fireEvent.click(viewButtons[2]);
-    expect(mockNavigate).toHaveBeenLastCalledWith("/app/conversations/ext-1?source=external");
+    expect(mockNavigate).toHaveBeenLastCalledWith({
+      pathname: "/app/conversations/ext-1",
+      search: "?source=external",
+    });
   });
 
   it("renders the external source badge in Spanish", () => {
@@ -357,14 +360,16 @@ describe("app.conversations component", () => {
     // Clicking the external row's View navigates with a SINGLE "?" merging
     // source=external + session params — no "??", no duplicated separator.
     fireEvent.click(viewButtons[2]);
-    const called = mockNavigate.mock.calls.map((c) => c[0]) as string[];
-    for (const url of called) {
+    const calls = mockNavigate.mock.calls.map((c) => c[0]) as Array<{ pathname: string; search: string }>;
+    for (const target of calls) {
+      const url = `${target.pathname}${target.search}`;
       expect(url).not.toContain("??");
-      expect(url.split("?").length).toBeLessThanOrEqual(2);
+      expect(target.search.split("?").length).toBeLessThanOrEqual(2);
     }
-    const externalUrl = called.find((u) => u.includes("source=external"));
-    expect(externalUrl).toBeDefined();
-    expect(externalUrl).toContain("embedded=1");
-    expect(externalUrl).toContain("shop=test-2-grow.myshopify.com");
+    const externalTarget = calls.find((c) => c.pathname.includes("ext-1"));
+    expect(externalTarget).toBeDefined();
+    expect(externalTarget?.search).toContain("source=external");
+    expect(externalTarget?.search).toContain("embedded=1");
+    expect(externalTarget?.search).toContain("shop=test-2-grow.myshopify.com");
   });
 });
