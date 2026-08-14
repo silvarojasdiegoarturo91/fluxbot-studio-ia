@@ -12,7 +12,7 @@ import {
   ProgressBar,
 } from "@shopify/polaris";
 import { redirect, type LoaderFunctionArgs } from "react-router";
-import { useLoaderData, useLocation } from "react-router";
+import { useLoaderData, useLocation, useNavigate } from "react-router";
 import prisma from "../db.server";
 import { AnalyticsService } from "../services/analytics.server";
 import { getMerchantAdminConfig } from "../services/admin-config.server";
@@ -256,6 +256,7 @@ export const loader = async ({ request }: LoaderFunctionArgs): Promise<Dashboard
 export default function DashboardIndex() {
   const { shopConnection, business, assistant, alerts, showOnboardingSuccess } = useLoaderData<typeof loader>();
   const location = useLocation();
+  const navigate = useNavigate();
   const isEs = useIsSpanish();
   const setupTaskTotal = 2;
   const setupTaskCompleted = 1 + (business.hasCompletedSync ? 1 : 0);
@@ -301,10 +302,10 @@ export default function DashboardIndex() {
         }
         actions={
           <InlineStack gap="200" wrap>
-            <Button variant="primary" url={withEmbeddedQuery("/app/conversations")}>
+            <Button variant="primary" onClick={() => navigate(withEmbeddedQuery("/app/conversations"))}>
               {isEs ? "Abrir conversaciones" : "Open conversations"}
             </Button>
-            <Button url={withEmbeddedQuery("/app/settings")}>
+            <Button onClick={() => navigate(withEmbeddedQuery("/app/settings"))}>
               {isEs ? "Ajustar asistente" : "Tune assistant"}
             </Button>
           </InlineStack>
@@ -381,12 +382,12 @@ export default function DashboardIndex() {
                   </Text>
                   <Text as="p" variant="bodyMd" tone="subdued">{trainingStatusText}</Text>
                   <InlineStack gap="200" wrap>
-                    <Button variant="plain" url={withEmbeddedQuery("/app/data-sources")}>
+                    <Button variant="plain" onClick={() => navigate(withEmbeddedQuery("/app/data-sources"))}>
                       {isEs ? "Más información" : "More information"}
                     </Button>
                   </InlineStack>
                 </BlockStack>
-                <Button variant="primary" url={withEmbeddedQuery("/app/data-sources")}>
+                <Button variant="primary" onClick={() => navigate(withEmbeddedQuery("/app/data-sources"))}>
                   {isEs ? "Ir a configuración" : "Go to configuration"}
                 </Button>
               </InlineStack>
@@ -457,10 +458,10 @@ export default function DashboardIndex() {
               </AdminInfoCallout>
 
               <InlineStack gap="200" wrap>
-                <Button url={withEmbeddedQuery("/app/campaigns")}>{isEs ? "Lanzar campaña" : "Launch campaign"}</Button>
-                <Button url={withEmbeddedQuery("/app/conversations")}>{isEs ? "Revisar conversaciones" : "Review conversations"}</Button>
-                  <Button url={withEmbeddedQuery("/app/data-sources")}>{isEs ? "Sincronizar fuentes" : "Sync data sources"}</Button>
-                  <Button url={withEmbeddedQuery("/app/settings")}>{isEs ? "Ajustar asistente" : "Tune assistant"}</Button>
+                <Button onClick={() => navigate(withEmbeddedQuery("/app/campaigns"))}>{isEs ? "Lanzar campaña" : "Launch campaign"}</Button>
+                <Button onClick={() => navigate(withEmbeddedQuery("/app/conversations"))}>{isEs ? "Revisar conversaciones" : "Review conversations"}</Button>
+                  <Button onClick={() => navigate(withEmbeddedQuery("/app/data-sources"))}>{isEs ? "Sincronizar fuentes" : "Sync data sources"}</Button>
+                  <Button onClick={() => navigate(withEmbeddedQuery("/app/settings"))}>{isEs ? "Ajustar asistente" : "Tune assistant"}</Button>
                 </InlineStack>
               </BlockStack>
             </AdminSectionCard>
@@ -536,9 +537,9 @@ export default function DashboardIndex() {
             )}
 
             <InlineStack gap="200" wrap>
-              <Button url={withEmbeddedQuery("/app/privacy")}>{isEs ? "Centro de cumplimiento" : "Compliance center"}</Button>
-              <Button url={withEmbeddedQuery("/app/operations")}>{isEs ? "Vista de operaciones" : "Operations view"}</Button>
-              <Button url={withEmbeddedQuery("/app/billing")}>{isEs ? "Facturación" : "Billing"}</Button>
+              <Button onClick={() => navigate(withEmbeddedQuery("/app/privacy"))}>{isEs ? "Centro de cumplimiento" : "Compliance center"}</Button>
+              <Button onClick={() => navigate(withEmbeddedQuery("/app/operations"))}>{isEs ? "Vista de operaciones" : "Operations view"}</Button>
+              <Button onClick={() => navigate(withEmbeddedQuery("/app/billing"))}>{isEs ? "Facturación" : "Billing"}</Button>
             </InlineStack>
           </AdminSectionCard>
         </Layout.Section>

@@ -16,6 +16,7 @@ const { mockUseIsSpanish } = vi.hoisted(() => ({ mockUseIsSpanish: vi.fn() }));
 
 let loaderData: any;
 let locationState = { pathname: "/app", search: "" };
+const mockNavigate = vi.fn();
 
 vi.mock("@shopify/polaris", () => {
   const React = require("react");
@@ -76,6 +77,7 @@ vi.mock("@shopify/polaris", () => {
 vi.mock("react-router", () => ({
   useLoaderData: () => loaderData,
   useLocation: () => locationState,
+  useNavigate: () => mockNavigate,
 }));
 
 vi.mock("../../../app/hooks/use-admin-language", () => ({
