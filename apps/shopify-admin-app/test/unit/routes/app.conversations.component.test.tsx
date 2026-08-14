@@ -8,7 +8,7 @@
  */
 
 import "@testing-library/jest-dom";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -18,6 +18,7 @@ let loaderData: any;
 let actionData: any = undefined;
 let navigationState = { state: "idle" };
 let locationState = { pathname: "/app/conversations", search: "" };
+const mockNavigate = vi.fn();
 
 vi.mock("@shopify/polaris", () => {
   const React = require("react");
@@ -101,6 +102,7 @@ vi.mock("react-router", () => ({
   useLoaderData: () => loaderData,
   useNavigation: () => navigationState,
   useLocation: () => locationState,
+  useNavigate: () => mockNavigate,
 }));
 
 vi.mock("../../../app/hooks/use-admin-language", () => ({
@@ -242,18 +244,6 @@ describe("app.conversations component", () => {
     expect(screen.getAllByText("Resolve").length).toBeGreaterThan(0);
   });
 
-  it("renders a View link per conversation row with the correct href", () => {
-    renderPage();
-
-    const viewLinks = screen
-      .getAllByRole("link")
-      .filter((el) => el.getAttribute("href")?.startsWith("/app/conversations/"));
-    expect(viewLinks).toHaveLength(3);
-    expect(viewLinks[0]).toHaveAttribute("href", "/app/conversations/conv-1");
-    expect(viewLinks[1]).toHaveAttribute("href", "/app/conversations/conv-2");
-    expect(viewLinks[2]).toHaveAttribute("href", "/app/conversations/ext-1?source=external");
-  });
-
   it("marks external-widget conversations with a source badge", () => {
     renderPage();
 
@@ -281,19 +271,21 @@ describe("app.conversations component", () => {
     expect(screen.getByText("Resolver")).toBeInTheDocument();
   });
 
-  it("renders a Ver link per conversation row when the language is Spanish", () => {
+  it("navigates to the conversation detail when Ver is clicked", () => {
     mockUseIsSpanish.mockReturnValue(true);
     loaderData = baseLoaderData();
+    mockNavigate.mockClear();
 
     renderPage();
 
-    const viewLinks = screen
-      .getAllByRole("link")
-      .filter((el) => el.getAttribute("href")?.startsWith("/app/conversations/"));
-    expect(viewLinks).toHaveLength(3);
-    expect(viewLinks[0]).toHaveAttribute("href", "/app/conversations/conv-1");
-    expect(viewLinks[1]).toHaveAttribute("href", "/app/conversations/conv-2");
-    expect(viewLinks[2]).toHaveAttribute("href", "/app/conversations/ext-1?source=external");
+    const viewButtons = screen
+      .getAllByText("Ver")
+      .filter((el) => el.tagName === "BUTTON" || el.closest("button"));
+    expect(viewButtons).toHaveLength(3);
+    fireEvent.click(viewButtons[0]);
+    expect(mockNavigate).toHaveBeenCalledWith("/app/conversations/conv-1");
+    fireEvent.click(viewButtons[2]);
+    expect(mockNavigate).toHaveBeenLastCalledWith("/app/conversations/ext-1?source=external");
   });
 
   it("renders the external source badge in Spanish", () => {
@@ -354,19 +346,25 @@ describe("app.conversations component", () => {
       pathname: "/app/conversations",
       search: "?shop=test-2-grow.myshopify.com&embedded=1&host=YWRtaW4",
     };
+    mockNavigate.mockClear();
 
     renderPage();
 
-    const viewLinks = screen
-      .getAllByRole("link")
-      .filter((el) => el.getAttribute("href")?.startsWith("/app/conversations/"));
-    // No "??" and external keeps a single "?" merging source=external + session params.
-    for (const link of viewLinks) {
-      const href = link.getAttribute("href") ?? "";
-      expect(href).not.toContain("??");
-      expect(href.split("?").length).toBeLessThanOrEqual(2);
+    const viewButtons = screen
+      .getAllByText("View")
+      .filter((el) => el.tagName === "BUTTON" || el.closest("button"));
+    expect(viewButtons.length).toBeGreaterThan(0);
+    // Clicking the external row's View navigates with a SINGLE "?" merging
+    // source=external + session params — no "??", no duplicated separator.
+    fireEvent.click(viewButtons[2]);
+    const called = mockNavigate.mock.calls.map((c) => c[0]) as string[];
+    for (const url of called) {
+      expect(url).not.toContain("??");
+      expect(url.split("?").length).toBeLessThanOrEqual(2);
     }
-    expect(viewLinks[2].getAttribute("href")).toContain("source=external");
-    expect(viewLinks[2].getAttribute("href")).toContain("embedded=1");
+    const externalUrl = called.find((u) => u.includes("source=external"));
+    expect(externalUrl).toBeDefined();
+    expect(externalUrl).toContain("embedded=1");
+    expect(externalUrl).toContain("shop=test-2-grow.myshopify.com");
   });
 });
