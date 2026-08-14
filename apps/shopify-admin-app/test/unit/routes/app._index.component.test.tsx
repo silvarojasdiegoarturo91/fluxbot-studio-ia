@@ -75,6 +75,8 @@ vi.mock("@shopify/polaris", () => {
 });
 
 vi.mock("react-router", () => ({
+  Link: ({ to, children }: { to: { pathname: string; search?: string }; children?: React.ReactNode }) =>
+    React.createElement("a", { href: `${to.pathname}${to.search ?? ""}` }, children),
   useLoaderData: () => loaderData,
   useLocation: () => locationState,
   useNavigate: () => mockNavigate,

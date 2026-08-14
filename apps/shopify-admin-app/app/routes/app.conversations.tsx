@@ -11,7 +11,7 @@ import {
   Banner,
 } from "@shopify/polaris";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
-import { Form, useActionData, useLoaderData, useLocation, useNavigate, useNavigation } from "react-router";
+import { Form, Link, useActionData, useLoaderData, useLocation, useNavigation } from "react-router";
 import prisma from "../db.server";
 import { ensureShopForSession } from "../services/shop-context.server";
 import { authenticateAdminRequest } from "../utils/authenticate-admin.server";
@@ -313,7 +313,6 @@ export async function action({ request }: ActionFunctionArgs): Promise<Conversat
 
 export default function ConversationsPage() {
   const location = useLocation();
-  const navigate = useNavigate();
   const isEs = useIsSpanish();
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
@@ -369,18 +368,20 @@ export default function ConversationsPage() {
       : <Badge key={`handoff-${conversation.id}`} tone="success">{isEs ? "Sin handoff" : "No handoff"}</Badge>,
     <Button
       key={`view-${conversation.id}`}
-      onClick={() => {
-        const pathname = `/app/conversations/${conversation.id}`;
-        const params = new URLSearchParams(location.search);
-        if (conversation.source === "external") params.set("source", "external");
-        // Use the { pathname, search } object form so React Router performs a
-        // client-side SPA navigation — a string URL containing Shopify's
-        // embedded session params (host/id_token) triggers a full reload.
-        navigate({ pathname, search: params.toString() ? `?${params.toString()}` : "" });
-      }}
       variant="plain"
     >
-      {isEs ? "Ver" : "View"}
+      {/* Polaris 12.10 types children as string; react-router Link (Element) is
+          fine at runtime and performs SPA navigation inside the embedded iframe. */}
+      {(
+        <Link
+          to={{
+            pathname: `/app/conversations/${conversation.id}`,
+            search: conversation.source === "external" ? "?source=external" : "",
+          }}
+        >
+          {isEs ? "Ver" : "View"}
+        </Link>
+      ) as unknown as string}
     </Button>,
   ]);
 

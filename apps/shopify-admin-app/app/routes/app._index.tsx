@@ -12,7 +12,7 @@ import {
   ProgressBar,
 } from "@shopify/polaris";
 import { redirect, type LoaderFunctionArgs } from "react-router";
-import { useLoaderData, useLocation, useNavigate } from "react-router";
+import { Link, useLoaderData } from "react-router";
 import prisma from "../db.server";
 import { AnalyticsService } from "../services/analytics.server";
 import { getMerchantAdminConfig } from "../services/admin-config.server";
@@ -255,8 +255,6 @@ export const loader = async ({ request }: LoaderFunctionArgs): Promise<Dashboard
 
 export default function DashboardIndex() {
   const { shopConnection, business, assistant, alerts, showOnboardingSuccess } = useLoaderData<typeof loader>();
-  const location = useLocation();
-  const navigate = useNavigate();
   const isEs = useIsSpanish();
   const setupTaskTotal = 2;
   const setupTaskCompleted = 1 + (business.hasCompletedSync ? 1 : 0);
@@ -279,20 +277,6 @@ export default function DashboardIndex() {
         ? "Aún no se ha ejecutado una sincronización completa de catálogo/políticas."
         : "No catalog/policy synchronization has been completed yet.");
 
-  // Build a client-side SPA navigation target. Using the { pathname, search }
-  // object form (instead of a raw string with embedded session params) keeps
-  // React Router navigation in the iframe instead of triggering a full reload.
-  const withEmbeddedQuery = (path: string) => {
-    const [basePath, existingQuery = ""] = path.split("?");
-    const params = new URLSearchParams(existingQuery);
-    const locationParams = new URLSearchParams(location.search);
-    for (const [key, value] of locationParams.entries()) {
-      params.set(key, value);
-    }
-    const qs = params.toString();
-    return { pathname: basePath, search: qs ? `?${qs}` : "" };
-  };
-
   const formatCurrency = (value: number) => `$${value.toFixed(2)}`;
 
   return (
@@ -312,11 +296,11 @@ export default function DashboardIndex() {
         }
         actions={
           <InlineStack gap="200" wrap>
-            <Button variant="primary" onClick={() => navigate(withEmbeddedQuery("/app/conversations"))}>
-              {isEs ? "Abrir conversaciones" : "Open conversations"}
+            <Button variant="primary">
+              {(<Link to={{ pathname: "/app/conversations", search: "" }}>{isEs ? "Abrir conversaciones" : "Open conversations"}</Link>) as unknown as string}
             </Button>
-            <Button onClick={() => navigate(withEmbeddedQuery("/app/settings"))}>
-              {isEs ? "Ajustar asistente" : "Tune assistant"}
+            <Button>
+              {(<Link to={{ pathname: "/app/settings", search: "" }}>{isEs ? "Ajustar asistente" : "Tune assistant"}</Link>) as unknown as string}
             </Button>
           </InlineStack>
         }
@@ -392,13 +376,13 @@ export default function DashboardIndex() {
                   </Text>
                   <Text as="p" variant="bodyMd" tone="subdued">{trainingStatusText}</Text>
                   <InlineStack gap="200" wrap>
-                    <Button variant="plain" onClick={() => navigate(withEmbeddedQuery("/app/data-sources"))}>
-                      {isEs ? "Más información" : "More information"}
+                    <Button variant="plain">
+                      {(<Link to={{ pathname: "/app/data-sources", search: "" }}>{isEs ? "Más información" : "More information"}</Link>) as unknown as string}
                     </Button>
                   </InlineStack>
                 </BlockStack>
-                <Button variant="primary" onClick={() => navigate(withEmbeddedQuery("/app/data-sources"))}>
-                  {isEs ? "Ir a configuración" : "Go to configuration"}
+                <Button variant="primary">
+                  {(<Link to={{ pathname: "/app/data-sources", search: "" }}>{isEs ? "Ir a configuración" : "Go to configuration"}</Link>) as unknown as string}
                 </Button>
               </InlineStack>
               <InlineStack align="space-between">
@@ -468,10 +452,10 @@ export default function DashboardIndex() {
               </AdminInfoCallout>
 
               <InlineStack gap="200" wrap>
-                <Button onClick={() => navigate(withEmbeddedQuery("/app/campaigns"))}>{isEs ? "Lanzar campaña" : "Launch campaign"}</Button>
-                <Button onClick={() => navigate(withEmbeddedQuery("/app/conversations"))}>{isEs ? "Revisar conversaciones" : "Review conversations"}</Button>
-                  <Button onClick={() => navigate(withEmbeddedQuery("/app/data-sources"))}>{isEs ? "Sincronizar fuentes" : "Sync data sources"}</Button>
-                  <Button onClick={() => navigate(withEmbeddedQuery("/app/settings"))}>{isEs ? "Ajustar asistente" : "Tune assistant"}</Button>
+                <Button>{(<Link to={{ pathname: "/app/campaigns", search: "" }}>{isEs ? "Lanzar campaña" : "Launch campaign"}</Link>) as unknown as string}</Button>
+                <Button>{(<Link to={{ pathname: "/app/conversations", search: "" }}>{isEs ? "Revisar conversaciones" : "Review conversations"}</Link>) as unknown as string}</Button>
+                  <Button>{(<Link to={{ pathname: "/app/data-sources", search: "" }}>{isEs ? "Sincronizar fuentes" : "Sync data sources"}</Link>) as unknown as string}</Button>
+                  <Button>{(<Link to={{ pathname: "/app/settings", search: "" }}>{isEs ? "Ajustar asistente" : "Tune assistant"}</Link>) as unknown as string}</Button>
                 </InlineStack>
               </BlockStack>
             </AdminSectionCard>
@@ -547,9 +531,9 @@ export default function DashboardIndex() {
             )}
 
             <InlineStack gap="200" wrap>
-              <Button onClick={() => navigate(withEmbeddedQuery("/app/privacy"))}>{isEs ? "Centro de cumplimiento" : "Compliance center"}</Button>
-              <Button onClick={() => navigate(withEmbeddedQuery("/app/operations"))}>{isEs ? "Vista de operaciones" : "Operations view"}</Button>
-              <Button onClick={() => navigate(withEmbeddedQuery("/app/billing"))}>{isEs ? "Facturación" : "Billing"}</Button>
+              <Button>{(<Link to={{ pathname: "/app/privacy", search: "" }}>{isEs ? "Centro de cumplimiento" : "Compliance center"}</Link>) as unknown as string}</Button>
+              <Button>{(<Link to={{ pathname: "/app/operations", search: "" }}>{isEs ? "Vista de operaciones" : "Operations view"}</Link>) as unknown as string}</Button>
+              <Button>{(<Link to={{ pathname: "/app/billing", search: "" }}>{isEs ? "Facturación" : "Billing"}</Link>) as unknown as string}</Button>
             </InlineStack>
           </AdminSectionCard>
         </Layout.Section>

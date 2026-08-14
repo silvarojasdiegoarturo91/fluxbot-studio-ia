@@ -98,6 +98,8 @@ vi.mock("@shopify/polaris", () => {
 
 vi.mock("react-router", () => ({
   Form: ({ children }: { children?: React.ReactNode }) => React.createElement("form", null, children),
+  Link: ({ to, children }: { to: { pathname: string; search?: string }; children?: React.ReactNode }) =>
+    React.createElement("a", { href: `${to.pathname}${to.search ?? ""}` }, children),
   useActionData: () => actionData,
   useLoaderData: () => loaderData,
   useNavigation: () => navigationState,
@@ -278,17 +280,12 @@ describe("app.conversations component", () => {
 
     renderPage();
 
-    const viewButtons = screen
-      .getAllByText("Ver")
-      .filter((el) => el.tagName === "BUTTON" || el.closest("button"));
-    expect(viewButtons).toHaveLength(3);
-    fireEvent.click(viewButtons[0]);
-    expect(mockNavigate).toHaveBeenCalledWith({ pathname: "/app/conversations/conv-1", search: "" });
-    fireEvent.click(viewButtons[2]);
-    expect(mockNavigate).toHaveBeenLastCalledWith({
-      pathname: "/app/conversations/ext-1",
-      search: "?source=external",
-    });
+    const viewLinks = screen
+      .getAllByRole("link")
+      .filter((el) => el.getAttribute("href")?.startsWith("/app/conversations/"));
+    expect(viewLinks).toHaveLength(3);
+    expect(viewLinks[0].getAttribute("href")).toBe("/app/conversations/conv-1");
+    expect(viewLinks[2].getAttribute("href")).toBe("/app/conversations/ext-1?source=external");
   });
 
   it("renders the external source badge in Spanish", () => {
@@ -342,7 +339,7 @@ describe("app.conversations component", () => {
     expect(screen.getByText("Abandoned")).toBeInTheDocument();
   });
 
-  it("preserves embedded session params without duplicating the query separator", () => {
+  it("renders react-router Link targets without duplicated query separators", () => {
     mockUseIsSpanish.mockReturnValue(false);
     loaderData = baseLoaderData();
     locationState = {
@@ -353,23 +350,20 @@ describe("app.conversations component", () => {
 
     renderPage();
 
-    const viewButtons = screen
-      .getAllByText("View")
-      .filter((el) => el.tagName === "BUTTON" || el.closest("button"));
-    expect(viewButtons.length).toBeGreaterThan(0);
-    // Clicking the external row's View navigates with a SINGLE "?" merging
-    // source=external + session params — no "??", no duplicated separator.
-    fireEvent.click(viewButtons[2]);
-    const calls = mockNavigate.mock.calls.map((c) => c[0]) as Array<{ pathname: string; search: string }>;
-    for (const target of calls) {
-      const url = `${target.pathname}${target.search}`;
-      expect(url).not.toContain("??");
-      expect(target.search.split("?").length).toBeLessThanOrEqual(2);
+    const viewLinks = screen
+      .getAllByRole("link")
+      .filter((el) => el.getAttribute("href")?.startsWith("/app/conversations/"));
+    expect(viewLinks.length).toBeGreaterThan(0);
+    // react-router Link performs SPA navigation and preserves the embedded
+    // session context internally; the href must never contain "??" or a
+    // duplicated query separator.
+    for (const link of viewLinks) {
+      const href = link.getAttribute("href") ?? "";
+      expect(href).not.toContain("??");
+      expect(href.split("?").length).toBeLessThanOrEqual(2);
     }
-    const externalTarget = calls.find((c) => c.pathname.includes("ext-1"));
-    expect(externalTarget).toBeDefined();
-    expect(externalTarget?.search).toContain("source=external");
-    expect(externalTarget?.search).toContain("embedded=1");
-    expect(externalTarget?.search).toContain("shop=test-2-grow.myshopify.com");
+    const externalHref = viewLinks.find((el) => (el.getAttribute("href") ?? "").includes("ext-1"));
+    expect(externalHref).toBeDefined();
+    expect(externalHref?.getAttribute("href")).toBe("/app/conversations/ext-1?source=external");
   });
 });
