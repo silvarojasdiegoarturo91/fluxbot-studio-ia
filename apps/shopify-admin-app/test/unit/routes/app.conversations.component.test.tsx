@@ -346,4 +346,27 @@ describe("app.conversations component", () => {
     expect(screen.getAllByText("Resolved").length).toBeGreaterThan(0);
     expect(screen.getByText("Abandoned")).toBeInTheDocument();
   });
+
+  it("preserves embedded session params without duplicating the query separator", () => {
+    mockUseIsSpanish.mockReturnValue(false);
+    loaderData = baseLoaderData();
+    locationState = {
+      pathname: "/app/conversations",
+      search: "?shop=test-2-grow.myshopify.com&embedded=1&host=YWRtaW4",
+    };
+
+    renderPage();
+
+    const viewLinks = screen
+      .getAllByRole("link")
+      .filter((el) => el.getAttribute("href")?.startsWith("/app/conversations/"));
+    // No "??" and external keeps a single "?" merging source=external + session params.
+    for (const link of viewLinks) {
+      const href = link.getAttribute("href") ?? "";
+      expect(href).not.toContain("??");
+      expect(href.split("?").length).toBeLessThanOrEqual(2);
+    }
+    expect(viewLinks[2].getAttribute("href")).toContain("source=external");
+    expect(viewLinks[2].getAttribute("href")).toContain("embedded=1");
+  });
 });

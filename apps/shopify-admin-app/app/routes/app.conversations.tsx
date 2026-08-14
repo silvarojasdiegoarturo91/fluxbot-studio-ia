@@ -320,8 +320,18 @@ export default function ConversationsPage() {
   const backToDashboardUrl = `/app${location.search || ""}`;
   // Preserve Shopify embedded-session query params (shop, host, embedded) so
   // Polaris Button url navigation does not drop the authenticated context and
-  // bounce to the auth login page.
-  const withEmbeddedQuery = (path: string) => `${path}${location.search || ""}`;
+  // bounce to the auth login page. Uses URLSearchParams so an existing query
+  // in `path` (e.g. "?source=external") merges with location.search cleanly.
+  const withEmbeddedQuery = (path: string) => {
+    const [basePath, existingQuery = ""] = path.split("?");
+    const params = new URLSearchParams(existingQuery);
+    const locationParams = new URLSearchParams(location.search);
+    for (const [key, value] of locationParams.entries()) {
+      params.set(key, value);
+    }
+    const qs = params.toString();
+    return qs ? `${basePath}?${qs}` : basePath;
+  };
 
   const withStatusFilter = (nextFilter: StatusFilter) => {
     const params = new URLSearchParams(location.search);
