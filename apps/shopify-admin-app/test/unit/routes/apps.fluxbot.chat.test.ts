@@ -15,6 +15,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockShopFindUnique = vi.fn();
+const mockShopUpsert = vi.fn();
 const mockConversationFindUnique = vi.fn();
 const mockConversationFindMany = vi.fn();
 const mockConversationCreate = vi.fn();
@@ -27,7 +28,7 @@ const mockGetMerchantAdminConfig = vi.fn();
 
 vi.mock("../../../app/db.server", () => ({
   default: {
-    shop: { findUnique: mockShopFindUnique },
+    shop: { findUnique: mockShopFindUnique, upsert: mockShopUpsert },
     conversation: {
       findUnique: mockConversationFindUnique,
       findMany: mockConversationFindMany,
@@ -82,6 +83,7 @@ describe("apps.fluxbot.chat — route guards and error paths", () => {
     vi.clearAllMocks();
     mockVerifyProxy.mockReturnValue(true);
     mockShopFindUnique.mockResolvedValue({ id: "shop-1" });
+    mockShopUpsert.mockResolvedValue({ id: "shop-1" });
     mockConversationFindUnique.mockResolvedValue(null);
     mockConversationFindMany.mockResolvedValue([]);
     mockConversationCreate.mockResolvedValue({ id: "conv-1", shopId: "shop-1", locale: "es", messages: [], visitorId: "v1", customerId: null, sessionId: null });
@@ -181,15 +183,17 @@ describe("apps.fluxbot.chat — route guards and error paths", () => {
       expect(data.error).toBe("Message is required");
     });
 
-    it("returns 404 when the shop is not found", async () => {
-      mockShopFindUnique.mockResolvedValue(null);
+    it("returns a safe fallback response when the shop upsert fails (DB error)", async () => {
+      mockShopUpsert.mockRejectedValue(new Error("DB connection lost"));
       const { action } = await import("../../../app/routes/apps.fluxbot.chat");
 
       const response = await action({ request: makeRequest({ body: { message: "hola" } }), params: {}, context: {} } as never);
 
-      expect(response.status).toBe(404);
+      // The outer catch returns a 200 safe fallback (success: true) — never leaks DB errors
+      expect(response.status).toBe(200);
       const data = await response.json();
-      expect(data.error).toBe("Shop not found");
+      expect(data.success).toBe(true);
+      expect(data.requiresEscalation).toBe(false);
     });
 
     it("returns 404 when the requested conversation does not exist", async () => {

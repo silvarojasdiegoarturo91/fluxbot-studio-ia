@@ -25,6 +25,7 @@
     "prisma:migrate:dev": "prisma migrate dev --schema ../../infra/prisma/schema.prisma",
     "prisma:migrate:deploy": "prisma migrate deploy --schema ../../infra/prisma/schema.prisma",
     "lint": "eslint --ignore-path ../../.gitignore --cache --cache-location ./node_modules/.cache/eslint .",
+    "seed:conversations": "tsx scripts/seed-conversations.ts",
     "test": "vitest run",
     "test:app-store-compliance": "vitest run test/integration/shopify-app-store-compliance.test.ts",
     "test:phase1:deep": "vitest run test/phase1/chat-e2e.test.ts --reporter=verbose && vitest run test/integration/route-handlers.test.ts test/integration/route-handlers-execution.test.ts test/integration/service-execution.test.ts --reporter=verbose && vitest run test/phase1/chat-e2e.test.ts --coverage --coverage.reporter=text-summary",
@@ -91,6 +92,7 @@
     "graphql-config": "^5.1.1",
     "jsdom": "^28.1.0",
     "prettier": "^3.6.2",
+    "tsx": "^4.23.12",
     "typescript": "^5.9.3",
     "vite": "^6.3.6",
     "vitest": "^2.1.8"

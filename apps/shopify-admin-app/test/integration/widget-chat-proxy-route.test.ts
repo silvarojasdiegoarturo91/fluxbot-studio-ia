@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockShopFindUnique = vi.fn();
+const mockShopUpsert = vi.fn();
 const mockConversationFindUnique = vi.fn();
 const mockConversationFindMany = vi.fn();
 const mockConversationCreate = vi.fn();
@@ -13,7 +14,7 @@ const mockGetMerchantAdminConfig = vi.fn();
 
 vi.mock("../../app/db.server", () => ({
   default: {
-    shop: { findUnique: mockShopFindUnique },
+    shop: { findUnique: mockShopFindUnique, upsert: mockShopUpsert },
     conversation: {
       findUnique: mockConversationFindUnique,
       findMany: mockConversationFindMany,
@@ -48,6 +49,7 @@ describe("apps.fluxbot.chat proxy route", () => {
     vi.clearAllMocks();
     mockVerifyProxy.mockReturnValue(true);
     mockShopFindUnique.mockResolvedValue({ id: "shop-1" });
+    mockShopUpsert.mockResolvedValue({ id: "shop-1" });
     mockConversationFindUnique.mockResolvedValue(null);
     mockConversationFindMany.mockResolvedValue([]);
     mockConversationCreate.mockResolvedValue({ id: "conv-1", messages: [] });

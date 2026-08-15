@@ -546,10 +546,15 @@ export async function action({ request }: ActionFunctionArgs) {
       return json({ success: false, error: "Message is required" }, { status: 400 }, traceId);
     }
 
-    const shop = await prisma.shop.findUnique({ where: { domain: shopDomain } });
-    if (!shop) {
-      return json({ success: false, error: "Shop not found" }, { status: 404 }, traceId);
-    }
+    // Auto-upsert the shop on first proxy hit.
+    // HMAC verification (above) guarantees the domain is Shopify-signed.
+    // `update: {}` protects any existing accessToken from being overwritten.
+    // `accessToken: ""` is a safe sentinel — OAuth install overwrites with real token.
+    const shop = await prisma.shop.upsert({
+      where: { domain: shopDomain },
+      create: { domain: shopDomain, accessToken: "", status: "ACTIVE" },
+      update: {},
+    });
     const adminConfig = await getMerchantAdminConfig(shop.id);
 
     // Get or create conversation
