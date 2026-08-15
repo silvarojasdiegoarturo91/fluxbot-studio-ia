@@ -17,6 +17,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mockShopFindUnique = vi.fn();
 const mockShopUpsert = vi.fn();
 const mockConversationFindUnique = vi.fn();
+const mockConversationFindFirst = vi.fn();
 const mockConversationFindMany = vi.fn();
 const mockConversationCreate = vi.fn();
 const mockConversationUpdate = vi.fn();
@@ -31,6 +32,7 @@ vi.mock("../../../app/db.server", () => ({
     shop: { findUnique: mockShopFindUnique, upsert: mockShopUpsert },
     conversation: {
       findUnique: mockConversationFindUnique,
+      findFirst: mockConversationFindFirst,
       findMany: mockConversationFindMany,
       create: mockConversationCreate,
       update: mockConversationUpdate,
@@ -85,6 +87,7 @@ describe("apps.fluxbot.chat — route guards and error paths", () => {
     mockShopFindUnique.mockResolvedValue({ id: "shop-1" });
     mockShopUpsert.mockResolvedValue({ id: "shop-1" });
     mockConversationFindUnique.mockResolvedValue(null);
+    mockConversationFindFirst.mockResolvedValue(null);
     mockConversationFindMany.mockResolvedValue([]);
     mockConversationCreate.mockResolvedValue({ id: "conv-1", shopId: "shop-1", locale: "es", messages: [], visitorId: "v1", customerId: null, sessionId: null });
     mockConversationUpdate.mockResolvedValue({ id: "conv-1", shopId: "shop-1", locale: "en", messages: [] });
@@ -196,8 +199,9 @@ describe("apps.fluxbot.chat — route guards and error paths", () => {
       expect(data.requiresEscalation).toBe(false);
     });
 
-    it("returns 404 when the requested conversation does not exist", async () => {
+    it("recovers when the requested conversation does not exist (creates a new one)", async () => {
       mockConversationFindUnique.mockResolvedValue(null);
+      mockConversationFindFirst.mockResolvedValue(null);
       const { action } = await import("../../../app/routes/apps.fluxbot.chat");
 
       const response = await action({
@@ -206,18 +210,21 @@ describe("apps.fluxbot.chat — route guards and error paths", () => {
         context: {},
       } as never);
 
-      expect(response.status).toBe(404);
+      // Regression: a stale conversationId must NOT 404 — it recovers the chat
+      // by creating a fresh conversation (widgets persist stale ids in sessionStorage).
+      expect(response.status).toBe(200);
       const data = await response.json();
-      expect(data.error).toBe("Conversation not found");
+      expect(data.conversationId).toBeDefined();
     });
 
-    it("returns 404 when the conversation belongs to another shop", async () => {
+    it("recovers when the conversation belongs to another shop (creates a new one)", async () => {
       mockConversationFindUnique.mockResolvedValue({
         id: "conv-other",
         shopId: "shop-OTHER",
         locale: "es",
         messages: [],
       });
+      mockConversationFindFirst.mockResolvedValue(null);
       const { action } = await import("../../../app/routes/apps.fluxbot.chat");
 
       const response = await action({
@@ -226,7 +233,9 @@ describe("apps.fluxbot.chat — route guards and error paths", () => {
         context: {},
       } as never);
 
-      expect(response.status).toBe(404);
+      expect(response.status).toBe(200);
+      const data = await response.json();
+      expect(data.conversationId).toBeDefined();
     });
   });
 

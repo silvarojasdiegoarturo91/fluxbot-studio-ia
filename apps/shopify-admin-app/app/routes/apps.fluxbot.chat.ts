@@ -557,7 +557,14 @@ export async function action({ request }: ActionFunctionArgs) {
     });
     const adminConfig = await getMerchantAdminConfig(shop.id);
 
-    // Get or create conversation
+    // Get or create conversation.
+    // Resilience: a widget can send a stale conversationId persisted in
+    // sessionStorage from an older DB state (migration/reinstall). Treating a
+    // missing/mismatched id as a fatal 404 makes the chat loop forever with
+    // "Lo siento, tuve un problema" and never persists messages. Instead:
+    //   1. Try the explicit conversationId (must belong to this shop).
+    //   2. Fall back to the sessionId for this shop (recovery after a stale id).
+    //   3. If neither exists, create a new conversation.
     let conversation;
     if (conversationId) {
       conversation = await prisma.conversation.findUnique({
@@ -565,9 +572,32 @@ export async function action({ request }: ActionFunctionArgs) {
         include: { messages: { orderBy: { createdAt: "asc" } } },
       });
       if (!conversation || conversation.shopId !== shop.id) {
-        return json({ success: false, error: "Conversation not found" }, { status: 404 }, traceId);
+        console.info("[ProxyChat] conversationId stale, falling back to sessionId", {
+          traceId,
+          conversationId,
+          sessionId,
+          shopDomain,
+        });
+        conversation = null;
       }
-    } else {
+    }
+
+    if (!conversation && sessionId) {
+      conversation = await prisma.conversation.findFirst({
+        where: { shopId: shop.id, sessionId },
+        include: { messages: { orderBy: { createdAt: "asc" } } },
+      });
+      if (conversation) {
+        console.info("[ProxyChat] recovered conversation by sessionId", {
+          traceId,
+          conversationId: conversation.id,
+          sessionId,
+          shopDomain,
+        });
+      }
+    }
+
+    if (!conversation) {
       const initialLocale = resolveEffectiveLocale({
         primaryBotLanguage: adminConfig.primaryBotLanguage,
         supportedLanguages: adminConfig.supportedLanguages,

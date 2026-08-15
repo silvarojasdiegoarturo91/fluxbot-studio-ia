@@ -167,16 +167,61 @@ describe("proxy chat upsert — REQ-CONV-001 + REQ-CONV-002 (real DB)", () => {
     expect(body.success).toBe(false);
   });
 
-  it("returns 404 when conversationId does not exist for the shop", async () => {
+  it("recovers from a stale conversationId by creating a new conversation", async () => {
     const { action } = await import("../../app/routes/apps.fluxbot.chat");
 
     const request = makeProxyRequest(
-      { message: "Hola", conversationId: "conv-nonexistent-itest" },
+      { message: "Hola", conversationId: "conv-nonexistent-itest", sessionId: "itest-session-stale" },
       TEST_SHOP_DOMAIN_2,
     );
     const response = await action({ request, params: {}, context: {} } as any);
 
-    expect(response.status).toBe(404);
+    // Regression: a stale conversationId (persisted in the widget sessionStorage
+    // from an older DB state) must NOT 404. It must recover/continue the chat.
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.success).not.toBe(false);
+    expect(body.conversationId).toBeDefined();
+  });
+
+  it("recovers an existing conversation by sessionId when conversationId is stale", async () => {
+    // Seed a conversation with a known sessionId for this shop.
+    const shop = await prisma.shop.create({
+      data: { domain: TEST_SHOP_DOMAIN_2, accessToken: "", status: "ACTIVE" },
+    });
+    const existing = await prisma.conversation.create({
+      data: {
+        shopId: shop.id,
+        channel: "SHOPIFY_PROXY",
+        sessionId: "itest-session-existing",
+        visitorId: "itest-visitor",
+        status: "ACTIVE",
+        locale: "es",
+      },
+    });
+
+    const { action } = await import("../../app/routes/apps.fluxbot.chat");
+
+    // Stale conversationId + existing sessionId → must recover the SAME conversation.
+    const request = makeProxyRequest(
+      {
+        message: "Continuemos",
+        conversationId: "conv-stale-not-in-db",
+        sessionId: "itest-session-existing",
+      },
+      TEST_SHOP_DOMAIN_2,
+    );
+    const response = await action({ request, params: {}, context: {} } as any);
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.conversationId).toBe(existing.id);
+
+    const after = await prisma.conversation.findFirst({
+      where: { id: existing.id },
+      include: { messages: true },
+    });
+    expect(after?.messages.length ?? 0).toBeGreaterThan(0);
   });
 });
 
