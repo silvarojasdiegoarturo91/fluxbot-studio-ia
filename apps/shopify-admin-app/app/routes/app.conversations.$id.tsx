@@ -9,16 +9,60 @@ import { iaClient } from "../services/ia-backend.server";
 import { useIsSpanish } from "../hooks/use-admin-language";
 import { AdminPageHeader, AdminSectionCard, AdminStatCard, AdminStatusBadge } from "../components/admin-ui";
 
+const LOG_PREFIX = "[conversations:detail]";
+
+/** Strips the query string so tokens (id_token, session, host) never reach logs. */
+function safePath(rawUrl: string): string {
+  try {
+    return new URL(rawUrl).pathname;
+  } catch {
+    return "unparseable-url";
+  }
+}
+
 export async function loader({ request, params }: LoaderFunctionArgs) {
+  const url = new URL(request.url);
+  const source = url.searchParams.get("source");
+
+  console.info(`${LOG_PREFIX} loader:enter`, {
+    route: "/app/conversations/:id",
+    path: safePath(request.url),
+    conversationId: params.id ?? null,
+    source: source ?? "shopify",
+  });
+
+  try {
+    return await loadConversationDetail(request, params, source);
+  } catch (error) {
+    if (error instanceof Response) {
+      console.error(`${LOG_PREFIX} loader:response-thrown`, {
+        conversationId: params.id ?? null,
+        source: source ?? "shopify",
+        status: error.status,
+      });
+      throw error;
+    }
+    console.error(`${LOG_PREFIX} loader:error`, {
+      conversationId: params.id ?? null,
+      source: source ?? "shopify",
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    });
+    throw error;
+  }
+}
+
+async function loadConversationDetail(
+  request: Request,
+  params: LoaderFunctionArgs["params"],
+  source: string | null,
+) {
   const { session } = await authenticateAdminRequest(request);
   const shop = await ensureShopForSession(session);
 
   if (!shop) {
     throw new Response("Shop not found", { status: 404 });
   }
-
-  const url = new URL(request.url);
-  const source = url.searchParams.get("source");
 
   if (source === "external") {
     const detail = await iaClient.widgetAdmin
@@ -29,6 +73,13 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     if (!detail) {
       throw new Response("Not found", { status: 404 });
     }
+
+    console.info(`${LOG_PREFIX} loader:success`, {
+      conversationId: params.id ?? null,
+      source: "external",
+      messageCount: detail.messages?.length ?? 0,
+      handoffCount: 0,
+    });
 
     return {
       source: "external" as const,
@@ -43,7 +94,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
         startedAt: new Date(detail.createdAt),
         lastMessageAt: null,
       },
-      messages: detail.messages.map((message) => ({
+      messages: (detail.messages ?? []).map((message) => ({
         id: `ext-${message.role}-${message.createdAt}`,
         role: message.role.toUpperCase(),
         content: message.content,
@@ -71,6 +122,13 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   if (!conversation) {
     throw new Response("Not found", { status: 404 });
   }
+
+  console.info(`${LOG_PREFIX} loader:success`, {
+    conversationId: params.id ?? null,
+    source: "shopify",
+    messageCount: conversation.messages.length,
+    handoffCount: conversation.handoffRequests.length,
+  });
 
   return {
     source: "shopify" as const,
@@ -155,7 +213,8 @@ interface MessageView {
   content: string;
   confidence: number | null;
   tokensUsed: number | null;
-  createdAt: string;
+  /** null when the source value was missing or not a parseable date. */
+  createdAt: string | null;
   tools: ToolView[];
 }
 
@@ -176,7 +235,7 @@ function normalizeMessage(message: {
   confidence: number | null;
   tokensUsed: number | null;
   metadata: unknown;
-  createdAt: Date | string;
+  createdAt: Date | string | null;
   toolInvocations?: Array<{
     toolName: string;
     success: boolean;
@@ -217,14 +276,27 @@ function normalizeMessage(message: {
     content: message.content,
     confidence: message.confidence,
     tokensUsed: message.tokensUsed,
-    createdAt: new Date(message.createdAt).toISOString(),
+    createdAt: toIsoString(message.createdAt),
     tools,
   };
 }
 
-function formatDate(value: string | Date | null): string {
-  if (!value) return "-";
-  return new Date(value).toLocaleString();
+/**
+ * Loader payloads mix Prisma `Date` objects (shopify source) with ISO strings
+ * (external widget) and can carry missing or unparseable values. `toISOString()`
+ * throws `RangeError: Invalid time value` on an invalid Date, which crashed the
+ * whole detail route inside the embedded iframe. Fail soft instead.
+ */
+function toIsoString(value: string | Date | null | undefined): string | null {
+  if (value === null || value === undefined) return null;
+  const parsed = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
+}
+
+function formatDate(value: string | Date | null | undefined): string {
+  if (value === null || value === undefined) return "-";
+  const parsed = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(parsed.getTime()) ? "-" : parsed.toLocaleString();
 }
 
 function MessageBubble({ message, isEs }: { message: MessageView; isEs: boolean }) {
@@ -367,9 +439,17 @@ export default function ConversationDetailPage() {
   const isEs = useIsSpanish();
   const { source, conversation, messages, handoffs } = useLoaderData<typeof loader>();
 
-  const normalizedMessages = messages.map(normalizeMessage);
+  const normalizedMessages = (messages ?? []).map(normalizeMessage);
+  const handoffList = handoffs ?? [];
   const location = useLocation();
   const backUrl = `/app/conversations${location.search || ""}`;
+
+  console.info(`${LOG_PREFIX} render`, {
+    id: conversation?.id ?? null,
+    source,
+    messageCount: normalizedMessages.length,
+    handoffCount: handoffList.length,
+  });
 
   return (
     <Page fullWidth>
@@ -446,14 +526,14 @@ export default function ConversationDetailPage() {
           </AdminSectionCard>
         </Layout.Section>
 
-        {handoffs.length > 0 ? (
+        {handoffList.length > 0 ? (
           <Layout.Section>
             <AdminSectionCard
               title={isEs ? "Handoffs" : "Handoffs"}
               description={isEs ? "Escalaciones registradas para esta conversación." : "Escalations recorded for this conversation."}
             >
               <BlockStack gap="300">
-                {handoffs.map((handoff) => (
+                {handoffList.map((handoff) => (
                   <HandoffCard key={handoff.id} handoff={handoff} isEs={isEs} />
                 ))}
               </BlockStack>

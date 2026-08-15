@@ -136,9 +136,50 @@ function normalizeExternalConversation(conversation: {
   };
 }
 
+const LOG_PREFIX = "[conversations]";
+
+/** Strips the query string so tokens (id_token, session, host) never reach logs. */
+function safePath(rawUrl: string): string {
+  try {
+    return new URL(rawUrl).pathname;
+  } catch {
+    return "unparseable-url";
+  }
+}
+
 export async function loader({ request }: LoaderFunctionArgs) {
-  const { session } = await authenticateAdminRequest(request);
   const url = new URL(request.url);
+  const source = url.searchParams.get("source");
+
+  console.info(`${LOG_PREFIX} loader:enter`, {
+    route: "/app/conversations",
+    path: safePath(request.url),
+    source: source ?? "shopify",
+    status: url.searchParams.get("status"),
+    limit: url.searchParams.get("limit"),
+  });
+
+  try {
+    return await loadConversationsList(request, url);
+  } catch (error) {
+    if (error instanceof Response) {
+      console.error(`${LOG_PREFIX} loader:response-thrown`, {
+        source: source ?? "shopify",
+        status: error.status,
+      });
+      throw error;
+    }
+    console.error(`${LOG_PREFIX} loader:error`, {
+      source: source ?? "shopify",
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    });
+    throw error;
+  }
+}
+
+async function loadConversationsList(request: Request, url: URL) {
+  const { session } = await authenticateAdminRequest(request);
 
   const statusFilterRaw = String(url.searchParams.get("status") || "ALL").toUpperCase();
   const statusFilter: StatusFilter = STATUS_FILTERS.includes(statusFilterRaw as StatusFilter)
@@ -231,12 +272,21 @@ export async function loader({ request }: LoaderFunctionArgs) {
       .conversationRecent(shop.id, shop.domain)
       .then((result) => result?.conversations ?? [])
       .catch((error) => {
-        console.warn("[Conversations] Failed to fetch external-widget conversations", error);
+        console.warn(`${LOG_PREFIX} external-widget fetch failed`, error);
         return [];
       }),
   ]);
 
   const externalRows: ExternalConversationRow[] = externalConversations.map(normalizeExternalConversation);
+
+  console.info(`${LOG_PREFIX} loader:success`, {
+    source: "shopify+external",
+    statusFilter,
+    limit,
+    conversationCount: conversations.length,
+    externalConversationCount: externalRows.length,
+    pendingHandoffCount: pendingHandoffs.length,
+  });
 
   return {
     shop,
