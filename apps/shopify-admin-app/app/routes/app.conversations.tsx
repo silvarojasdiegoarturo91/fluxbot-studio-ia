@@ -11,7 +11,7 @@ import {
   Banner,
 } from "@shopify/polaris";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
-import { Form, useActionData, useLoaderData, useLocation, useNavigate, useNavigation } from "react-router";
+import { Form, Link, useActionData, useLoaderData, useLocation, useNavigation } from "react-router";
 import prisma from "../db.server";
 import { ensureShopForSession } from "../services/shop-context.server";
 import { authenticateAdminRequest } from "../utils/authenticate-admin.server";
@@ -363,26 +363,11 @@ export async function action({ request }: ActionFunctionArgs): Promise<Conversat
 
 export default function ConversationsPage() {
   const location = useLocation();
-  const navigate = useNavigate();
   const isEs = useIsSpanish();
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
   const { statusFilter, summary, conversations, externalConversations, pendingHandoffs } = useLoaderData<typeof loader>();
   const backToDashboardUrl = `/app${location.search || ""}`;
-  // Preserve Shopify embedded-session query params (shop, host, embedded) so
-  // Polaris Button url navigation does not drop the authenticated context and
-  // bounce to the auth login page. Uses URLSearchParams so an existing query
-  // in `path` (e.g. "?source=external") merges with location.search cleanly.
-  const withEmbeddedQuery = (path: string) => {
-    const [basePath, existingQuery = ""] = path.split("?");
-    const params = new URLSearchParams(existingQuery);
-    const locationParams = new URLSearchParams(location.search);
-    for (const [key, value] of locationParams.entries()) {
-      params.set(key, value);
-    }
-    const qs = params.toString();
-    return qs ? `${basePath}?${qs}` : basePath;
-  };
 
   const withStatusFilter = (nextFilter: StatusFilter) => {
     const params = new URLSearchParams(location.search);
@@ -417,23 +402,13 @@ export default function ConversationsPage() {
     conversation.handoffCount > 0
       ? <Badge key={`handoff-${conversation.id}`} tone="warning">{`${conversation.handoffCount} ${isEs ? "handoff" : "handoff"}`}</Badge>
       : <Badge key={`handoff-${conversation.id}`} tone="success">{isEs ? "Sin handoff" : "No handoff"}</Badge>,
-    <Button
-      key={`view-${conversation.id}`}
-      variant="plain"
-      onClick={() => {
-        // CRITICAL: preserve the FULL embedded session search (shop, host,
-        // embedded, id_token). If we drop it, Shopify cannot validate the app
-        // in the new route and shows "app not installed" (CSP default-src 'none').
-        const params = new URLSearchParams(location.search);
-        if (conversation.source === "external") params.set("source", "external");
-        navigate({
-          pathname: `/app/conversations/${conversation.id}`,
-          search: params.toString() ? `?${params.toString()}` : "",
-        });
-      }}
-    >
-      {isEs ? "Ver" : "View"}
-    </Button>,
+     <Link
+        key={`view-${conversation.id}`}
+        to={`/app/conversations/${conversation.id}${conversation.source === "external" ? "?source=external" : ""}`}
+        style={{ textDecoration: "none" }}
+      >
+        <Button variant="plain">{isEs ? "Ver" : "View"}</Button>
+      </Link>,
   ]);
 
   const handoffRows = pendingHandoffs.map((handoff) => [
