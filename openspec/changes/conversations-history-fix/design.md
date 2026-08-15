@@ -17,7 +17,7 @@ Bug 2 (detail navigation crash) is already committed; the seed script makes it v
 |---|----------|---------|--------|-----------|
 | 1 | HMAC bypass in test | A: no signature (NODE_ENV bypass) / B: sign with real secret / C: inject verifier | **A — no signature** | `verifyShopifyProxyRequest` already returns `true` when signature is absent and `NODE_ENV !== "production"`. `setup.ts` forces `NODE_ENV=test`. No new abstraction needed; production path unchanged. |
 | 2 | Shop not-found behavior | 404 (current) / auto-upsert for any proxy hit | **Auto-upsert for HMAC-verified domains** | HMAC verification guarantees Shopify signed the request → domain is real. `accessToken` is `String` (non-nullable) → store sentinel `""`. Schema allows it; the field is populated on OAuth install. Upsert keeps existing rows intact. |
-| 3 | Test strategy | Vitest + real HTTP server / Vitest calling `action()` in-process | **Call `action()` in-process** | Matches existing pattern in `widget-chat-proxy-route.test.ts`. Fast, no server needed. Prisma is **mocked** (vi.mock) to avoid DB dependency in CI; a separate db-integration test covers real DB. |
+| 3 | Test strategy | Vitest + real HTTP server / Vitest calling `action()` in-process | **Call `action()` in-process** | Matches existing pattern in `widget-chat-proxy-route.test.ts`. Fast, no server needed. Prisma is NOT mocked: the integration test runs against the real `fluxbot_dev` PostgreSQL (REQ-CONV-001: "Prisma MUST NOT be mocked"), following `database.integration.test.ts` with `afterEach` cleanup. |
 | 4 | Seed script | `tsx` CLI / `ts-node` | **`tsx`** (already in devDeps) with `prisma.$transaction` upserts | Idempotent by conversation ID. No HTTP; direct Prisma client. |
 
 ---
@@ -123,7 +123,7 @@ describe("proxy chat upsert — REQ-CONV-001 + REQ-CONV-002")
 | Layer | What | Approach |
 |-------|------|----------|
 | Unit (existing) | HMAC guard, error paths | `test/unit/routes/apps.fluxbot.chat.test.ts` — already mocks `verifyShopifyProxyRequest`; no change needed |
-| Integration (new) | Shop upsert + conversation create | `test/integration/proxy-chat-upsert.integration.test.ts` — real auth function, Prisma mocked |
+| Integration (new) | Shop upsert + conversation create | `test/integration/proxy-chat-upsert.integration.test.ts` — real auth function, real DB (Prisma not mocked) |
 | Unit (new) | `normalizeMessage` invalid date | `test/unit/routes/app.conversations.$id.test.ts` — add scenario for `null`/`undefined` `createdAt` |
 | Seed | Idempotency | Run `seed:conversations` twice, assert row counts equal |
 
