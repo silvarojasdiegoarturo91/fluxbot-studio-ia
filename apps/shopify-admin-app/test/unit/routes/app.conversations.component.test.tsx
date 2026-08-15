@@ -372,6 +372,10 @@ describe("app.conversations component", () => {
     const externalTarget = calls.find((c) => c.pathname.includes("ext-1"));
     expect(externalTarget).toBeDefined();
     expect(externalTarget?.pathname).toBe("/app/conversations/ext-1");
-    expect(externalTarget?.search).toBe("?source=external");
+    // The full embedded session search is preserved (shop/host/embedded) plus
+    // source=external, so Shopify keeps validating the app in the new route.
+    expect(externalTarget?.search).toContain("source=external");
+    expect(externalTarget?.search).toContain("shop=test-2-grow.myshopify.com");
+    expect(externalTarget?.search).toContain("embedded=1");
   });
 });

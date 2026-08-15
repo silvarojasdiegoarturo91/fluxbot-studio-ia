@@ -370,15 +370,17 @@ export default function ConversationsPage() {
     <Button
       key={`view-${conversation.id}`}
       variant="plain"
-      onClick={() =>
+      onClick={() => {
+        // CRITICAL: preserve the FULL embedded session search (shop, host,
+        // embedded, id_token). If we drop it, Shopify cannot validate the app
+        // in the new route and shows "app not installed" (CSP default-src 'none').
+        const params = new URLSearchParams(location.search);
+        if (conversation.source === "external") params.set("source", "external");
         navigate({
           pathname: `/app/conversations/${conversation.id}`,
-          // No search here: React Router preserves the embedded session params
-          // (shop/host/embedded) during SPA navigation. Passing a raw string
-          // with the id_token JWT caused a full document reload.
-          search: conversation.source === "external" ? "?source=external" : "",
-        })
-      }
+          search: params.toString() ? `?${params.toString()}` : "",
+        });
+      }}
     >
       {isEs ? "Ver" : "View"}
     </Button>,
