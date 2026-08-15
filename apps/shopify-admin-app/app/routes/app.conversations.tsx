@@ -369,6 +369,21 @@ export default function ConversationsPage() {
   const { statusFilter, summary, conversations, externalConversations, pendingHandoffs } = useLoaderData<typeof loader>();
   const backToDashboardUrl = `/app${location.search || ""}`;
 
+  // Preserve the full embedded session search (shop, host, embedded, id_token)
+  // when navigating to the conversation detail. App Bridge intercepts clicks on
+  // plain hrefs and re-writes the URL; if we drop the session params the router
+  // cannot restore the authenticated context and the iframe stops rendering.
+  const withEmbeddedQuery = (path: string) => {
+    const [basePath, existingQuery = ""] = path.split("?");
+    const params = new URLSearchParams(existingQuery);
+    const sessionParams = new URLSearchParams(location.search);
+    for (const [key, value] of sessionParams.entries()) {
+      params.set(key, value);
+    }
+    const queryString = params.toString();
+    return queryString ? `${basePath}?${queryString}` : basePath;
+  };
+
   const withStatusFilter = (nextFilter: StatusFilter) => {
     const params = new URLSearchParams(location.search);
     if (nextFilter === "ALL") {
@@ -404,7 +419,9 @@ export default function ConversationsPage() {
       : <Badge key={`handoff-${conversation.id}`} tone="success">{isEs ? "Sin handoff" : "No handoff"}</Badge>,
      <Link
         key={`view-${conversation.id}`}
-        to={`/app/conversations/${conversation.id}${conversation.source === "external" ? "?source=external" : ""}`}
+        to={withEmbeddedQuery(
+          `/app/conversations/${conversation.id}${conversation.source === "external" ? "?source=external" : ""}`,
+        )}
         style={{ textDecoration: "none" }}
       >
         <Button variant="plain">{isEs ? "Ver" : "View"}</Button>

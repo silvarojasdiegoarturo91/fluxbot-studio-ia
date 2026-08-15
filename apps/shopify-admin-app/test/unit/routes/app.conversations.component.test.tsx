@@ -370,6 +370,13 @@ describe("app.conversations component", () => {
 
     const externalLink = viewLinks.find((el) => el.getAttribute("href")?.includes("ext-1"));
     expect(externalLink).toBeDefined();
-    expect(externalLink?.getAttribute("href")).toBe("/app/conversations/ext-1?source=external");
+    // Session params (shop, embedded, host) MUST be preserved on the href so
+    // App Bridge can restore the authenticated embedded context after clicking.
+    const externalHref = externalLink?.getAttribute("href") ?? "";
+    expect(externalHref).toContain("/app/conversations/ext-1");
+    expect(externalHref).toContain("source=external");
+    expect(externalHref).toContain("shop=test-2-grow.myshopify.com");
+    expect(externalHref).toContain("embedded=1");
+    expect(externalHref).toContain("host=YWRtaW4");
   });
 });
