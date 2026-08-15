@@ -5,7 +5,7 @@
     "description": "OpenSpec local para requisitos de fluxbot-studio-ia-shopify. Los requisitos aquí son espejo de los requisitos root que afectan este repositorio.",
     "owner": "frontend_shopify",
     "status": "in-development",
-    "last_updated": "2026-08-15T11:14:02.202Z",
+    "last_updated": "2026-08-15T11:18:29.378Z",
     "source_of_truth": ".openspec.json",
     "mirror_root": "../.openspec.json"
   },
@@ -1076,6 +1076,31 @@
           "openspec/changes/conversations-history-fix/specs/proxy-chat-integration-test/spec.md",
           "openspec/changes/conversations-history-fix/tasks.md",
           "openspec/changes/conversations-history-fix/verify-report.md"
+        ],
+        "acceptance_criteria": [
+          "Documentation references remain synchronized",
+          "Agent instructions stay aligned with the latest docs",
+          "Follow-up work is tracked in OpenSpec"
+        ],
+        "dependencies": [],
+        "metrics": {
+          "quality_score": 90,
+          "completion_rate": 0,
+          "velocity": 1
+        }
+      },
+      {
+        "id": "DOC-71aca87-2026-08-15T11-18-29-378Z",
+        "title": "Review documentation update (1 files)",
+        "description": "Documentation changed in: openspec/changes/conversations-history-fix/design.md. Review and align agent instructions, references, and related docs.",
+        "priority": "medium",
+        "status": "planned",
+        "owner": "docs",
+        "components": [
+          "openspec/changes/conversations-history-fix/design.md"
+        ],
+        "source_files": [
+          "openspec/changes/conversations-history-fix/design.md"
         ],
         "acceptance_criteria": [
           "Documentation references remain synchronized",
