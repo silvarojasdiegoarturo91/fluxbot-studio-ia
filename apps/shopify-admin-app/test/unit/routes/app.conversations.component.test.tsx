@@ -104,6 +104,7 @@ vi.mock("react-router", () => ({
       { href: typeof to === "string" ? to : `${to.pathname}${to.search ?? ""}` },
       children,
     ),
+  Outlet: () => React.createElement("div", { "data-testid": "detail-outlet" }, "detail-outlet"),
   useActionData: () => actionData,
   useLoaderData: () => loaderData,
   useNavigation: () => navigationState,
@@ -378,5 +379,24 @@ describe("app.conversations component", () => {
     expect(externalHref).toContain("shop=test-2-grow.myshopify.com");
     expect(externalHref).toContain("embedded=1");
     expect(externalHref).toContain("host=YWRtaW4");
+  });
+
+  it("renders the detail child route via Outlet when the URL has a conversation id", () => {
+    // Regression: `/app/conversations/:id` is a child route rendered inside the
+    // list layout via <Outlet />. Previously the list rendered WITHOUT an
+    // Outlet, so the detail component never mounted: URL changed, loader ran
+    // (200), but the view stayed frozen on the list. This is the core bug.
+    mockUseIsSpanish.mockReturnValue(false);
+    locationState = {
+      pathname: "/app/conversations/conv-abc",
+      search: "?shop=test-2-grow.myshopify.com",
+    };
+
+    renderPage();
+
+    // The list content (stat cards / conversation table) must NOT render…
+    expect(screen.queryByText("Active now")).not.toBeInTheDocument();
+    // …and the Outlet (which React Router fills with the detail component) MUST render.
+    expect(screen.getByTestId("detail-outlet")).toBeInTheDocument();
   });
 });

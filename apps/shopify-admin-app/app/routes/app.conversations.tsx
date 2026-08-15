@@ -11,7 +11,7 @@ import {
   Banner,
 } from "@shopify/polaris";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
-import { Form, Link, useActionData, useLoaderData, useLocation, useNavigation } from "react-router";
+import { Form, Link, Outlet, useActionData, useLoaderData, useLocation, useNavigation } from "react-router";
 import prisma from "../db.server";
 import { ensureShopForSession } from "../services/shop-context.server";
 import { authenticateAdminRequest } from "../utils/authenticate-admin.server";
@@ -368,6 +368,15 @@ export default function ConversationsPage() {
   const navigation = useNavigation();
   const { statusFilter, summary, conversations, externalConversations, pendingHandoffs } = useLoaderData<typeof loader>();
   const backToDashboardUrl = `/app${location.search || ""}`;
+
+  // CRITICAL: `/app/conversations/:id` is a CHILD route of `/app/conversations`.
+  // React Router renders the child component inside the parent layout via
+  // `<Outlet />`. Without it, the detail route's loader runs (200) but the
+  // component NEVER mounts — the URL changes but the list view stays frozen.
+  const isDetailRoute = /^\/app\/conversations\/[^/]+/.test(location.pathname);
+  if (isDetailRoute) {
+    return <Outlet />;
+  }
 
   // Preserve the full embedded session search (shop, host, embedded, id_token)
   // when navigating to the conversation detail. App Bridge intercepts clicks on
