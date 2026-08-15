@@ -11,7 +11,7 @@ import {
   Banner,
 } from "@shopify/polaris";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
-import { Form, Link, useActionData, useLoaderData, useLocation, useNavigation } from "react-router";
+import { Form, useActionData, useLoaderData, useLocation, useNavigate, useNavigation } from "react-router";
 import prisma from "../db.server";
 import { ensureShopForSession } from "../services/shop-context.server";
 import { authenticateAdminRequest } from "../utils/authenticate-admin.server";
@@ -313,6 +313,7 @@ export async function action({ request }: ActionFunctionArgs): Promise<Conversat
 
 export default function ConversationsPage() {
   const location = useLocation();
+  const navigate = useNavigate();
   const isEs = useIsSpanish();
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
@@ -369,19 +370,17 @@ export default function ConversationsPage() {
     <Button
       key={`view-${conversation.id}`}
       variant="plain"
+      onClick={() =>
+        navigate({
+          pathname: `/app/conversations/${conversation.id}`,
+          // No search here: React Router preserves the embedded session params
+          // (shop/host/embedded) during SPA navigation. Passing a raw string
+          // with the id_token JWT caused a full document reload.
+          search: conversation.source === "external" ? "?source=external" : "",
+        })
+      }
     >
-      {/* Polaris 12.10 types children as string; react-router Link (Element) is
-          fine at runtime and performs SPA navigation inside the embedded iframe. */}
-      {(
-        <Link
-          to={{
-            pathname: `/app/conversations/${conversation.id}`,
-            search: conversation.source === "external" ? "?source=external" : "",
-          }}
-        >
-          {isEs ? "Ver" : "View"}
-        </Link>
-      ) as unknown as string}
+      {isEs ? "Ver" : "View"}
     </Button>,
   ]);
 
