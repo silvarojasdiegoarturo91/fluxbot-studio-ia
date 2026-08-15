@@ -5,7 +5,7 @@
     "description": "OpenSpec local para requisitos de fluxbot-studio-ia-shopify. Los requisitos aquí son espejo de los requisitos root que afectan este repositorio.",
     "owner": "frontend_shopify",
     "status": "in-development",
-    "last_updated": "2026-08-15T11:27:31.000Z",
+    "last_updated": "2026-08-15T13:04:43.676Z",
     "source_of_truth": ".openspec.json",
     "mirror_root": "../.openspec.json"
   },
@@ -1115,6 +1115,35 @@
           "velocity": 1
         },
         "completed_date": "2026-08-15"
+      },
+      {
+        "id": "DOC-65898a1-2026-08-15T13-04-43-676Z",
+        "title": "Review documentation update (3 files)",
+        "description": "Documentation changed in: openspec/changes/conversations-history-fix/archive-report.md, openspec/specs/conversations-history/spec.md, openspec/specs/proxy-chat-integration-test/spec.md. Review and align agent instructions, references, and related docs.",
+        "priority": "medium",
+        "status": "planned",
+        "owner": "docs",
+        "components": [
+          "openspec/changes/conversations-history-fix/archive-report.md",
+          "openspec/specs/conversations-history/spec.md",
+          "openspec/specs/proxy-chat-integration-test/spec.md"
+        ],
+        "source_files": [
+          "openspec/changes/conversations-history-fix/archive-report.md",
+          "openspec/specs/conversations-history/spec.md",
+          "openspec/specs/proxy-chat-integration-test/spec.md"
+        ],
+        "acceptance_criteria": [
+          "Documentation references remain synchronized",
+          "Agent instructions stay aligned with the latest docs",
+          "Follow-up work is tracked in OpenSpec"
+        ],
+        "dependencies": [],
+        "metrics": {
+          "quality_score": 90,
+          "completion_rate": 0,
+          "velocity": 1
+        }
       }
     ],
     "privacy": [
