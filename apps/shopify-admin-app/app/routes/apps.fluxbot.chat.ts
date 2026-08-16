@@ -504,11 +504,21 @@ export async function action({ request }: ActionFunctionArgs) {
     return json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // Hoisted for the catch block: persistence-on-failure needs these even when
+  // the failure happens before the happy-path variables are assigned.
+  let userMessagePersisted = false;
+  type ConversationWithMessages = Awaited<ReturnType<typeof prisma.conversation.findFirst>> & {
+    messages?: Array<{ id: string; role: string; content: string }>;
+  };
+  let conversation: ConversationWithMessages | null = null;
+  let message = "";
+  let traceId = "";
+
   try {
     const body = await request.json();
 
     // W7 — Extract traceId from widget header or body
-    const traceId =
+    traceId =
       request.headers.get("X-FluxBot-Trace-Id") ||
       (body && typeof body.traceId === "string" ? body.traceId : "") ||
       `PROXY-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
@@ -517,9 +527,13 @@ export async function action({ request }: ActionFunctionArgs) {
       traceId,
       url: request.url,
       method: request.method,
+      contentType: request.headers.get("content-type"),
+      bodyKeys: Object.keys(body),
+      messagePreview: typeof body.message === "string" ? body.message.slice(0, 40) : null,
+      conversationId: typeof body.conversationId === "string" ? body.conversationId : null,
+      sessionId: typeof body.sessionId === "string" ? body.sessionId : null,
     });
     const {
-      message,
       conversationId,
       visitorId,
       customerId,
@@ -527,6 +541,7 @@ export async function action({ request }: ActionFunctionArgs) {
       locale = "es",
       context = {},
     } = body as Record<string, any>;
+    message = typeof body.message === "string" ? body.message : "";
 
     const url = new URL(request.url);
     // Shopify injects the shop domain as a query param on proxied requests.
@@ -565,7 +580,7 @@ export async function action({ request }: ActionFunctionArgs) {
     //   1. Try the explicit conversationId (must belong to this shop).
     //   2. Fall back to the sessionId for this shop (recovery after a stale id).
     //   3. If neither exists, create a new conversation.
-    let conversation;
+    conversation = null;
     if (conversationId) {
       conversation = await prisma.conversation.findUnique({
         where: { id: conversationId },
@@ -678,6 +693,15 @@ export async function action({ request }: ActionFunctionArgs) {
       conversationId: conversationId || conversation.id,
       gatewayType: gateway.constructor.name,
     });
+
+    // ALWAYS persist the user message BEFORE calling the backend. If the LLM
+    // backend fails (timeout, 500, provider outage), the user's message must
+    // still be saved so the conversation history is never lost.
+    await prisma.conversationMessage.create({
+      data: { conversationId: conversation.id, role: "USER", content: message },
+    });
+    userMessagePersisted = true;
+
     const chatResponse = await gateway.chat(
       {
         message,
@@ -723,10 +747,8 @@ export async function action({ request }: ActionFunctionArgs) {
       returnedProductCount: productRecommendations.length,
     });
 
-    // Persist messages
-    await prisma.conversationMessage.create({
-      data: { conversationId: conversation.id, role: "USER", content: message },
-    });
+    // Persist the assistant message (the user message was already saved
+    // before the backend call so it survives backend failures).
     if (resolvedMessage) {
       const assistantMetadata = buildAssistantMetadata(chatResponse, productRecommendations);
       const traceMetadata = assistantMetadata
@@ -771,9 +793,40 @@ export async function action({ request }: ActionFunctionArgs) {
     }, undefined, traceId);
   } catch (error) {
     console.error("[ProxyChat] Error:", error);
+
+    // Best-effort persistence on failure: if a conversation was created and the
+    // user message wasn't already saved (failure before the backend call), save
+    // it now plus a graceful assistant fallback. Never let a backend/LLM outage
+    // silently drop the conversation from history.
+    try {
+      if (conversation && !userMessagePersisted) {
+        await prisma.conversationMessage.create({
+          data: { conversationId: conversation.id, role: "USER", content: message },
+        }).catch(() => {});
+      }
+      if (conversation) {
+        const fallbackMessage = safeFallbackMessage("unknown");
+        await prisma.conversationMessage.create({
+          data: {
+            conversationId: conversation.id,
+            role: "ASSISTANT",
+            content: fallbackMessage,
+            confidence: 0.35,
+            metadata: { traceId, fallback: true },
+          },
+        }).catch(() => {});
+        await prisma.conversation.update({
+          where: { id: conversation.id },
+          data: { lastMessageAt: new Date() },
+        }).catch(() => {});
+      }
+    } catch {
+      // Persistence must never break the user-facing fallback response.
+    }
+
     return json({
       success: true,
-      conversationId: `conv-${Date.now()}`,
+      conversationId: conversation?.id ?? `conv-${Date.now()}`,
       message: safeFallbackMessage("unknown"),
       confidence: 0.35,
       requiresEscalation: false,

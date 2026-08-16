@@ -1,0 +1,56 @@
+schema: spec-driven
+
+# Project context — shown to AI when creating SDD artifacts.
+context: |
+  Stack: React Router 7 + React 18 + TypeScript 5.9 (Vite 6), Shopify Polaris 12, Prisma 5 (schema at infra/prisma), PostgreSQL test on 5433, Redis test on 6380, Playwright 1.59.
+  Monorepo workspaces: apps/shopify-admin-app, apps/storefront-widget, services/*, packages/*.
+  App identity: local/dev = fluxbot-studio (client 8c36112e98ce36be869eb0dc5efdd572); production = fluxbot-studio-ia (client 3e33f15eca7b32e62ea7137311172df5). Never deploy the production manifest with the local app.
+  Frontend calls the IA backend via HTTP (contracts/fluxbot-ia-api.v1.yaml, generated client app/generated/ia-api).
+  Git hooks mandatory (npm run githooks:install); every change ends with npm run qa:gate green.
+  Widgets: local storefront uses /apps/fluxbot/*; external SDK uses http://localhost:3004/chat-widget.js.
+
+strict_tdd: true
+
+testing:
+  runner: vitest
+  test_command: npm --workspace @fluxbot/shopify-admin-app run test
+  e2e_command: npm --workspace @fluxbot/shopify-admin-app run test:e2e
+  qa_gate: npm run qa:gate
+  layers:
+    unit: vitest + @testing-library/react (jsdom) — test/unit, test/components, app/routes tests
+    integration: vitest + real Postgres test (5433) / Redis (6380) via docker-compose.test.yml — test/integration, test/contracts
+    e2e: Playwright (chromium) — tests/e2e/ on port 3002
+  coverage: vitest run --coverage (v8 provider, text/json/html)
+  quality:
+    lint: eslint (cache) — npm --workspace @fluxbot/shopify-admin-app run lint
+    typecheck: react-router typegen + tsc --noEmit — npm --workspace @fluxbot/shopify-admin-app run typecheck
+    format: prettier (available as devDependency, no root format script)
+
+rules:
+  proposal:
+    - Include rollback plan for risky changes.
+    - Scope to a single repo unless cross-repo impact is proven (monorepo governance root).
+    - Respect app identity guards: never target production with local app config.
+  specs:
+    - Use Given/When/Then for scenarios.
+    - Use RFC 2119 keywords (MUST, SHALL, SHOULD, MAY).
+    - If touching catalog sync or widgets, cover express.json, accessToken, throttle, X-Shop-Domain, data, errors[] and absence of [object Object].
+  design:
+    - Include sequence diagrams for complex flows.
+    - Document architecture decisions with rationale; register ADRs via the architect skill.
+  tasks:
+    - Group by phase, use hierarchical numbering.
+    - Keep tasks completable in one session.
+  apply:
+    guidelines:
+      - Follow existing code patterns in apps/shopify-admin-app.
+      - Do not touch uncommitted local files outside the change scope.
+    tdd: true
+    test_command: npm --workspace @fluxbot/shopify-admin-app run test
+  verify:
+    test_command: npm --workspace @fluxbot/shopify-admin-app run test
+    e2e_command: npm --workspace @fluxbot/shopify-admin-app run test:e2e
+    build_command: npm --workspace @fluxbot/shopify-admin-app run build
+    coverage_threshold: 0
+  archive:
+    - Warn before merging destructive deltas.

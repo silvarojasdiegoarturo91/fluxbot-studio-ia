@@ -22,3 +22,5 @@ test-results/
 
 # Local-only Shopify app config; different environments use different app URLs.
 apps/shopify-admin-app/shopify.app.toml
+# Local AI runtime state
+.atl/
